@@ -7,6 +7,15 @@ export default defineConfig({
     },
     exports: true,
   },
+  test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.ts"],
+      exclude: ["dist/**", "tests/**"],
+    },
+  },
   lint: {
     options: {
       typeAware: true,

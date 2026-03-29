@@ -65,6 +65,14 @@ vp run check
 vp run test
 ```
 
+- Run package tests with per-package coverage reports:
+
+```bash
+vp run test:coverage
+```
+
+Each tested package writes its own report to a local `coverage/` directory such as `apps/cli/coverage/` or `packages/core/coverage/`.
+
 - Build the monorepo:
 
 ```bash

@@ -48,6 +48,12 @@ Grimoire answers the question: **"How does an AI agent get oriented in a project
 | **Embedding backend** | Ollama, OpenAI, Anthropic, Cohere | For users who prefer cloud embeddings or already run Ollama |
 | **Export formats**    | JSON, CSV, Markdown summary       | For integration with other tools                            |
 
+## Development Notes
+
+- Workspace tests run via `vp run -r test`.
+- Per-package coverage reports run via `vp run test:coverage`.
+- Coverage reports are generated separately for each tested package under that package's `coverage/` directory.
+
 ---
 
 ## Architecture

@@ -10,11 +10,13 @@
     "ready": "vp run check && vp run -r test && vp run -r build",
     "build": "vp run -r build",
     "test": "vp run -r test",
+    "test:coverage": "vp run -r test --coverage",
     "grimoire": "vp run grimoire-ai#build && node apps/cli/dist/index.mjs",
     "dev": "vp run website#dev",
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
     "vite-plus": "catalog:"
   },
   "engines": {
