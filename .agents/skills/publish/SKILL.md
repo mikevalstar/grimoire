@@ -1,6 +1,7 @@
 ---
 name: publish
-internal: true
+metadata:
+  internal: true
 description: >
   Publish @grimoire-ai/core and @grimoire-ai/cli to npm. Use this skill whenever the user
   says "publish", "release", "bump version", "npm publish", or wants to cut a new version
