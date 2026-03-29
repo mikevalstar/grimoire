@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code and other coding agents when working with code in this repository.
 
 ## Development
 
@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Conventional Commits
 - PLAN.md should always be updated when requirements change
 - Documentation generally is a first class thing; always update docs after doing work
+- We like functional style coding; so we can have composition to separate file/db access from the business logic
 
 ## Project Overview
 

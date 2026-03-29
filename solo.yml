@@ -1,0 +1,11 @@
+# Visit https://soloterm.com to learn more
+name: grimoire
+icon: null
+processes:
+  Regen Test DB:
+    command: ./scripts/seed-test.sh
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
