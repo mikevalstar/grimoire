@@ -59,6 +59,8 @@ vp fmt
 vp check
 ```
 
+The root check is expected to pass before a package build; the CLI resolves the core workspace package from source for type-checking in CI.
+
 - Run package tests:
 
 ```bash
