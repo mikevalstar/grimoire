@@ -138,26 +138,34 @@ The `.skills/` directory is committed to git so that it's available to any agent
 
 All documents use YAML frontmatter followed by freeform markdown body content. The body is the primary content that gets embedded for semantic search.
 
-### Changelog & Comments
+### Comments & Changelog
 
-Every document includes a `## Changelog` section at the bottom, separated by a horizontal rule (`---`). Changelog entries serve two purposes:
+Every document includes two sections at the bottom, separated by horizontal rules (`---`):
 
-1. **Change descriptions** — plain text entries recording what changed and when.
-2. **Comments** — blockquoted entries (`>`) for discussion, questions, and commentary.
+1. **`## Comments`** — blockquoted entries (`>`) for discussion, questions, and commentary.
+2. **`## Changelog`** — plain text entries recording what changed and when.
 
-Both humans and AI agents can append changelog entries. The author field can be a person's name, an agent identifier (e.g., `claude-code`), or omitted. The changelog is part of the markdown body and is included in the embedded content for semantic search — meaning you can search for discussions and decisions captured in comments.
+Comments come **before** the Changelog. Both use the same timestamped entry format. Both humans and AI agents can append entries. The author field can be a person's name, an agent identifier (e.g., `claude-code`), or omitted. Both sections are part of the markdown body and are included in the embedded content for semantic search — meaning you can search for discussions and decisions captured in comments.
 
-Changelog entry format:
+Entry format:
 
 ```markdown
-### YYYY-MM-DD | author
+---
+
+## Comments
+
+### YYYY-MM-DD HH:mm | author
+
+> This is a comment or question.
+> Blockquoted entries are discussion/commentary.
+
+---
+
+## Changelog
+
+### YYYY-MM-DD HH:mm | author
 
 Description of change.
-
-### YYYY-MM-DD | author
-
-> This is a comment or question, not a change description.
-> Blockquoted entries are discussion/commentary.
 ```
 
 ### Overview (`overview.md`)
@@ -182,13 +190,17 @@ This is the document an AI agent reads first to understand "what is this project
 
 ---
 
+## Comments
+
+### 2026-03-29 10:30 | mike
+> Decided to prioritize the API layer first since most users will be mobile.
+
+---
+
 ## Changelog
 
-### 2026-03-29 | mike
+### 2026-03-29 10:00 | mike
 Initial project overview created. Defined scope and target users.
-
-### 2026-03-29 | mike
-> Decided to prioritize the API layer first since most users will be mobile.
 ```
 
 ### Feature (`features/*.md`)
@@ -216,9 +228,11 @@ decisions: # links to decision IDs
 Freeform markdown describing the feature.
 User stories, scope, acceptance criteria at the feature level, mockups, etc.
 ---
+## Comments
+---
 ## Changelog
 
-### 2026-03-29 | mike
+### 2026-03-29 10:00 | mike
 Feature defined. Initial scope includes Google and GitHub OAuth providers.
 ```
 
@@ -249,13 +263,17 @@ technical constraints, API contracts, data models, etc.
 
 ---
 
+## Comments
+
+### 2026-03-30 09:15 | mike
+> Should we support SAML as well, or is OAuth sufficient for v1?
+
+---
+
 ## Changelog
 
-### 2026-03-29 | mike
+### 2026-03-29 10:00 | mike
 Draft requirement created from feature discussion.
-
-### 2026-03-30 | mike
-> Should we support SAML as well, or is OAuth sufficient for v1?
 ```
 
 ### Task (`tasks/*.md`)
@@ -284,13 +302,17 @@ This is what an AI agent reads to understand "what specifically do I need to do.
 
 ---
 
+## Comments
+
+---
+
 ## Changelog
 
-### 2026-03-29 | mike
-Task created. Google OAuth chosen as first provider.
-
-### 2026-03-30 | claude-code
+### 2026-03-30 11:00 | claude-code
 Started implementation. Created `src/auth/google.ts` and added env vars to `.env.example`.
+
+### 2026-03-29 10:00 | mike
+Task created. Google OAuth chosen as first provider.
 ```
 
 ### Decision (`decisions/*.md`)
@@ -332,16 +354,20 @@ What else did we evaluate and why did we reject it?
 
 ---
 
-## Changelog
+## Comments
 
-### 2026-03-29 | mike
-ADR proposed after session management discussion.
-
-### 2026-03-29 | mike
+### 2026-03-29 14:00 | mike
 > Revisited after reading the Clerk docs — their approach to short-lived JWTs + refresh is worth noting.
 
-### 2026-03-30 | mike
+---
+
+## Changelog
+
+### 2026-03-30 10:00 | mike
 Status changed to accepted. Team aligned on JWT approach.
+
+### 2026-03-29 10:00 | mike
+ADR proposed after session management discussion.
 ```
 
 ---

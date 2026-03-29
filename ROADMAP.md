@@ -33,7 +33,7 @@ The minimum to start using Grimoire on itself.
 - [x] `grimoire <type> list` — list documents of a type (scans filesystem)
 - [x] `grimoire <type> update <id>` — update frontmatter fields and body
 - [x] `grimoire <type> delete <id>` — archive a document
-- [ ] `grimoire log` / `grimoire comment` — append changelog entries
+- [x] `grimoire log` / `grimoire comment` — append changelog/comment entries (separate sections, timestamped)
 - [ ] `grimoire validate` — check frontmatter schemas, required fields
 - [x] JSON output for all commands (AI mode default)
 - [ ] `--interactive` flag scaffolding (human-readable output)
