@@ -1,0 +1,22 @@
+{
+  "name": "grimoire-ai",
+  "version": "0.0.1",
+  "description": "Local-first, AI-native requirements management CLI",
+  "bin": {
+    "grimoire": "./dist/index.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --out-dir dist",
+    "dev": "tsdown src/index.ts --format esm --out-dir dist --watch"
+  },
+  "dependencies": {
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "latest",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
