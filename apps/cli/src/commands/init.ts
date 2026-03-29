@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { init, initOptionsSchema } from "@grimoire-ai/core";
+import { printResult, printError } from "../output.ts";
 
 export function registerInitCommand(program: Command): void {
   program
@@ -18,21 +19,18 @@ export function registerInitCommand(program: Command): void {
 
       if (!parsed.success) {
         const missing = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
-        console.error(
-          JSON.stringify({
-            error: `Invalid options: missing ${missing}`,
-            hint: 'Usage: grimoire init --name "My Project"',
-          }),
+        printError(
+          `Invalid options: missing ${missing}`,
+          'Usage: grimoire init --name "My Project"',
         );
-        process.exitCode = 1;
         return;
       }
 
       try {
         const result = await init(parsed.data);
 
-        console.log(
-          JSON.stringify({
+        printResult(
+          {
             success: true,
             grimoire_dir: result.grimoireDir,
             created: result.created,
@@ -40,15 +38,21 @@ export function registerInitCommand(program: Command): void {
             agents_file_updated: result.agentsFileUpdated,
             agents_file: result.agentsFilePath,
             warnings: result.warnings,
-          }),
+          },
+          (data) => {
+            const d = data as typeof result;
+            const lines = [`Initialized grimoire in ${d.grimoireDir}`];
+            if (d.created.length > 0) lines.push(`  Created: ${d.created.join(", ")}`);
+            if (d.gitignoreUpdated) lines.push("  Updated .gitignore");
+            if (d.agentsFileUpdated) lines.push(`  Updated ${d.agentsFilePath}`);
+            if (d.warnings.length > 0) {
+              for (const w of d.warnings) lines.push(`  Warning: ${w}`);
+            }
+            return lines.join("\n");
+          },
         );
       } catch (err) {
-        console.error(
-          JSON.stringify({
-            error: err instanceof Error ? err.message : String(err),
-          }),
-        );
-        process.exitCode = 1;
+        printError(err instanceof Error ? err.message : String(err));
       }
     });
 }

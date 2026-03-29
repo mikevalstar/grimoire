@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { overview } from "@grimoire-ai/core";
+import { printResult, printError } from "../output.ts";
 
 export function registerOverviewCommand(program: Command): void {
   program
@@ -15,14 +16,16 @@ export function registerOverviewCommand(program: Command): void {
           cwd: globalOpts.cwd,
         });
 
-        console.log(JSON.stringify(result));
+        printResult(result, (data) => {
+          const d = data as Record<string, unknown>;
+          const lines: string[] = [];
+          if (d.title) lines.push(`# ${String(d.title)}`);
+          if (d.description) lines.push(String(d.description));
+          if (d.body) lines.push("", String(d.body));
+          return lines.join("\n");
+        });
       } catch (err) {
-        console.error(
-          JSON.stringify({
-            error: err instanceof Error ? err.message : String(err),
-          }),
-        );
-        process.exitCode = 1;
+        printError(err instanceof Error ? err.message : String(err));
       }
     });
 }

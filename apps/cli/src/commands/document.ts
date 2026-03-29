@@ -7,20 +7,23 @@ import {
   deleteDocument,
   type DocumentType,
 } from "@grimoire-ai/core";
+import { printResult, printError, getFormat } from "../output.ts";
 
 const DOCUMENT_TYPES = ["feature", "requirement", "task", "decision"] as const;
 
-function handleError(err: unknown): void {
-  console.error(
-    JSON.stringify({
-      error: err instanceof Error ? err.message : String(err),
-    }),
-  );
-  process.exitCode = 1;
-}
-
 function collectRepeatable(value: string, previous: string[]): string[] {
   return [...previous, value];
+}
+
+function formatDocument(d: Record<string, unknown>): string {
+  const lines: string[] = [];
+  if (d.id) lines.push(`[${String(d.id)}]`);
+  if (d.title) lines.push(`  ${String(d.title)}`);
+  if (d.status) lines.push(`  Status: ${String(d.status)}`);
+  if (d.priority) lines.push(`  Priority: ${String(d.priority)}`);
+  if (Array.isArray(d.tags) && d.tags.length > 0) lines.push(`  Tags: ${d.tags.join(", ")}`);
+  if (d.body) lines.push("", String(d.body));
+  return lines.join("\n");
 }
 
 function registerTypeCommands(program: Command, type: DocumentType): void {
@@ -73,9 +76,12 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             cwd: globalOpts.cwd,
           });
 
-          console.log(JSON.stringify({ success: true, ...result }));
+          printResult({ success: true, ...result }, (data) => {
+            const d = data as Record<string, unknown>;
+            return `Created ${type}: ${String(d.id)} (${String(d.path)})`;
+          });
         } catch (err) {
-          handleError(err);
+          printError(err instanceof Error ? err.message : String(err));
         }
       },
     );
@@ -98,9 +104,9 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
           cwd: globalOpts.cwd,
         });
 
-        console.log(JSON.stringify(result));
+        printResult(result, (data) => formatDocument(data as Record<string, unknown>));
       } catch (err) {
-        handleError(err);
+        printError(err instanceof Error ? err.message : String(err));
       }
     });
 
@@ -137,9 +143,21 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             cwd: globalOpts.cwd,
           });
 
-          console.log(JSON.stringify(result));
+          printResult(result, (data) => {
+            const d = data as { type: string; count: number; documents: Record<string, unknown>[] };
+            if (d.documents.length === 0) return `No ${type} documents found.`;
+            return d.documents
+              .map((item) => {
+                const parts = [String(item.id)];
+                if (item.title) parts.push(` ${String(item.title)}`);
+                if (item.status) parts.push(` [${String(item.status)}]`);
+                if (item.priority) parts.push(` (${String(item.priority)})`);
+                return parts.join("");
+              })
+              .join("\n");
+          });
         } catch (err) {
-          handleError(err);
+          printError(err instanceof Error ? err.message : String(err));
         }
       },
     );
@@ -190,9 +208,12 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             cwd: globalOpts.cwd,
           });
 
-          console.log(JSON.stringify({ success: true, ...result }));
+          printResult({ success: true, ...result }, (data) => {
+            const d = data as Record<string, unknown>;
+            return `Updated ${type}: ${String(d.id)}`;
+          });
         } catch (err) {
-          handleError(err);
+          printError(err instanceof Error ? err.message : String(err));
         }
       },
     );
@@ -202,19 +223,15 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
     .command("delete <id>")
     .description(`Delete a ${type} document (moves to .archive/)`)
     .option("--hard", "Permanently delete (no archive)")
-    .option("--confirm", "Skip confirmation (required in AI mode)")
+    .option("--confirm", "Skip confirmation (required in non-interactive mode)")
     .action(async (id: string, opts: { hard?: boolean; confirm?: boolean }) => {
       const globalOpts = program.opts<{ cwd?: string }>();
 
-      // In AI mode (non-interactive), require --confirm
-      if (!opts.confirm) {
-        console.error(
-          JSON.stringify({
-            error: "Delete requires --confirm flag in AI mode",
-            hint: `Usage: grimoire ${type} delete ${id} --confirm`,
-          }),
+      if (!opts.confirm && getFormat() === "json") {
+        printError(
+          "Delete requires --confirm flag in non-interactive mode",
+          `Usage: grimoire ${type} delete ${id} --confirm`,
         );
-        process.exitCode = 1;
         return;
       }
 
@@ -226,9 +243,12 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
           cwd: globalOpts.cwd,
         });
 
-        console.log(JSON.stringify({ success: true, ...result }));
+        printResult({ success: true, ...result }, (data) => {
+          const d = data as Record<string, unknown>;
+          return `Deleted ${type}: ${id}${d.archived ? " (archived)" : ""}`;
+        });
       } catch (err) {
-        handleError(err);
+        printError(err instanceof Error ? err.message : String(err));
       }
     });
 }
