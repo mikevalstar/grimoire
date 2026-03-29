@@ -118,6 +118,16 @@ export const overviewOptionsSchema = z.object({
   cwd: z.string().optional(),
 });
 
+export const updateOverviewOptionsSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  addTag: z.array(z.string()).default([]),
+  removeTag: z.array(z.string()).default([]),
+  body: z.string().optional(),
+  append: z.string().optional(),
+  cwd: z.string().optional(),
+});
+
 export const createDocumentOptionsSchema = z.object({
   type: z.enum(["feature", "requirement", "task", "decision"]),
   title: z.string(),
@@ -199,6 +209,7 @@ export type TaskFrontmatter = z.infer<typeof taskFrontmatterSchema>;
 export type DecisionFrontmatter = z.infer<typeof decisionFrontmatterSchema>;
 export type InitOptions = z.infer<typeof initOptionsSchema>;
 export type OverviewOptions = z.infer<typeof overviewOptionsSchema>;
+export type UpdateOverviewOptions = z.infer<typeof updateOverviewOptionsSchema>;
 export type CreateDocumentOptions = z.infer<typeof createDocumentOptionsSchema>;
 export type GetDocumentOptions = z.infer<typeof getDocumentOptionsSchema>;
 export type ListDocumentsOptions = z.infer<typeof listDocumentsOptionsSchema>;

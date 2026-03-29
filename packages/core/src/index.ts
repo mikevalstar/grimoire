@@ -12,8 +12,8 @@ export function getVersion(): string {
 export { init } from "./init.ts";
 export type { InitResult } from "./init.ts";
 
-export { overview } from "./overview.ts";
-export type { OverviewResult } from "./overview.ts";
+export { overview, updateOverview } from "./overview.ts";
+export type { OverviewResult, UpdateOverviewResult } from "./overview.ts";
 
 export {
   createDocument,

@@ -33,13 +33,14 @@ Read the current version from `packages/core/package.json`. Then compute the new
 - **major**: `0.1.1` -> `1.0.0`
 - **explicit**: use the version string as-is
 
-### 2. Update version in all three locations
+### 2. Update version in all four locations
 
 These must all match. Do not skip any of them:
 
 1. `packages/core/package.json` — the `"version"` field
 2. `apps/cli/package.json` — the `"version"` field
 3. `packages/core/src/index.ts` — find `export const VERSION = "..."` and replace the string literal with the new version. This is the version reported by `grimoire --version`, so it must stay in sync.
+4. `packages/core/tests/index.test.ts` — find the `toBe("...")` assertions for `VERSION` and `getVersion()` and update both to the new version string. This test validates the version constant matches expectations.
 
 ### 3. Build
 
