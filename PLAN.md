@@ -77,21 +77,21 @@ project-root/
 ├── .grimoire/
 │   ├── overview.md              # Single project overview document
 │   ├── features/
-│   │   ├── user-auth.md
-│   │   ├── payment-processing.md
-│   │   └── notification-system.md
+│   │   ├── feat-a3f2k-user-authentication.md
+│   │   ├── feat-b7x9m-payment-processing.md
+│   │   └── feat-c2q4n-notification-system.md
 │   ├── requirements/
-│   │   ├── req-001-oauth-login.md
-│   │   ├── req-002-session-mgmt.md
-│   │   └── req-003-role-permissions.md
+│   │   ├── req-d5h8p-oauth-20-login-flow.md
+│   │   ├── req-e1j3r-session-management.md
+│   │   └── req-f6k2s-role-permissions.md
 │   ├── tasks/
-│   │   ├── task-001-setup-oauth-provider.md
-│   │   ├── task-002-jwt-token-flow.md
-│   │   └── task-003-write-auth-tests.md
+│   │   ├── task-g9m4t-setup-oauth-provider.md
+│   │   ├── task-h3n7v-jwt-token-flow.md
+│   │   └── task-j8p1w-write-auth-tests.md
 │   ├── decisions/
-│   │   ├── adr-001-use-jwt-over-sessions.md
-│   │   ├── adr-002-postgres-over-mongo.md
-│   │   └── adr-003-tanstack-over-nextjs.md
+│   │   ├── adr-k2q5x-use-jwt-over-sessions.md
+│   │   ├── adr-l6r8y-postgres-over-mongo.md
+│   │   └── adr-m4s3z-tanstack-over-nextjs.md
 │   ├── .skills/                 # AI agent skill files (copied on init)
 │   │   ├── OVERVIEW.md
 │   │   ├── READING.md
@@ -189,7 +189,8 @@ Initial project overview created. Defined scope and target users.
 
 ```yaml
 ---
-id: feat-user-auth
+id: feat-a3f2k-user-authentication
+uid: a3f2k
 title: "User Authentication"
 type: feature
 status: in-progress # proposed | in-progress | complete | deprecated
@@ -198,11 +199,11 @@ created: 2026-03-29
 updated: 2026-03-29
 tags: [security, users]
 requirements: # links to requirement IDs
-  - req-001-oauth-login
-  - req-002-session-mgmt
-  - req-003-role-permissions
+  - req-d5h8p-oauth-20-login-flow
+  - req-e1j3r-session-management
+  - req-f6k2s-role-permissions
 decisions: # links to decision IDs
-  - adr-001-use-jwt-over-sessions
+  - adr-k2q5x-use-jwt-over-sessions
 ---
 # User Authentication
 
@@ -219,18 +220,19 @@ Feature defined. Initial scope includes Google and GitHub OAuth providers.
 
 ```yaml
 ---
-id: req-001-oauth-login
+id: req-d5h8p-oauth-20-login-flow
+uid: d5h8p
 title: "OAuth 2.0 Login Flow"
 type: requirement
 status: draft              # draft | approved | in-progress | done | rejected
 priority: high
-feature: feat-user-auth    # parent feature ID
+feature: feat-a3f2k-user-authentication  # parent feature ID
 created: 2026-03-29
 updated: 2026-03-29
 tags: [oauth, login, security]
 tasks:                     # links to task IDs
-  - task-001-setup-oauth-provider
-  - task-002-jwt-token-flow
+  - task-g9m4t-setup-oauth-provider
+  - task-h3n7v-jwt-token-flow
 depends_on: []             # other requirement IDs this depends on
 ---
 
@@ -254,13 +256,14 @@ Draft requirement created from feature discussion.
 
 ```yaml
 ---
-id: task-001-setup-oauth-provider
+id: task-g9m4t-setup-oauth-provider
+uid: g9m4t
 title: "Configure OAuth Provider (Google)"
 type: task
 status: todo               # todo | in-progress | done | blocked | cancelled
 priority: high
-requirement: req-001-oauth-login   # parent requirement ID
-feature: feat-user-auth            # grandparent feature (denormalized for convenience)
+requirement: req-d5h8p-oauth-20-login-flow  # parent requirement ID
+feature: feat-a3f2k-user-authentication     # grandparent feature (denormalized for convenience)
 assignee: ""                       # optional
 created: 2026-03-29
 updated: 2026-03-29
@@ -288,7 +291,8 @@ Started implementation. Created `src/auth/google.ts` and added env vars to `.env
 
 ```yaml
 ---
-id: adr-001-use-jwt-over-sessions
+id: adr-k2q5x-use-jwt-over-server-side-sessions
+uid: k2q5x
 title: "Use JWT Over Server-Side Sessions"
 type: decision
 status: accepted           # proposed | accepted | rejected | superseded | deprecated
@@ -297,7 +301,7 @@ created: 2026-03-29
 updated: 2026-03-29
 tags: [auth, architecture, security]
 features:                  # features this decision affects
-  - feat-user-auth
+  - feat-a3f2k-user-authentication
 supersedes: ""             # ID of decision this replaces
 superseded_by: ""          # ID of decision that replaced this
 ---
@@ -520,9 +524,9 @@ grimoire comment <id> <message>        Shorthand for `grimoire log --comment`
     --author <name>                    Author name
 ```
 
-Example: `grimoire log task-001 "Implemented OAuth flow. Added google.ts and updated env vars." --author claude-code`
+Example: `grimoire log g9m4t "Implemented OAuth flow. Added google.ts and updated env vars." --author claude-code`
 
-Example: `grimoire comment req-001 "Should we support SAML as well?" --author claude-code`
+Example: `grimoire comment d5h8p "Should we support SAML as well?" --author claude-code`
 
 #### Relationships & Graph
 
@@ -613,8 +617,9 @@ sync:
   watch: false # file watcher for live sync (when UI is running)
 
 ids:
-  auto_generate: true # generate IDs from title slugs
+  auto_generate: true # generate IDs with nanoid + title slugs (e.g., feat-a3f2k-user-auth)
   prefix_by_type: true # e.g., feat-, req-, task-, adr-
+  uid_length: 5 # length of the nanoid portion (lowercase alphanumeric)
 ```
 
 ---

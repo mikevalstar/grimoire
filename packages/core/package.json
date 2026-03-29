@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "gray-matter": "catalog:",
+    "nanoid": "catalog:",
     "zod": "catalog:",
     "zod-matter": "catalog:"
   },

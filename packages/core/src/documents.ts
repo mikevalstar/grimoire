@@ -1,5 +1,6 @@
 import { mkdir, readdir, writeFile, rename, rm, access } from "node:fs/promises";
 import { join } from "node:path";
+import { customAlphabet } from "nanoid";
 import { readDocument } from "./frontmatter.ts";
 import {
   type DocumentType,
@@ -63,6 +64,52 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+/**
+ * Resolve a document identifier (full ID, uid, or partial match) to a full ID.
+ * Scans the type directory for a matching file.
+ * Accepts: full ID ("feat-x7kq2-user-auth"), uid only ("x7kq2"), or type-prefixed uid ("feat-x7kq2").
+ */
+export async function resolveDocumentId(
+  cwd: string,
+  type: DocumentType,
+  input: string,
+): Promise<string> {
+  const grimoireDir = join(cwd, GRIMOIRE_DIR);
+  const typeDir = join(grimoireDir, TYPE_DIRS[type]);
+
+  let files: string[];
+  try {
+    files = (await readdir(typeDir)).filter((f) => f.endsWith(".md"));
+  } catch {
+    throw new Error(
+      "No .grimoire/ directory found. Run 'grimoire init' to initialize your project.",
+    );
+  }
+
+  // Exact match first (input is the full ID)
+  if (files.includes(`${input}.md`)) {
+    return input;
+  }
+
+  // Match by uid: scan frontmatter for uid field, or match against filename pattern
+  // Filename pattern: <prefix>-<uid>-<slug>.md
+  const prefix = TYPE_PREFIXES[type];
+  for (const file of files) {
+    const basename = file.replace(/\.md$/, "");
+    // Extract uid from filename: prefix-XXXXX-slug
+    const afterPrefix = basename.slice(prefix.length + 1); // skip "feat-"
+    const uid = afterPrefix.slice(0, 5); // first 5 chars are the uid
+
+    if (input === uid || input === `${prefix}-${uid}`) {
+      return basename;
+    }
+  }
+
+  throw new Error(
+    `Document '${input}' not found in ${TYPE_DIRS[type]}/. Provide a full ID or 5-character uid.`,
+  );
+}
+
 /** Ensure the .grimoire/ directory and the type subdirectory exist. */
 async function ensureTypeDir(cwd: string, type: DocumentType): Promise<string> {
   const grimoireDir = join(cwd, GRIMOIRE_DIR);
@@ -76,13 +123,16 @@ async function ensureTypeDir(cwd: string, type: DocumentType): Promise<string> {
   return typeDir;
 }
 
-/** Generate an ID from title with type prefix. */
-function generateId(type: DocumentType, title: string): string {
+const generateUid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 5);
+
+/** Generate an ID from title with type prefix and unique nanoid. */
+function generateId(type: DocumentType, title: string): { id: string; uid: string } {
   const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return `${TYPE_PREFIXES[type]}-${slug}`;
+  const uid = generateUid();
+  return { id: `${TYPE_PREFIXES[type]}-${uid}-${slug}`, uid };
 }
 
 /** Build the frontmatter YAML for a document. */
@@ -115,6 +165,7 @@ function buildFrontmatter(type: DocumentType, fields: Record<string, unknown>): 
 
 export interface CreateDocumentResult {
   id: string;
+  uid: string;
   type: DocumentType;
   filepath: string;
   title: string;
@@ -133,6 +184,7 @@ export interface ListDocumentsResult {
   count: number;
   documents: Array<{
     id: string;
+    uid: string;
     title: string;
     status: string;
     priority: string;
@@ -166,7 +218,9 @@ export async function createDocument(
   const today = new Date().toISOString().slice(0, 10);
 
   const typeDir = await ensureTypeDir(cwd, type);
-  const id = opts.id ?? generateId(type, opts.title);
+  const generated = generateId(type, opts.title);
+  const id = opts.id ?? generated.id;
+  const uid = generated.uid;
 
   // Check for duplicate
   const filename = `${id}.md`;
@@ -178,6 +232,7 @@ export async function createDocument(
   // Build frontmatter fields based on type
   const base: Record<string, unknown> = {
     id,
+    uid,
     title: opts.title,
     type,
     status: opts.status ?? DEFAULT_STATUS[type],
@@ -215,7 +270,7 @@ export async function createDocument(
   await writeFile(filepath, content);
 
   const relativePath = `${GRIMOIRE_DIR}/${TYPE_DIRS[type]}/${filename}`;
-  return { id, type, filepath: relativePath, title: opts.title };
+  return { id, uid, type, filepath: relativePath, title: opts.title };
 }
 
 export async function getDocument(options: GetDocumentOptions): Promise<GetDocumentResult> {
@@ -300,6 +355,7 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
 
       documents.push({
         id: fm.id as string,
+        uid: (fm.uid as string) ?? "",
         title: fm.title as string,
         status: (fm.status as string) ?? "",
         priority: (fm.priority as string) ?? "",

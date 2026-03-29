@@ -21,6 +21,7 @@ export {
   listDocuments,
   updateDocument,
   deleteDocument,
+  resolveDocumentId,
 } from "./documents.ts";
 export type {
   CreateDocumentResult,

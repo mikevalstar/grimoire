@@ -42,6 +42,7 @@ export const overviewFrontmatterSchema = z.object({
 
 export const featureFrontmatterSchema = z.object({
   id: z.string(),
+  uid: z.string(),
   title: z.string(),
   type: z.literal("feature").default("feature"),
   status: featureStatusSchema.default("proposed"),
@@ -55,6 +56,7 @@ export const featureFrontmatterSchema = z.object({
 
 export const requirementFrontmatterSchema = z.object({
   id: z.string(),
+  uid: z.string(),
   title: z.string(),
   type: z.literal("requirement").default("requirement"),
   status: requirementStatusSchema.default("draft"),
@@ -69,6 +71,7 @@ export const requirementFrontmatterSchema = z.object({
 
 export const taskFrontmatterSchema = z.object({
   id: z.string(),
+  uid: z.string(),
   title: z.string(),
   type: z.literal("task").default("task"),
   status: taskStatusSchema.default("todo"),
@@ -84,6 +87,7 @@ export const taskFrontmatterSchema = z.object({
 
 export const decisionFrontmatterSchema = z.object({
   id: z.string(),
+  uid: z.string(),
   title: z.string(),
   type: z.literal("decision").default("decision"),
   status: decisionStatusSchema.default("proposed"),

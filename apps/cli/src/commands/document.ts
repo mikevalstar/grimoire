@@ -5,6 +5,7 @@ import {
   listDocuments,
   updateDocument,
   deleteDocument,
+  resolveDocumentId,
   type DocumentType,
 } from "@grimoire-ai/core";
 import { printResult, printError, getFormat } from "../output.ts";
@@ -92,16 +93,18 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
     .description(`Get a ${type} document by ID`)
     .option("--metadata-only", "Return only frontmatter, no body")
     .option("--no-changelog", "Exclude changelog section from output")
-    .action(async (id: string, opts: { metadataOnly?: boolean; changelog?: boolean }) => {
+    .action(async (rawId: string, opts: { metadataOnly?: boolean; changelog?: boolean }) => {
       const globalOpts = program.opts<{ cwd?: string }>();
 
       try {
+        const cwd = globalOpts.cwd ?? process.cwd();
+        const id = await resolveDocumentId(cwd, type, rawId);
         const result = await getDocument({
           type,
           id,
           metadataOnly: opts.metadataOnly ?? false,
           noChangelog: opts.changelog === false,
-          cwd: globalOpts.cwd,
+          cwd,
         });
 
         printResult(result, (data) => formatDocument(data as Record<string, unknown>));
@@ -177,7 +180,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
     .option("--requirement <req-id>", "Set parent requirement (for tasks)")
     .action(
       async (
-        id: string,
+        rawId: string,
         opts: {
           title?: string;
           status?: string;
@@ -193,6 +196,8 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
         const globalOpts = program.opts<{ cwd?: string }>();
 
         try {
+          const cwd = globalOpts.cwd ?? process.cwd();
+          const id = await resolveDocumentId(cwd, type, rawId);
           const result = await updateDocument({
             type,
             id,
@@ -205,7 +210,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             append: opts.append,
             feature: opts.feature,
             requirement: opts.requirement,
-            cwd: globalOpts.cwd,
+            cwd,
           });
 
           printResult({ success: true, ...result }, (data) => {
@@ -224,23 +229,25 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
     .description(`Delete a ${type} document (moves to .archive/)`)
     .option("--hard", "Permanently delete (no archive)")
     .option("--confirm", "Skip confirmation (required in non-interactive mode)")
-    .action(async (id: string, opts: { hard?: boolean; confirm?: boolean }) => {
+    .action(async (rawId: string, opts: { hard?: boolean; confirm?: boolean }) => {
       const globalOpts = program.opts<{ cwd?: string }>();
 
       if (!opts.confirm && getFormat() === "json") {
         printError(
           "Delete requires --confirm flag in non-interactive mode",
-          `Usage: grimoire ${type} delete ${id} --confirm`,
+          `Usage: grimoire ${type} delete ${rawId} --confirm`,
         );
         return;
       }
 
       try {
+        const cwd = globalOpts.cwd ?? process.cwd();
+        const id = await resolveDocumentId(cwd, type, rawId);
         const result = await deleteDocument({
           type,
           id,
           hard: opts.hard ?? false,
-          cwd: globalOpts.cwd,
+          cwd,
         });
 
         printResult({ success: true, ...result }, (data) => {

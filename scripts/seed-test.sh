@@ -36,8 +36,8 @@ echo "Creating features..."
 
 $G feature create \
   --title "User Authentication" \
-  --id feat-user-auth \
   --priority high \
+  --status in-progress \
   --tag security --tag users \
   --body "# User Authentication
 
@@ -52,7 +52,6 @@ Includes session management and role-based access control.
 
 $G feature create \
   --title "Payment Processing" \
-  --id feat-payments \
   --priority critical \
   --status in-progress \
   --tag billing --tag stripe \
@@ -68,7 +67,6 @@ Integrate Stripe for subscription billing and one-time payments.
 
 $G feature create \
   --title "Notification System" \
-  --id feat-notifications \
   --priority medium \
   --tag notifications --tag email \
   --body "# Notification System
@@ -85,10 +83,8 @@ echo "Creating requirements..."
 
 $G requirement create \
   --title "OAuth 2.0 Login Flow" \
-  --id req-oauth-login \
-  --feature feat-user-auth \
   --priority high \
-  --status approved \
+  --status in-progress \
   --tag oauth --tag login \
   --body "# OAuth 2.0 Login Flow
 
@@ -101,8 +97,6 @@ Implement OAuth 2.0 authorization code flow with PKCE for Google and GitHub.
 
 $G requirement create \
   --title "Session Management" \
-  --id req-session-mgmt \
-  --feature feat-user-auth \
   --priority high \
   --status draft \
   --tag session --tag security \
@@ -117,8 +111,6 @@ Manage user sessions with secure cookie-based tokens.
 
 $G requirement create \
   --title "Stripe Integration" \
-  --id req-stripe-integration \
-  --feature feat-payments \
   --priority critical \
   --status in-progress \
   --tag stripe --tag api \
@@ -136,9 +128,6 @@ echo "Creating tasks..."
 
 $G task create \
   --title "Setup Google OAuth Provider" \
-  --id task-google-oauth \
-  --requirement req-oauth-login \
-  --feature feat-user-auth \
   --priority high \
   --status in-progress \
   --tag oauth --tag google \
@@ -152,9 +141,6 @@ $G task create \
 
 $G task create \
   --title "Setup GitHub OAuth Provider" \
-  --id task-github-oauth \
-  --requirement req-oauth-login \
-  --feature feat-user-auth \
   --priority high \
   --status todo \
   --tag oauth --tag github \
@@ -168,9 +154,6 @@ $G task create \
 
 $G task create \
   --title "Implement JWT Token Flow" \
-  --id task-jwt-flow \
-  --requirement req-session-mgmt \
-  --feature feat-user-auth \
   --priority high \
   --status todo \
   --tag jwt --tag auth \
@@ -183,9 +166,6 @@ $G task create \
 
 $G task create \
   --title "Create Stripe Webhook Handler" \
-  --id task-stripe-webhooks \
-  --requirement req-stripe-integration \
-  --feature feat-payments \
   --priority critical \
   --status todo \
   --tag stripe --tag webhooks \
@@ -202,9 +182,6 @@ Verify webhook signatures. Use idempotency to prevent duplicate processing." > /
 
 $G task create \
   --title "Write Auth Integration Tests" \
-  --id task-auth-tests \
-  --requirement req-oauth-login \
-  --feature feat-user-auth \
   --priority medium \
   --status todo \
   --tag testing --tag auth \
@@ -220,10 +197,8 @@ echo "Creating decisions..."
 
 $G decision create \
   --title "Use JWT Over Server-Side Sessions" \
-  --id adr-jwt-over-sessions \
   --status accepted \
   --tag auth --tag architecture \
-  --feature feat-user-auth \
   --body "# Use JWT Over Server-Side Sessions
 
 ## Context
@@ -245,10 +220,8 @@ stored in httpOnly cookies.
 
 $G decision create \
   --title "Use Stripe Over Square for Payments" \
-  --id adr-stripe-over-square \
   --status accepted \
   --tag payments --tag architecture \
-  --feature feat-payments \
   --body "# Use Stripe Over Square for Payments
 
 ## Context
@@ -269,7 +242,6 @@ Use Stripe as the sole payment processor.
 
 $G decision create \
   --title "Use React with Vite for Frontend" \
-  --id adr-react-vite \
   --status proposed \
   --tag frontend --tag architecture \
   --body "# Use React with Vite for Frontend
@@ -289,16 +261,9 @@ React 19 with Vite for fast development iteration and broad ecosystem.
 - **Svelte:** Smaller bundle but smaller ecosystem
 - **Vue:** Good option but team has more React experience" > /dev/null
 
-# --- Update some documents to make it more realistic ---
-echo "Applying updates..."
-
-$G feature update feat-user-auth --status in-progress > /dev/null
-$G requirement update req-oauth-login --status in-progress > /dev/null
-
 echo ""
 echo "Done! Test grimoire seeded at .g-test/"
 echo ""
 echo "Try:"
 echo "  node apps/cli/dist/index.mjs feature list --cwd .g-test"
 echo "  node apps/cli/dist/index.mjs task list --status todo --cwd .g-test"
-echo "  node apps/cli/dist/index.mjs decision get adr-jwt-over-sessions --cwd .g-test"
