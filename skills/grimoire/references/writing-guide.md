@@ -43,6 +43,20 @@ Requirements are specific breakdowns of a feature. They inherit the "why" from t
 
 Non-goals are optional for requirements since they're already narrow in scope.
 
+## Tasks
+
+Tasks are actionable work items — the thing an agent or developer picks up and does. They inherit motivation from their parent requirement/feature, so don't repeat the "why."
+
+- **What to do** — clear, actionable description. An agent should be able to start immediately without guessing.
+- **Done criteria** — concrete, verifiable conditions. "Update the function" is vague; "function returns X given Y" is testable.
+- **Scope / relevant files** — what files or areas are affected.
+- **Golden master references** (encouraged) — point to existing files or patterns to follow. e.g., "See `search.ts` for the query pattern." Saves agents from exploring blindly.
+- **Testing criteria** (when possible) — how to verify the work. Expected test cases, commands to run, behavior to assert.
+
+Tasks should be scoped to what a mid-range developer could complete in ~2.5 days or less. If it's bigger, break it into subtasks.
+
+Tasks do _not_ need a separate "why", "non-goals", or "acceptance criteria" section — the done criteria and testing criteria in the body serve that purpose.
+
 ## General principles
 
 - **Be terse.** These docs fill AI context windows. No filler, no restating the title in the body.

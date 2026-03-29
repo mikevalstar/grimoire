@@ -242,9 +242,9 @@ Feature defined. Initial scope includes Google and GitHub OAuth providers.
 
 ---
 
-## Writing good features and requirements
+## Writing good documents
 
-When creating or updating features and requirements, read `references/writing-guide.md` for the default format — covers structure (why, acceptance criteria, non-goals) and style (terse, bullet-point-first). If the project or user has specified their own writing conventions, defer to those instead.
+When creating or updating features, requirements, or tasks, read `references/writing-guide.md` for the default format — covers structure (why, acceptance criteria, non-goals for features/requirements; done criteria, golden master references, testing criteria for tasks) and style (terse, bullet-point-first). If the project or user has specified their own writing conventions, defer to those instead.
 
 ---
 
