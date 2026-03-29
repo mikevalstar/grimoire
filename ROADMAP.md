@@ -1,6 +1,6 @@
 # Grimoire AI — Roadmap
 
-> Phased delivery plan. Each phase produces a dogfoodable tool — use Grimoire to manage Grimoire from Phase 1 onward.
+> Phased delivery plan. Each phase produces a dogfoodable tool. Until publishing lands in Phase 1.5, test via internal workspace commands rather than `npx grimoire-ai`.
 
 ---
 
@@ -13,9 +13,8 @@ Bootstrap the repo and toolchain. No runtime functionality yet.
 - [x] Configure commander entry point (`bin/grimoire`)
 - [x] Set up project structure (src/core, src/cli, src/server)
 - [x] Add basic CI (lint, typecheck, test)
-- [ ] Publish placeholder to npm (`npx grimoire-ai` prints version)
 
-**Dogfood gate:** `grimoire --version` works via npx.
+**Dogfood gate:** The CLI can be built and run locally via internal workspace commands.
 
 ---
 
@@ -38,7 +37,19 @@ The minimum to start using Grimoire on itself.
 - [ ] `--interactive` flag scaffolding (human-readable output)
 - [ ] Write skill files: OVERVIEW, READING, WRITING, SCHEMA
 
-**Dogfood gate:** Use `grimoire init` on this repo. Track Grimoire's own features, requirements, and tasks as `.grimoire/` markdown files. AI agents can create and read documents.
+**Dogfood gate:** Use `grimoire init` on this repo via internal workspace commands. Track Grimoire's own features, requirements, and tasks as `.grimoire/` markdown files. AI agents can create and read documents.
+
+---
+
+## Phase 1.5: Publishing Bootstrap
+
+Make the package runnable outside the repo while keeping the testing path inside the workspace until this phase is complete.
+
+- [ ] Publish placeholder to npm (`npx grimoire-ai` prints version)
+- [ ] Define and document the pre-publish local test flow using internal workspace commands
+- [ ] Smoke test the packaged CLI before wider release
+
+**Dogfood gate:** `npx grimoire-ai --version` works, but day-to-day development can still rely on internal workspace commands.
 
 ---
 
@@ -122,7 +133,7 @@ Production-ready release.
 - [ ] README, documentation site at grimoireai.quest
 - [ ] Announce v1.0
 
-**Dogfood gate:** Full workflow is smooth for both humans and AI agents. `npx grimoire-ai` just works.
+**Dogfood gate:** Full workflow is smooth for both humans and AI agents. Published usage and internal workspace testing both work cleanly.
 
 ---
 

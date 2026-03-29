@@ -17,7 +17,7 @@ vp install
 
 ### Run the CLI locally
 
-Build and run:
+Until the package is published, use these internal workspace commands to build and test the CLI locally:
 
 ```bash
 cd apps/cli
