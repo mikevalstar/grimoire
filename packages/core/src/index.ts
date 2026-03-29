@@ -15,6 +15,22 @@ export type { InitResult } from "./init.ts";
 export { overview } from "./overview.ts";
 export type { OverviewResult } from "./overview.ts";
 
+export {
+  createDocument,
+  getDocument,
+  listDocuments,
+  updateDocument,
+  deleteDocument,
+  resolveDocumentId,
+} from "./documents.ts";
+export type {
+  CreateDocumentResult,
+  GetDocumentResult,
+  ListDocumentsResult,
+  UpdateDocumentResult,
+  DeleteDocumentResult,
+} from "./documents.ts";
+
 export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
 
