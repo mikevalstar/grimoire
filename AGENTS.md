@@ -77,7 +77,7 @@ Three tables: `documents` (id, title, type, status, priority, tags, body, embedd
 
 ## AI Agent Skills
 
-Grimoire ships skill files copied to `.grimoire/.skills/` on init (OVERVIEW, READING, WRITING, SEARCHING, WORKFLOW, SCHEMA). These are reference docs for AI agents, not for humans.
+Grimoire ships a single skill via the [agentskills.io](https://agentskills.io/home) convention. The skill source lives at `skills/grimoire/SKILL.md` in this repo. Users install it into their projects with `npx skills add mikevalstar/grimoire`, which copies it to `.agents/skills/grimoire/`. The `grimoire init` command recommends this but does not copy skills itself.
 
 <!--VITE PLUS START-->
 

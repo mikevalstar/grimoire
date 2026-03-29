@@ -24,7 +24,6 @@ describe("document operations", () => {
       name: "Core Test Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
   });
 

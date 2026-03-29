@@ -9,8 +9,7 @@ export function registerInitCommand(program: Command): void {
     .description("Initialize .grimoire/ in current directory")
     .option("--name <name>", "Project name")
     .option("--description <desc>", "Project description")
-    .option("--skip-skills", "Don't copy skill files")
-    .action(async (opts: { name?: string; description?: string; skipSkills?: boolean }) => {
+    .action(async (opts: { name?: string; description?: string }) => {
       const globalOpts = program.opts<{ cwd?: string }>();
 
       const parsed = initOptionsSchema.safeParse({
@@ -39,6 +38,7 @@ export function registerInitCommand(program: Command): void {
             agents_file_updated: result.agentsFileUpdated,
             agents_file: result.agentsFilePath,
             warnings: result.warnings,
+            skills_hint: "Install AI agent skills with: npx skills add mikevalstar/grimoire",
           },
           (data) => {
             const d = data as typeof result;
@@ -49,6 +49,10 @@ export function registerInitCommand(program: Command): void {
             if (d.warnings.length > 0) {
               for (const w of d.warnings) lines.push(`  ${c.warn("Warning:")} ${w}`);
             }
+            lines.push("");
+            lines.push(
+              `${c.dim("Tip:")} Install AI agent skills with: ${c.bold("npx skills add mikevalstar/grimoire")}`,
+            );
             return lines.join("\n");
           },
         );

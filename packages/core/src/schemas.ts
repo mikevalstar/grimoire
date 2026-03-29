@@ -110,7 +110,6 @@ export type DocumentType = (typeof documentTypes)[number];
 export const initOptionsSchema = z.object({
   name: z.string(),
   description: z.string().default(""),
-  skipSkills: z.boolean().default(false),
   cwd: z.string().optional(),
 });
 

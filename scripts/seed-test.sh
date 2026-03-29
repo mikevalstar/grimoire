@@ -29,7 +29,7 @@ mkdir -p "$TEST_DIR"
 G="$CLI --cwd $TEST_DIR"
 
 echo "Initializing grimoire..."
-$G init --name "Test Project" --description "A sample project for local testing" --skip-skills > /dev/null
+$G init --name "Test Project" --description "A sample project for local testing" > /dev/null
 
 # --- Features ---
 echo "Creating features..."

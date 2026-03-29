@@ -1,11 +1,6 @@
 import { mkdir, readFile, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  configTemplate,
-  overviewTemplate,
-  agentsSectionTemplate,
-  skillFiles,
-} from "./templates/index.ts";
+import { configTemplate, overviewTemplate, agentsSectionTemplate } from "./templates/index.ts";
 import { initOptionsSchema, type InitOptions } from "./schemas.ts";
 
 export type { InitOptions };
@@ -21,7 +16,6 @@ export interface InitResult {
 
 const GRIMOIRE_DIR = ".grimoire";
 const CACHE_DIR = ".cache";
-const SKILLS_DIR = ".skills";
 const GITIGNORE_ENTRY = ".grimoire/.cache/";
 const GRIMOIRE_START_TAG = "<!--GRIMOIRE START-->";
 
@@ -79,19 +73,6 @@ export async function init(options: InitOptions): Promise<InitResult> {
   const configPath = join(grimoireDir, "config.yaml");
   await writeFile(configPath, configTemplate(opts.name, description));
   created.push(`${GRIMOIRE_DIR}/config.yaml`);
-
-  // Write skill files
-  if (!opts.skipSkills) {
-    const skillsDir = join(grimoireDir, SKILLS_DIR);
-    await mkdir(skillsDir, { recursive: true });
-    created.push(`${GRIMOIRE_DIR}/${SKILLS_DIR}/`);
-
-    for (const [filename, content] of Object.entries(skillFiles)) {
-      const skillPath = join(skillsDir, filename);
-      await writeFile(skillPath, content);
-      created.push(`${GRIMOIRE_DIR}/${SKILLS_DIR}/${filename}`);
-    }
-  }
 
   // Update .gitignore
   const gitignoreUpdated = await ensureGitignore(cwd);

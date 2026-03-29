@@ -23,7 +23,7 @@ Bootstrap the repo and toolchain. No runtime functionality yet.
 The minimum to start using Grimoire on itself.
 
 - [x] `grimoire init` — create `.grimoire/` directory, `overview.md`, `config.yaml`
-- [x] Copy `.skills/` files on init
+- [x] ~~Copy `.skills/` files on init~~ → Replaced: skills use agentskills.io convention; `grimoire init` recommends `npx skills add mikevalstar/grimoire`
 - [x] Check/update `.gitignore` for `.grimoire/.cache/`
 - [x] Inject grimoire section into `CLAUDE.md`/`AGENTS.md` (with `<!--GRIMOIRE START-->` / `<!--GRIMOIRE END-->` tags)
 - [x] Markdown parser: read/write YAML frontmatter + body + changelog sections
@@ -37,7 +37,8 @@ The minimum to start using Grimoire on itself.
 - [x] `grimoire validate` — check frontmatter schemas, required fields, broken links, orphans, id mismatches
 - [x] JSON output for all commands (AI mode default)
 - [ ] `--interactive` flag scaffolding (human-readable output)
-- [ ] Write skill files: OVERVIEW, READING, WRITING, SCHEMA
+- [x] Write grimoire skill as single `skills/grimoire/SKILL.md` (agentskills.io convention) covering all current CLI commands, document types, workflows
+- [x] Remove `.skills/` copy logic from init; init now outputs `skills_hint` recommending `npx skills add mikevalstar/grimoire`
 
 **Dogfood gate:** Use `grimoire init` on this repo via internal workspace commands. Track Grimoire's own features, requirements, and tasks as `.grimoire/` markdown files. AI agents can create and read documents.
 
@@ -72,7 +73,7 @@ Add the database layer. Search makes the tool genuinely useful for orientation.
 - [ ] `grimoire tree` — feature/requirement/task hierarchy
 - [ ] `grimoire orphans` — find unlinked documents
 - [ ] `grimoire status` — project dashboard (counts, recent changes)
-- [ ] Write skill files: SEARCHING, WORKFLOW
+- [ ] Update `skills/grimoire/SKILL.md` with search and context command documentation
 
 **Dogfood gate:** `grimoire search "authentication"` returns relevant docs. `grimoire tree` shows the full hierarchy. `grimoire status` gives a project snapshot. Agents can orient themselves with search.
 

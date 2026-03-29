@@ -80,7 +80,6 @@ describe("overview", () => {
       name: "Test Project",
       description: "Project summary",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const result = await overview({ cwd: tempDir });
@@ -95,7 +94,6 @@ describe("overview", () => {
       name: "Compact Project",
       description: "Compact summary",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const result = await overview({ cwd: tempDir, compact: true });
@@ -116,7 +114,6 @@ describe("overview", () => {
       name: "Broken Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
     await unlink(join(tempDir, ".grimoire", "overview.md"));
 
@@ -142,7 +139,6 @@ describe("init", () => {
       name: "Init Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const claude = await readFile(join(tempDir, "CLAUDE.md"), "utf-8");
@@ -159,7 +155,6 @@ describe("init", () => {
       name: "Init Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const agents = await readFile(join(tempDir, "AGENTS.md"), "utf-8");
@@ -180,7 +175,6 @@ describe("init", () => {
       name: "Init Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const agents = await readFile(join(tempDir, "AGENTS.md"), "utf-8");
@@ -197,7 +191,6 @@ describe("init", () => {
       name: "Init Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
 
     const gitignore = await readFile(join(tempDir, ".gitignore"), "utf-8");

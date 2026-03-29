@@ -13,7 +13,6 @@ describe("validate", () => {
       name: "Validate Test Project",
       description: "",
       cwd: tempDir,
-      skipSkills: true,
     });
   });
 

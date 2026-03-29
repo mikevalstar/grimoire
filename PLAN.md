@@ -80,6 +80,10 @@ All Grimoire data lives in a `.grimoire/` directory at the project root.
 
 ```
 project-root/
+├── .agents/skills/                # Installed skills (via `npx skills add`)
+│   └── grimoire/
+│       └── SKILL.md               # Grimoire AI agent skill
+├── skills-lock.json               # Tracks installed skills and versions
 ├── .grimoire/
 │   ├── overview.md              # Single project overview document
 │   ├── features/
@@ -98,13 +102,6 @@ project-root/
 │   │   ├── adr-k2q5x-use-jwt-over-sessions.md
 │   │   ├── adr-l6r8y-postgres-over-mongo.md
 │   │   └── adr-m4s3z-tanstack-over-nextjs.md
-│   ├── .skills/                 # AI agent skill files (copied on init)
-│   │   ├── OVERVIEW.md
-│   │   ├── READING.md
-│   │   ├── WRITING.md
-│   │   ├── SEARCHING.md
-│   │   ├── WORKFLOW.md
-│   │   └── SCHEMA.md
 │   └── .cache/                  # GITIGNORED
 │       ├── grimoire.duckdb      # Derived database
 │       ├── grimoire.duckdb.wal
@@ -115,22 +112,55 @@ project-root/
 
 ### AI Agent Skills
 
-Grimoire ships with a set of AI agent skill files (inspired by [agentskills.io](https://agentskills.io/home)) that teach AI coding agents how to use Grimoire effectively. These are reference documents the agent reads before interacting with the CLI.
+Grimoire ships a single AI agent skill using the [agentskills.io](https://agentskills.io/home) convention. Skills follow a standardized structure with a `SKILL.md` file containing YAML frontmatter (`name`, `description`) and markdown instructions.
 
-Skill files live in the npm package and are copied into `.grimoire/.skills/` on `grimoire init` so agents with file access can read them directly.
+#### How it works
 
-| Skill File     | Purpose                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------- |
-| `OVERVIEW.md`  | What Grimoire is, when to use which command, quick start                                     |
-| `READING.md`   | How to read and interpret Grimoire documents, frontmatter fields, changelog format           |
-| `WRITING.md`   | How to create and update documents properly, required fields, conventions                    |
-| `SEARCHING.md` | How to use search and context commands effectively, query tips, filter combos                |
-| `WORKFLOW.md`  | Recommended workflows: starting a task, updating progress, recording decisions, closing work |
-| `SCHEMA.md`    | Document schemas, frontmatter fields, valid status/priority values, relationship types       |
+**In the grimoire repo** (source), the skill lives at:
 
-These skills are designed so that an AI agent can run `cat .grimoire/.skills/OVERVIEW.md` to bootstrap its understanding, then reference specific skill files as needed. The skills should be written to be consumed by AI agents, not humans — concise, example-heavy, and structured for quick parsing.
+```
+skills/
+└── grimoire/
+    └── SKILL.md          # Single comprehensive skill file
+```
 
-The `.skills/` directory is committed to git so that it's available to any agent with filesystem access. It is NOT gitignored.
+**In a consumer project**, users install via:
+
+```
+npx skills add mikevalstar/grimoire
+```
+
+This copies the skill into the consumer project's `.agents/skills/grimoire/` directory and records it in `skills-lock.json`. The installed skill is then available to AI agents that support the agentskills.io convention.
+
+#### Skill structure
+
+The `SKILL.md` file uses YAML frontmatter for metadata (triggering) and markdown body for instructions:
+
+```yaml
+---
+name: grimoire
+description: >
+  When to trigger this skill — the description is the primary
+  mechanism that determines whether an AI agent invokes the skill.
+---
+# Skill instructions in markdown...
+```
+
+The `description` field is critical — it controls when AI agents activate the skill. It should be specific about trigger contexts (e.g., "use when working in a project with a `.grimoire/` directory, when creating/updating requirements, tasks, or decisions...").
+
+Skills can also include bundled resources (`scripts/`, `references/`, `assets/`) for progressive disclosure — keeping the main SKILL.md under ~500 lines and deferring detailed reference material to separate files loaded on demand.
+
+#### Grimoire's skill
+
+The grimoire skill (`skills/grimoire/SKILL.md`) is a single comprehensive file covering:
+
+- All CLI commands and their flags
+- Document types, status values, and priority levels
+- Document structure (frontmatter + body + comments + changelog)
+- Recommended workflows for AI agents (starting work, logging progress, recording decisions)
+- File layout and conventions
+
+The `grimoire init` command recommends installing the skill but does **not** copy skill files itself. Skills are managed entirely through the agentskills.io toolchain.
 
 ---
 
@@ -444,7 +474,7 @@ grimoire init                          Initialize .grimoire/ in current director
     Human mode: prompts for name and description
     --name <n>                         Project name
     --description <desc>               Project description
-    --skip-skills                      Don't copy skill files
+    Recommends running `npx skills add mikevalstar/grimoire` for AI agent skills
 
 grimoire sync                          Rebuild DuckDB from markdown files
     --force                            Force full rebuild (re-embed everything)

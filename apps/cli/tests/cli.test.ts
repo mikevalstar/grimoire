@@ -1,7 +1,7 @@
 import { expect, test, describe, beforeEach, afterEach } from "vite-plus/test";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { mkdtemp, rm, readFile, access } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -84,21 +84,11 @@ describe("init command", () => {
     expect(config).toContain("provider: local");
   });
 
-  test("creates skill files by default", async () => {
-    run(["init", "--name", "Test Project", "--cwd", tempDir]);
-
-    const skillsDir = join(tempDir, ".grimoire/.skills");
-    await access(skillsDir); // throws if doesn't exist
-
-    const overview = await readFile(join(skillsDir, "OVERVIEW.md"), "utf-8");
-    expect(overview).toContain("Grimoire AI");
-  });
-
-  test("skips skill files with --skip-skills", () => {
-    const output = run(["init", "--name", "Test Project", "--skip-skills", "--cwd", tempDir]);
+  test("includes skills hint in output", () => {
+    const output = run(["init", "--name", "Test Project", "--cwd", tempDir]);
     const result = JSON.parse(output);
 
-    expect(result.created).not.toContain(".grimoire/.skills/");
+    expect(result.skills_hint).toContain("npx skills add");
   });
 
   test("updates .gitignore with cache entry", async () => {

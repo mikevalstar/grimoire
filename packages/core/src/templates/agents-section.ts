@@ -25,6 +25,6 @@ as structured markdown files in the \`.grimoire/\` directory.
 - **Log progress:** \`grimoire log <id> "<message>"\`
 - **Add a comment:** \`grimoire comment <id> "<message>"\`
 
-For detailed usage, read the skill files in \`.grimoire/.skills/\`.
+For AI agent skills, run: \`npx skills add mikevalstar/grimoire\`
 
 <!--GRIMOIRE END-->`;
