@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@grimoire-ai/core": "workspace:*",
-    "commander": "^13.0.0",
+    "commander": "^14.0.3",
     "picocolors": "catalog:"
   },
   "devDependencies": {
