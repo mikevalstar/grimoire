@@ -8,6 +8,7 @@ id: overview
 title: "${name}"
 description: "${description}"
 type: overview
+version: 1
 created: ${today}
 updated: ${today}
 tags: []

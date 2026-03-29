@@ -34,6 +34,7 @@ export const overviewFrontmatterSchema = z.object({
   title: z.string().default(""),
   description: z.string().default(""),
   type: z.literal("overview").default("overview"),
+  version: z.number().default(1),
   created: z.coerce.string().default(""),
   updated: z.coerce.string().default(""),
   tags: z.array(z.string()).default([]),
