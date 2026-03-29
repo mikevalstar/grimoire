@@ -50,19 +50,19 @@ vp run grimoire -- task list --status todo --cwd .g-test
 - Format the repo:
 
 ```bash
-vp run fmt
+vp fmt
 ```
 
 - Lint and type-check the repo:
 
 ```bash
-vp run check
+vp check
 ```
 
 - Run package tests:
 
 ```bash
-vp run test
+vp test
 ```
 
 - Run package tests with per-package coverage reports:

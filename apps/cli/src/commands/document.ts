@@ -17,15 +17,35 @@ function collectRepeatable(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
+function asText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return undefined;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
 function formatDocument(d: Record<string, unknown>): string {
   const lines: string[] = [];
-  if (d.id) lines.push(c.id(`[${String(d.id)}]`));
-  if (d.title) lines.push(`  ${c.bold(String(d.title))}`);
-  if (d.status) lines.push(`  ${c.label("Status:", c.status(String(d.status)))}`);
-  if (d.priority) lines.push(`  ${c.label("Priority:", c.priority(String(d.priority)))}`);
-  if (Array.isArray(d.tags) && d.tags.length > 0)
-    lines.push(`  ${c.label("Tags:", d.tags.join(", "))}`);
-  if (d.body) lines.push("", String(d.body));
+  const id = asText(d.id);
+  const title = asText(d.title);
+  const status = asText(d.status);
+  const priority = asText(d.priority);
+  const tags = asStringArray(d.tags);
+  const body = asText(d.body);
+
+  if (id) lines.push(c.id(`[${id}]`));
+  if (title) lines.push(`  ${c.bold(title)}`);
+  if (status) lines.push(`  ${c.label("Status:", c.status(status))}`);
+  if (priority) lines.push(`  ${c.label("Priority:", c.priority(priority))}`);
+  if (tags.length > 0) lines.push(`  ${c.label("Tags:", tags.join(", "))}`);
+  if (body) lines.push("", body);
   return lines.join("\n");
 }
 
@@ -153,10 +173,13 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             if (d.documents.length === 0) return c.dim(`No ${type} documents found.`);
             return d.documents
               .map((item) => {
-                const parts = [c.id(String(item.id))];
-                if (item.title) parts.push(` ${String(item.title)}`);
-                if (item.status) parts.push(` [${c.status(String(item.status))}]`);
-                if (item.priority) parts.push(` (${c.priority(String(item.priority))})`);
+                const parts = [c.id(asText(item.id) ?? "")];
+                const title = asText(item.title);
+                const status = asText(item.status);
+                const priority = asText(item.priority);
+                if (title) parts.push(` ${title}`);
+                if (status) parts.push(` [${c.status(status)}]`);
+                if (priority) parts.push(` (${c.priority(priority)})`);
                 return parts.join("");
               })
               .join("\n");
