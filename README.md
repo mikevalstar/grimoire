@@ -30,6 +30,21 @@ Or run the CLI package watcher directly:
 vp run grimoire-ai#dev
 ```
 
+### Seed test data
+
+Create a `.g-test/` directory with sample features, requirements, tasks, and decisions for local testing:
+
+```bash
+./scripts/seed-test.sh
+```
+
+This builds the CLI, removes any existing `.g-test/`, and populates it with realistic sample documents. Then you can test commands against it:
+
+```bash
+vp run grimoire -- feature list --cwd .g-test
+vp run grimoire -- task list --status todo --cwd .g-test
+```
+
 ### Other commands
 
 - Format the repo:

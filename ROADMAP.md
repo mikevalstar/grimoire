@@ -26,16 +26,16 @@ The minimum to start using Grimoire on itself.
 - [x] Copy `.skills/` files on init
 - [x] Check/update `.gitignore` for `.grimoire/.cache/`
 - [x] Inject grimoire section into `CLAUDE.md`/`AGENTS.md` (with `<!--GRIMOIRE START-->` / `<!--GRIMOIRE END-->` tags)
-- [ ] Markdown parser: read/write YAML frontmatter + body + changelog sections
-- [ ] `grimoire overview` — read and display the overview document
-- [ ] `grimoire <type> create` — create feature, requirement, task, decision files
-- [ ] `grimoire <type> get <id>` — read a document by ID (scans filesystem)
-- [ ] `grimoire <type> list` — list documents of a type (scans filesystem)
-- [ ] `grimoire <type> update <id>` — update frontmatter fields and body
-- [ ] `grimoire <type> delete <id>` — archive a document
+- [x] Markdown parser: read/write YAML frontmatter + body + changelog sections
+- [x] `grimoire overview` — read and display the overview document
+- [x] `grimoire <type> create` — create feature, requirement, task, decision files
+- [x] `grimoire <type> get <id>` — read a document by ID (scans filesystem)
+- [x] `grimoire <type> list` — list documents of a type (scans filesystem)
+- [x] `grimoire <type> update <id>` — update frontmatter fields and body
+- [x] `grimoire <type> delete <id>` — archive a document
 - [ ] `grimoire log` / `grimoire comment` — append changelog entries
 - [ ] `grimoire validate` — check frontmatter schemas, required fields
-- [ ] JSON output for all commands (AI mode default)
+- [x] JSON output for all commands (AI mode default)
 - [ ] `--interactive` flag scaffolding (human-readable output)
 - [ ] Write skill files: OVERVIEW, READING, WRITING, SCHEMA
 
