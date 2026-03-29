@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { VERSION } from "@grimoire-ai/core";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerOverviewCommand } from "./commands/overview.ts";
+import { registerDocumentCommands } from "./commands/document.ts";
 
 const program = new Command();
 
@@ -14,5 +15,6 @@ program
 
 registerInitCommand(program);
 registerOverviewCommand(program);
+registerDocumentCommands(program);
 
 program.parse();

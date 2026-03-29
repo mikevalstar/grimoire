@@ -96,6 +96,11 @@ export const decisionFrontmatterSchema = z.object({
   superseded_by: z.string().default(""),
 });
 
+// --- Shared types ---
+
+export const documentTypes = ["feature", "requirement", "task", "decision"] as const;
+export type DocumentType = (typeof documentTypes)[number];
+
 // --- CLI option schemas ---
 
 export const initOptionsSchema = z.object({
@@ -110,6 +115,60 @@ export const overviewOptionsSchema = z.object({
   cwd: z.string().optional(),
 });
 
+export const createDocumentOptionsSchema = z.object({
+  type: z.enum(["feature", "requirement", "task", "decision"]),
+  title: z.string(),
+  id: z.string().optional(),
+  status: z.string().optional(),
+  priority: prioritySchema.optional(),
+  tags: z.array(z.string()).default([]),
+  feature: z.string().optional(),
+  requirement: z.string().optional(),
+  body: z.string().default(""),
+  cwd: z.string().optional(),
+});
+
+export const getDocumentOptionsSchema = z.object({
+  type: z.enum(["feature", "requirement", "task", "decision"]),
+  id: z.string(),
+  metadataOnly: z.boolean().default(false),
+  noChangelog: z.boolean().default(false),
+  cwd: z.string().optional(),
+});
+
+export const listDocumentsOptionsSchema = z.object({
+  type: z.enum(["feature", "requirement", "task", "decision"]),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  tag: z.string().optional(),
+  feature: z.string().optional(),
+  limit: z.number().optional(),
+  sort: z.string().default("updated"),
+  cwd: z.string().optional(),
+});
+
+export const updateDocumentOptionsSchema = z.object({
+  type: z.enum(["feature", "requirement", "task", "decision"]),
+  id: z.string(),
+  title: z.string().optional(),
+  status: z.string().optional(),
+  priority: prioritySchema.optional(),
+  addTag: z.array(z.string()).default([]),
+  removeTag: z.array(z.string()).default([]),
+  body: z.string().optional(),
+  append: z.string().optional(),
+  feature: z.string().optional(),
+  requirement: z.string().optional(),
+  cwd: z.string().optional(),
+});
+
+export const deleteDocumentOptionsSchema = z.object({
+  type: z.enum(["feature", "requirement", "task", "decision"]),
+  id: z.string(),
+  hard: z.boolean().default(false),
+  cwd: z.string().optional(),
+});
+
 // --- Inferred types ---
 
 export type OverviewFrontmatter = z.infer<typeof overviewFrontmatterSchema>;
@@ -119,3 +178,8 @@ export type TaskFrontmatter = z.infer<typeof taskFrontmatterSchema>;
 export type DecisionFrontmatter = z.infer<typeof decisionFrontmatterSchema>;
 export type InitOptions = z.infer<typeof initOptionsSchema>;
 export type OverviewOptions = z.infer<typeof overviewOptionsSchema>;
+export type CreateDocumentOptions = z.infer<typeof createDocumentOptionsSchema>;
+export type GetDocumentOptions = z.infer<typeof getDocumentOptionsSchema>;
+export type ListDocumentsOptions = z.infer<typeof listDocumentsOptionsSchema>;
+export type UpdateDocumentOptions = z.infer<typeof updateDocumentOptionsSchema>;
+export type DeleteDocumentOptions = z.infer<typeof deleteDocumentOptionsSchema>;
