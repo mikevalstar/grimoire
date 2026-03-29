@@ -104,13 +104,15 @@ describe("printError", () => {
   test("outputs plain text in cli mode", () => {
     setFormat("cli");
     printError("something broke");
-    expect(errorSpy).toHaveBeenCalledWith("Error: something broke");
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("something broke"));
   });
 
   test("includes hint as indented text in cli mode", () => {
     setFormat("cli");
     printError("missing arg", "Usage: grimoire init --name foo");
-    expect(errorSpy).toHaveBeenCalledWith("Error: missing arg");
-    expect(errorSpy).toHaveBeenCalledWith("  Usage: grimoire init --name foo");
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("missing arg"));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Usage: grimoire init --name foo"),
+    );
   });
 });

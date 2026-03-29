@@ -1,3 +1,5 @@
+import * as c from "./colors.ts";
+
 export type OutputFormat = "json" | "cli" | "auto";
 
 export function resolveFormat(flag: OutputFormat): "json" | "cli" {
@@ -33,8 +35,8 @@ export function printResult(data: unknown, cliFormatter?: (data: unknown) => str
  */
 export function printError(error: string, hint?: string): void {
   if (_format === "cli") {
-    console.error(`Error: ${error}`);
-    if (hint) console.error(`  ${hint}`);
+    console.error(`${c.error("Error:")} ${error}`);
+    if (hint) console.error(`  ${c.dim(hint)}`);
   } else {
     console.error(JSON.stringify(hint ? { error, hint } : { error }));
   }

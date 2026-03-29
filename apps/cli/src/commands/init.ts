@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { init, initOptionsSchema } from "@grimoire-ai/core";
 import { printResult, printError } from "../output.ts";
+import * as c from "../colors.ts";
 
 export function registerInitCommand(program: Command): void {
   program
@@ -41,12 +42,12 @@ export function registerInitCommand(program: Command): void {
           },
           (data) => {
             const d = data as typeof result;
-            const lines = [`Initialized grimoire in ${d.grimoireDir}`];
-            if (d.created.length > 0) lines.push(`  Created: ${d.created.join(", ")}`);
-            if (d.gitignoreUpdated) lines.push("  Updated .gitignore");
-            if (d.agentsFileUpdated) lines.push(`  Updated ${d.agentsFilePath}`);
+            const lines = [`${c.success("Initialized")} grimoire in ${c.bold(d.grimoireDir)}`];
+            if (d.created.length > 0) lines.push(`  ${c.dim("Created:")} ${d.created.join(", ")}`);
+            if (d.gitignoreUpdated) lines.push(`  ${c.dim("Updated")} .gitignore`);
+            if (d.agentsFileUpdated) lines.push(`  ${c.dim("Updated")} ${d.agentsFilePath}`);
             if (d.warnings.length > 0) {
-              for (const w of d.warnings) lines.push(`  Warning: ${w}`);
+              for (const w of d.warnings) lines.push(`  ${c.warn("Warning:")} ${w}`);
             }
             return lines.join("\n");
           },

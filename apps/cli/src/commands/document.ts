@@ -9,6 +9,7 @@ import {
   type DocumentType,
 } from "@grimoire-ai/core";
 import { printResult, printError, getFormat } from "../output.ts";
+import * as c from "../colors.ts";
 
 const DOCUMENT_TYPES = ["feature", "requirement", "task", "decision"] as const;
 
@@ -18,11 +19,12 @@ function collectRepeatable(value: string, previous: string[]): string[] {
 
 function formatDocument(d: Record<string, unknown>): string {
   const lines: string[] = [];
-  if (d.id) lines.push(`[${String(d.id)}]`);
-  if (d.title) lines.push(`  ${String(d.title)}`);
-  if (d.status) lines.push(`  Status: ${String(d.status)}`);
-  if (d.priority) lines.push(`  Priority: ${String(d.priority)}`);
-  if (Array.isArray(d.tags) && d.tags.length > 0) lines.push(`  Tags: ${d.tags.join(", ")}`);
+  if (d.id) lines.push(c.id(`[${String(d.id)}]`));
+  if (d.title) lines.push(`  ${c.bold(String(d.title))}`);
+  if (d.status) lines.push(`  ${c.label("Status:", c.status(String(d.status)))}`);
+  if (d.priority) lines.push(`  ${c.label("Priority:", c.priority(String(d.priority)))}`);
+  if (Array.isArray(d.tags) && d.tags.length > 0)
+    lines.push(`  ${c.label("Tags:", d.tags.join(", "))}`);
   if (d.body) lines.push("", String(d.body));
   return lines.join("\n");
 }
@@ -79,7 +81,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
 
           printResult({ success: true, ...result }, (data) => {
             const d = data as Record<string, unknown>;
-            return `Created ${type}: ${String(d.id)} (${String(d.path)})`;
+            return `${c.success("Created")} ${type}: ${c.id(String(d.id))} ${c.dim(`(${String(d.path)})`)}`;
           });
         } catch (err) {
           printError(err instanceof Error ? err.message : String(err));
@@ -148,13 +150,13 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
 
           printResult(result, (data) => {
             const d = data as { type: string; count: number; documents: Record<string, unknown>[] };
-            if (d.documents.length === 0) return `No ${type} documents found.`;
+            if (d.documents.length === 0) return c.dim(`No ${type} documents found.`);
             return d.documents
               .map((item) => {
-                const parts = [String(item.id)];
+                const parts = [c.id(String(item.id))];
                 if (item.title) parts.push(` ${String(item.title)}`);
-                if (item.status) parts.push(` [${String(item.status)}]`);
-                if (item.priority) parts.push(` (${String(item.priority)})`);
+                if (item.status) parts.push(` [${c.status(String(item.status))}]`);
+                if (item.priority) parts.push(` (${c.priority(String(item.priority))})`);
                 return parts.join("");
               })
               .join("\n");
@@ -215,7 +217,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
 
           printResult({ success: true, ...result }, (data) => {
             const d = data as Record<string, unknown>;
-            return `Updated ${type}: ${String(d.id)}`;
+            return `${c.success("Updated")} ${type}: ${c.id(String(d.id))}`;
           });
         } catch (err) {
           printError(err instanceof Error ? err.message : String(err));
@@ -252,7 +254,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
 
         printResult({ success: true, ...result }, (data) => {
           const d = data as Record<string, unknown>;
-          return `Deleted ${type}: ${id}${d.archived ? " (archived)" : ""}`;
+          return `${c.success("Deleted")} ${type}: ${c.id(id)}${d.archived ? c.dim(" (archived)") : ""}`;
         });
       } catch (err) {
         printError(err instanceof Error ? err.message : String(err));

@@ -6,9 +6,12 @@ import { tmpdir } from "node:os";
 
 const cli = resolve(import.meta.dirname, "../dist/index.mjs");
 
+const noColorEnv = { ...process.env, NO_COLOR: "1" };
+
 function run(args: string[]): string {
   return execFileSync("node", [cli, ...args], {
     encoding: "utf-8",
+    env: noColorEnv,
   }).trim();
 }
 
@@ -17,6 +20,7 @@ function runErr(args: string[]): string {
     execFileSync("node", [cli, ...args], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
+      env: noColorEnv,
     });
     throw new Error("expected non-zero exit");
   } catch (err: unknown) {

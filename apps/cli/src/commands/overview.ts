@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { overview } from "@grimoire-ai/core";
 import { printResult, printError } from "../output.ts";
+import * as c from "../colors.ts";
 
 export function registerOverviewCommand(program: Command): void {
   program
@@ -19,7 +20,7 @@ export function registerOverviewCommand(program: Command): void {
         printResult(result, (data) => {
           const d = data as Record<string, unknown>;
           const lines: string[] = [];
-          if (d.title) lines.push(`# ${String(d.title)}`);
+          if (d.title) lines.push(c.bold(`# ${String(d.title)}`));
           if (d.description) lines.push(String(d.description));
           if (d.body) lines.push("", String(d.body));
           return lines.join("\n");
