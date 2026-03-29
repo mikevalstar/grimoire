@@ -34,7 +34,7 @@ The minimum to start using Grimoire on itself.
 - [x] `grimoire <type> update <id>` — update frontmatter fields and body
 - [x] `grimoire <type> delete <id>` — archive a document
 - [x] `grimoire log` / `grimoire comment` — append changelog/comment entries (separate sections, timestamped)
-- [ ] `grimoire validate` — check frontmatter schemas, required fields
+- [x] `grimoire validate` — check frontmatter schemas, required fields, broken links, orphans, id mismatches
 - [x] JSON output for all commands (AI mode default)
 - [ ] `--interactive` flag scaffolding (human-readable output)
 - [ ] Write skill files: OVERVIEW, READING, WRITING, SCHEMA

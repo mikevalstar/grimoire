@@ -36,6 +36,9 @@ export type {
   AppendEntryResult,
 } from "./documents.ts";
 
+export { validate } from "./validate.ts";
+export type { ValidateResult, ValidateIssue } from "./validate.ts";
+
 export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
 

@@ -6,6 +6,7 @@ import { registerInitCommand } from "./commands/init.ts";
 import { registerOverviewCommand } from "./commands/overview.ts";
 import { registerDocumentCommands } from "./commands/document.ts";
 import { registerLogCommand } from "./commands/log.ts";
+import { registerValidateCommand } from "./commands/validate.ts";
 
 const program = new Command();
 
@@ -24,5 +25,6 @@ registerInitCommand(program);
 registerOverviewCommand(program);
 registerDocumentCommands(program);
 registerLogCommand(program);
+registerValidateCommand(program);
 
 program.parse();

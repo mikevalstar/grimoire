@@ -187,6 +187,10 @@ export const appendCommentOptionsSchema = z.object({
   cwd: z.string().optional(),
 });
 
+export const validateOptionsSchema = z.object({
+  cwd: z.string().optional(),
+});
+
 // --- Inferred types ---
 
 export type OverviewFrontmatter = z.infer<typeof overviewFrontmatterSchema>;
@@ -203,3 +207,4 @@ export type UpdateDocumentOptions = z.infer<typeof updateDocumentOptionsSchema>;
 export type DeleteDocumentOptions = z.infer<typeof deleteDocumentOptionsSchema>;
 export type AppendLogOptions = z.infer<typeof appendLogOptionsSchema>;
 export type AppendCommentOptions = z.infer<typeof appendCommentOptionsSchema>;
+export type ValidateOptions = z.infer<typeof validateOptionsSchema>;
