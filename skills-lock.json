@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "grimoire": {
+      "source": "mikevalstar/grimoire",
+      "sourceType": "github",
+      "computedHash": "09b533908ddc7e3c23441bd0f2dad7a0097db764a8a18ca183521604f01c39d5"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
