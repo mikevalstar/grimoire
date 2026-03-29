@@ -200,6 +200,86 @@ describe("document operations", () => {
     expect(appendIndex).toBeLessThan(changelogIndex);
   });
 
+  test("updateDocument --body preserves existing Comments and Changelog sections", async () => {
+    const feature = await createDocument({
+      type: "feature",
+      title: "Body Preserve",
+      tags: [],
+      body: "# Body Preserve\n\nOriginal content.",
+      cwd: tempDir,
+    });
+
+    // Add a log entry so there's changelog content to preserve
+    await appendLog({
+      id: feature.id,
+      message: "Initial setup done.",
+      author: "agent",
+      cwd: tempDir,
+    });
+
+    // Add a comment so there's comment content to preserve
+    await appendComment({
+      id: feature.id,
+      message: "Looks good so far.",
+      author: "reviewer",
+      cwd: tempDir,
+    });
+
+    // Now replace the body
+    await updateDocument({
+      type: "feature",
+      id: feature.id,
+      body: "# Body Preserve\n\nReplaced content.",
+      addTag: [],
+      removeTag: [],
+      cwd: tempDir,
+    });
+
+    const content = await readFile(
+      join(tempDir, ".grimoire/features", `${feature.id}.md`),
+      "utf-8",
+    );
+
+    // New body content is present
+    expect(content).toContain("Replaced content.");
+    expect(content).not.toContain("Original content.");
+
+    // Comments and changelog are preserved
+    expect(content).toContain("## Comments");
+    expect(content).toContain("Looks good so far.");
+    expect(content).toContain("## Changelog");
+    expect(content).toContain("Initial setup done.");
+  });
+
+  test("updateDocument --body works when no Comments or Changelog exist", async () => {
+    const feature = await createDocument({
+      type: "feature",
+      title: "No Sections",
+      tags: [],
+      body: "# No Sections\n\nOriginal.",
+      cwd: tempDir,
+    });
+
+    // Strip comments and changelog from the file
+    const filepath = join(tempDir, ".grimoire/features", `${feature.id}.md`);
+    const original = await readFile(filepath, "utf-8");
+    const stripped = original.replace(/\n---\n\n## Comments[\s\S]*$/, "");
+    await writeFile(filepath, stripped);
+
+    await updateDocument({
+      type: "feature",
+      id: feature.id,
+      body: "# No Sections\n\nNew content.",
+      addTag: [],
+      removeTag: [],
+      cwd: tempDir,
+    });
+
+    const content = await readFile(filepath, "utf-8");
+    expect(content).toContain("New content.");
+    expect(content).not.toContain("Original.");
+  });
+
   test("updateDocument deduplicates decision features when the same feature is added twice", async () => {
     const feature = await createDocument({
       type: "feature",

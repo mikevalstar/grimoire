@@ -16,28 +16,26 @@ decisions: []
 
 # DuckDB Sync & Database
 
-The DuckDB database is a derived cache rebuilt from markdown files. It stores documents, relationships, and changelog entries for fast querying.
+**Why:** Markdown files are the source of truth but too slow for search and graph queries. The DuckDB cache gives us full-text search, vector similarity, and relational queries without sacrificing the file-first model.
 
 ## Scope
 
-- \`grimoire sync\` — rebuild DuckDB from markdown files, with \`--force\` (full rebuild) and \`--dry-run\`
+- `grimoire sync` — rebuild DuckDB from markdown files, with `--force` (full rebuild) and `--dry-run`
 - Auto-sync on CLI commands if files changed (configurable)
-- Three tables: documents (id, title, type, status, priority, tags, body, embedding, frontmatter JSON), relationships (source_id, target_id, relationship type), changelog_entries (document_id, date, author, content, is_comment)
-- Relationship extraction from frontmatter links (requirements, tasks, decisions, depends_on, supersedes, feature)
-- Database lives at \`.grimoire/.cache/grimoire.duckdb\` (gitignored)
+- Three tables: documents, relationships, changelog_entries
+- Relationship extraction from frontmatter links during sync
+- Database lives at `.grimoire/.cache/grimoire.duckdb` (gitignored)
 
-## Current Status
+## Acceptance criteria
 
-Basic sync is implemented. Document table population works. Relationship extraction and changelog entry parsing need verification.
+- Sync populates all three tables from markdown files
+- `--force` does a full rebuild; default is incremental (changed files only)
+- `--dry-run` reports what would change without writing
+- Auto-sync triggers when markdown files are newer than the database
+- Relationships are correctly extracted from all frontmatter link fields
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:00 | grimoire
-
-Document created.
+- No write-back from database to markdown (one-way sync only)
+- No external database support (DuckDB only)
+- No concurrent access handling (single-user tool)

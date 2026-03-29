@@ -389,6 +389,41 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
   return { type, count: limited.length, documents: limited };
 }
 
+/**
+ * Split a document body into content, comments section, and changelog section.
+ * Comments and changelog are returned with their leading `---\n\n` separator preserved.
+ */
+function splitBodySections(body: string): {
+  content: string;
+  comments: string;
+  changelog: string;
+} {
+  const commentsIndex = body.indexOf("---\n\n## Comments");
+  const changelogIndex = body.indexOf("---\n\n## Changelog");
+
+  let content = body;
+  let comments = "";
+  let changelog = "";
+
+  if (commentsIndex !== -1 && changelogIndex !== -1) {
+    content = body.slice(0, commentsIndex);
+    comments = body.slice(commentsIndex, changelogIndex);
+    changelog = body.slice(changelogIndex);
+  } else if (changelogIndex !== -1) {
+    content = body.slice(0, changelogIndex);
+    changelog = body.slice(changelogIndex);
+  } else if (commentsIndex !== -1) {
+    content = body.slice(0, commentsIndex);
+    comments = body.slice(commentsIndex);
+  }
+
+  // Ensure sections have leading newlines for clean concatenation
+  if (comments && !comments.startsWith("\n")) comments = "\n\n" + comments;
+  if (changelog && !changelog.startsWith("\n")) changelog = "\n\n" + changelog;
+
+  return { content, comments, changelog };
+}
+
 export async function updateDocument(
   options: UpdateDocumentOptions,
 ): Promise<UpdateDocumentResult> {
@@ -456,24 +491,15 @@ export async function updateDocument(
 
   fm.updated = today;
 
-  // Handle body
+  // Handle body — preserve Comments and Changelog sections
   let newBody = body;
+  const sections = splitBodySections(newBody);
   if (opts.body !== undefined) {
-    newBody = opts.body;
+    newBody = opts.body.trimEnd() + sections.comments + sections.changelog;
     updatedFields.push("body");
   } else if (opts.append !== undefined) {
-    // Insert before the changelog section if it exists
-    const changelogIndex = newBody.indexOf("---\n\n## Changelog");
-    if (changelogIndex !== -1) {
-      newBody =
-        newBody.slice(0, changelogIndex).trimEnd() +
-        "\n\n" +
-        opts.append +
-        "\n\n" +
-        newBody.slice(changelogIndex);
-    } else {
-      newBody = newBody.trimEnd() + "\n\n" + opts.append;
-    }
+    newBody =
+      sections.content.trimEnd() + "\n\n" + opts.append + sections.comments + sections.changelog;
     updatedFields.push("body");
   }
 

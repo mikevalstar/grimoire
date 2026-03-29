@@ -16,29 +16,26 @@ decisions: []
 
 # Project Initialization & Configuration
 
-The \`grimoire init\` command sets up the \`.grimoire/\` directory structure in a project, creating the overview document, config file, and all subdirectories. The \`grimoire config\` command allows viewing and editing settings.
+**Why:** Grimoire needs a zero-friction setup experience. A single `grimoire init` should get any project from nothing to a working `.grimoire/` directory with sensible defaults, so teams can start capturing knowledge immediately.
 
 ## Scope
 
-- \`grimoire init\` — creates \`.grimoire/\` with overview.md, config.yaml, and subdirectories (features/, requirements/, tasks/, decisions/, .cache/)
-- AI mode: requires \`--name\`, errors if missing
+- `grimoire init` — creates `.grimoire/` with overview.md, config.yaml, and subdirectories
+- AI mode: requires `--name`, errors if missing
 - Human mode: prompts for name and description
-- Updates \`.gitignore\` to exclude \`.grimoire/.cache/\`
-- Recommends installing the AI agent skill via \`npx skills add mikevalstar/grimoire\`
-- \`grimoire config\` — view/edit configuration (embedding provider, search defaults, UI port, sync settings, ID generation)
+- Updates `.gitignore` to exclude `.grimoire/.cache/`
+- Recommends installing the AI agent skill via `npx skills add mikevalstar/grimoire`
+- `grimoire config` — view/edit configuration (embedding provider, search defaults, UI port, sync settings, ID generation)
 
-## Current Status
+## Acceptance criteria
 
-Init command is implemented and working. Config command is not yet implemented.
+- `grimoire init` creates complete directory structure in one command
+- Overview document is populated with project name
+- `.gitignore` is updated for `.cache/`
+- Init is idempotent (safe to re-run)
+- Config command can read and write all config keys
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:00 | grimoire
-
-Document created.
+- No migration from other requirements tools during init
+- No template system for different project types

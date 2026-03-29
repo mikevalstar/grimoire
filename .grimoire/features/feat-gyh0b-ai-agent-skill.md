@@ -16,28 +16,25 @@ decisions: []
 
 # AI Agent Skill
 
-Grimoire ships a single AI agent skill via the agentskills.io convention. The skill provides AI coding agents with instructions on how to use grimoire CLI commands, document types, workflows, and conventions.
+**Why:** AI agents need structured instructions to use grimoire effectively. Without a skill file, agents would need to discover CLI commands by trial and error, wasting tokens and producing inconsistent results.
 
 ## Scope
 
-- Skill source lives at \`skills/grimoire/SKILL.md\`
-- Users install via \`npx skills add mikevalstar/grimoire\`
-- Covers: all CLI commands and flags, document types/statuses/priorities, document structure, recommended workflows, file layout
-- \`grimoire init\` recommends installing the skill but does not manage skill files directly
+- Skill source lives at `skills/grimoire/SKILL.md`
+- Users install via `npx skills add mikevalstar/grimoire`
+- Covers: all CLI commands and flags, document types/statuses/priorities, document structure, recommended workflows, writing guidance, file layout
+- `grimoire init` recommends installing the skill but does not manage skill files directly
 - Published to agentskills.io registry
 
-## Current Status
+## Acceptance criteria
 
-Complete. Skill is published and installable.
+- Skill is installable via `npx skills add mikevalstar/grimoire`
+- Skill covers all implemented CLI commands with accurate flags and examples
+- Includes workflow guidance for common agent tasks
+- Includes writing guidance for features and requirements
+- Published and discoverable on agentskills.io
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:01 | grimoire
-
-Document created.
+- No IDE-specific integrations (skill is agent-agnostic)
+- No auto-updating of installed skills when grimoire updates

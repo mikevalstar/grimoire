@@ -16,28 +16,24 @@ decisions: []
 
 # Relationships & Graph
 
-Document relationship tracking and graph traversal. Documents link to each other via frontmatter references (features → requirements → tasks, decisions → features, depends_on chains).
+**Why:** Documents in isolation lack context. Agents need to traverse from a task up to its parent requirement and feature, or discover related decisions, to understand the full picture before making changes.
 
 ## Scope
 
-- \`grimoire links <id>\` — show all relationships for a document, with \`--direction\`, \`--type\`, \`--depth\`
-- \`grimoire tree\` — show the feature → requirement → task hierarchy, with \`--feature\`, \`--status\`, \`--collapsed\`
-- \`grimoire orphans\` — find documents with no relationships
+- `grimoire links <id>` — show all relationships for a document, with `--direction`, `--type`, `--depth`
+- `grimoire tree` — show feature → requirement → task hierarchy, with `--feature`, `--status`, `--collapsed`
+- `grimoire orphans` — find documents with no relationships
 - Relationship types: has_requirement, has_task, has_decision, depends_on, supersedes, parent_feature
-- Stored in the \`relationships\` DuckDB table, derived from frontmatter links during sync
+- Stored in `relationships` DuckDB table, derived from frontmatter links during sync
 
-## Current Status
+## Acceptance criteria
 
-Not yet implemented. Relationship extraction during sync may be partially in place.
+- `links` command returns all direct and transitive relationships up to specified depth
+- `tree` command renders the full hierarchy filtered by feature/status
+- `orphans` finds documents with zero relationships
+- Relationships are correctly extracted from frontmatter during sync
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:01 | grimoire
-
-Document created.
+- No visual graph rendering in CLI (that's the Web UI's job)
+- No custom/user-defined relationship types

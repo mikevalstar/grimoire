@@ -16,28 +16,24 @@ decisions: []
 
 # Changelog & Comments
 
-AI agents and humans can append timestamped entries to any document's changelog or comments section. This is how progress gets recorded and questions get asked.
+**Why:** AI agents and humans need a shared, auditable trail of progress and discussion on any document. Without this, context is lost between sessions and contributors.
 
 ## Scope
 
-- \`grimoire log <id> <message>\` — append a changelog entry with optional \`--author\`
-- \`grimoire comment <id> <message>\` — append a blockquoted comment (shorthand for \`log --comment\`)
-- Entries follow the format: \`### YYYY-MM-DD HH:mm | author\`
-- Comments are blockquoted (\`>\`), changelog entries are plain text
+- `grimoire log <id> <message>` — append a changelog entry with optional `--author`
+- `grimoire comment <id> <message>` — append a blockquoted comment (shorthand for `log --comment`)
+- Entries follow the format: `### YYYY-MM-DD HH:mm | author`
+- Comments are blockquoted (`>`), changelog entries are plain text
 - Both sections are included in embedded content for semantic search
 
-## Current Status
+## Acceptance criteria
 
-Log and comment commands are implemented.
+- Log and comment commands append entries to the correct document section
+- Entries include timestamp and author
+- `--author` flag defaults to a sensible value when omitted
+- Existing document content is preserved when appending
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:00 | grimoire
-
-Document created.
+- No threaded replies or nested comments
+- No notifications or subscriptions

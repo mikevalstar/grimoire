@@ -16,28 +16,25 @@ decisions: []
 
 # Validation
 
-Check project documents for structural issues — broken links, missing required fields, orphaned documents, and schema violations.
+**Why:** Markdown files are hand-editable and relationships are stored as string references — things break silently. Validation catches broken links, missing fields, and schema violations before they cause confusing downstream errors.
 
 ## Scope
 
-- \`grimoire validate\` — runs all validation checks and reports issues
+- `grimoire validate` — runs all validation checks and reports issues
 - Broken link detection (references to non-existent document IDs)
 - Missing required fields (e.g., title, type)
 - Orphaned documents (no incoming or outgoing relationships)
 - Schema validation (valid status values, valid priority levels, correct type prefixes)
 
-## Current Status
+## Acceptance criteria
 
-Validate command exists but needs verification of completeness.
+- Detects and reports all broken relationship links
+- Catches missing required frontmatter fields
+- Identifies orphaned documents
+- Validates status/priority values against allowed enums
+- Returns exit code 1 on errors, 0 on clean
 
----
+## Non-goals
 
-## Comments
-
----
-
-## Changelog
-
-### 2026-03-29 19:01 | grimoire
-
-Document created.
+- No auto-fix mode (report only)
+- No content quality checks (spelling, grammar)
