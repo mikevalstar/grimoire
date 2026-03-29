@@ -36,7 +36,6 @@ The minimum to start using Grimoire on itself.
 - [x] `grimoire log` / `grimoire comment` — append changelog/comment entries (separate sections, timestamped)
 - [x] `grimoire validate` — check frontmatter schemas, required fields, broken links, orphans, id mismatches
 - [x] JSON output for all commands (AI mode default)
-- [ ] `--interactive` flag scaffolding (human-readable output)
 - [x] Write grimoire skill as single `skills/grimoire/SKILL.md` (agentskills.io convention) covering all current CLI commands, document types, workflows
 - [x] Remove `.skills/` copy logic from init; init now outputs `skills_hint` recommending `npx skills add mikevalstar/grimoire`
 
@@ -105,6 +104,7 @@ The killer feature. Agents can now get oriented in one command.
 
 Visual management layer for humans. Not required for core functionality.
 
+- [ ] `--interactive` flag scaffolding (human-readable output)
 - [ ] Fastify server with static asset serving
 - [ ] `grimoire ui` — launch server, auto-open browser
 - [ ] React + Vite SPA scaffold
