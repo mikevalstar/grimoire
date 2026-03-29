@@ -1,6 +1,6 @@
 {
   "name": "@grimoire-ai/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Local-first, AI-native requirements management CLI",
   "license": "MIT",
   "bin": {
