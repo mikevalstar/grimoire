@@ -26,25 +26,25 @@ Grimoire answers the question: **"How does an AI agent get oriented in a project
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Runtime** | Node.js | Application runtime |
-| **CLI Framework** | `commander` | CLI argument parsing and subcommands |
-| **Database** | DuckDB via `duckdb-async` | Local query engine (gitignored, derived from files) |
-| **Full-Text Search** | DuckDB `fts` extension | BM25-ranked keyword search |
-| **Vector Search** | DuckDB `vss` extension | HNSW approximate nearest neighbor search |
-| **Embeddings** | `@huggingface/transformers` | Local ONNX model inference |
-| **Embedding Model** | nomic-embed-text-v1.5 | Default model, downloaded + cached on first run |
-| **Web Server** | Fastify | Local HTTP server for web UI |
-| **Frontend** | React + Vite | SPA served as static assets |
-| **Distribution** | npm (`npx grimoire-ai`) | Global install or npx execution |
+| Layer                | Technology                  | Purpose                                             |
+| -------------------- | --------------------------- | --------------------------------------------------- |
+| **Runtime**          | Node.js                     | Application runtime                                 |
+| **CLI Framework**    | `commander`                 | CLI argument parsing and subcommands                |
+| **Database**         | DuckDB via `duckdb-async`   | Local query engine (gitignored, derived from files) |
+| **Full-Text Search** | DuckDB `fts` extension      | BM25-ranked keyword search                          |
+| **Vector Search**    | DuckDB `vss` extension      | HNSW approximate nearest neighbor search            |
+| **Embeddings**       | `@huggingface/transformers` | Local ONNX model inference                          |
+| **Embedding Model**  | nomic-embed-text-v1.5       | Default model, downloaded + cached on first run     |
+| **Web Server**       | Fastify                     | Local HTTP server for web UI                        |
+| **Frontend**         | React + Vite                | SPA served as static assets                         |
+| **Distribution**     | npm (`npx grimoire-ai`)     | Global install or npx execution                     |
 
 ### Optional / Pluggable
 
-| Component | Options | Notes |
-|---|---|---|
+| Component             | Options                           | Notes                                                       |
+| --------------------- | --------------------------------- | ----------------------------------------------------------- |
 | **Embedding backend** | Ollama, OpenAI, Anthropic, Cohere | For users who prefer cloud embeddings or already run Ollama |
-| **Export formats** | JSON, CSV, Markdown summary | For integration with other tools |
+| **Export formats**    | JSON, CSV, Markdown summary       | For integration with other tools                            |
 
 ---
 
@@ -111,14 +111,14 @@ Grimoire ships with a set of AI agent skill files (inspired by [agentskills.io](
 
 Skill files live in the npm package and are copied into `.grimoire/.skills/` on `grimoire init` so agents with file access can read them directly.
 
-| Skill File | Purpose |
-|---|---|
-| `OVERVIEW.md` | What Grimoire is, when to use which command, quick start |
-| `READING.md` | How to read and interpret Grimoire documents, frontmatter fields, changelog format |
-| `WRITING.md` | How to create and update documents properly, required fields, conventions |
-| `SEARCHING.md` | How to use search and context commands effectively, query tips, filter combos |
-| `WORKFLOW.md` | Recommended workflows: starting a task, updating progress, recording decisions, closing work |
-| `SCHEMA.md` | Document schemas, frontmatter fields, valid status/priority values, relationship types |
+| Skill File     | Purpose                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `OVERVIEW.md`  | What Grimoire is, when to use which command, quick start                                     |
+| `READING.md`   | How to read and interpret Grimoire documents, frontmatter fields, changelog format           |
+| `WRITING.md`   | How to create and update documents properly, required fields, conventions                    |
+| `SEARCHING.md` | How to use search and context commands effectively, query tips, filter combos                |
+| `WORKFLOW.md`  | Recommended workflows: starting a task, updating progress, recording decisions, closing work |
+| `SCHEMA.md`    | Document schemas, frontmatter fields, valid status/priority values, relationship types       |
 
 These skills are designed so that an AI agent can run `cat .grimoire/.skills/OVERVIEW.md` to bootstrap its understanding, then reference specific skill files as needed. The skills should be written to be consumed by AI agents, not humans — concise, example-heavy, and structured for quick parsing.
 
@@ -140,11 +140,14 @@ Every document includes a `## Changelog` section at the bottom, separated by a h
 Both humans and AI agents can append changelog entries. The author field can be a person's name, an agent identifier (e.g., `claude-code`), or omitted. The changelog is part of the markdown body and is included in the embedded content for semantic search — meaning you can search for discussions and decisions captured in comments.
 
 Changelog entry format:
+
 ```markdown
 ### YYYY-MM-DD | author
+
 Description of change.
 
 ### YYYY-MM-DD | author
+
 > This is a comment or question, not a change description.
 > Blockquoted entries are discussion/commentary.
 ```
@@ -187,26 +190,23 @@ Initial project overview created. Defined scope and target users.
 id: feat-user-auth
 title: "User Authentication"
 type: feature
-status: in-progress        # proposed | in-progress | complete | deprecated
-priority: high             # critical | high | medium | low
+status: in-progress # proposed | in-progress | complete | deprecated
+priority: high # critical | high | medium | low
 created: 2026-03-29
 updated: 2026-03-29
 tags: [security, users]
-requirements:              # links to requirement IDs
+requirements: # links to requirement IDs
   - req-001-oauth-login
   - req-002-session-mgmt
   - req-003-role-permissions
-decisions:                 # links to decision IDs
+decisions: # links to decision IDs
   - adr-001-use-jwt-over-sessions
 ---
-
 # User Authentication
 
 Freeform markdown describing the feature.
 User stories, scope, acceptance criteria at the feature level, mockups, etc.
-
 ---
-
 ## Changelog
 
 ### 2026-03-29 | mike
@@ -376,11 +376,13 @@ CREATE TABLE changelog_entries (
 ```
 
 FTS index:
+
 ```sql
 PRAGMA create_fts_index('documents', 'id', 'title', 'body', 'tags');
 ```
 
 VSS index:
+
 ```sql
 CREATE INDEX embedding_idx ON documents USING HNSW (embedding) WITH (metric = 'cosine');
 ```
@@ -590,14 +592,14 @@ project:
   description: "Project description"
 
 embedding:
-  provider: local                      # local | ollama | openai | anthropic
-  model: nomic-embed-text-v1.5         # model name
+  provider: local # local | ollama | openai | anthropic
+  model: nomic-embed-text-v1.5 # model name
   # ollama_url: http://localhost:11434  # if provider is ollama
   # api_key: ""                        # if provider is cloud
 
 search:
   default_limit: 10
-  semantic_weight: 0.5                 # weight for hybrid search (0 = keyword only, 1 = semantic only)
+  semantic_weight: 0.5 # weight for hybrid search (0 = keyword only, 1 = semantic only)
   keyword_weight: 0.5
 
 ui:
@@ -605,12 +607,12 @@ ui:
   auto_open: true
 
 sync:
-  auto_sync: true                      # re-sync on CLI commands if files changed
-  watch: false                         # file watcher for live sync (when UI is running)
+  auto_sync: true # re-sync on CLI commands if files changed
+  watch: false # file watcher for live sync (when UI is running)
 
 ids:
-  auto_generate: true                  # generate IDs from title slugs
-  prefix_by_type: true                 # e.g., feat-, req-, task-, adr-
+  auto_generate: true # generate IDs from title slugs
+  prefix_by_type: true # e.g., feat-, req-, task-, adr-
 ```
 
 ---

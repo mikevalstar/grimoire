@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development
 
-- PNPM
+- VP with PNPM
+- Conventional Commits
 - PLAN.md should always be updated when requirements change
 - Documentation generally is a first class thing; always update docs after doing work
 
