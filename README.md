@@ -74,6 +74,7 @@ vp run test:coverage
 ```
 
 Each tested package writes its own report to a local `coverage/` directory such as `apps/cli/coverage/` or `packages/core/coverage/`.
+That makes it straightforward to compare before/after coverage when adding a small set of targeted unit tests.
 
 - Build the monorepo:
 
