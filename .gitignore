@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Grimoire cache (derived from markdown files)
+.grimoire/.cache/
+
 # AI agent worktrees
 .claude/worktrees/

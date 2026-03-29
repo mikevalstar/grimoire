@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "ready": "vp fmt && vp lint && vp run test -r && vp run build -r",
+    "build": "vp run build -r",
+    "test": "vp run test -r",
+    "grimoire": "vp run grimoire-ai#build && node apps/cli/dist/index.mjs",
     "dev": "vp run website#dev",
     "prepare": "vp config"
   },

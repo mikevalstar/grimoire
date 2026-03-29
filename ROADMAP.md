@@ -8,11 +8,11 @@
 
 Bootstrap the repo and toolchain. No runtime functionality yet.
 
-- [ ] Initialize Node.js project with pnpm
-- [ ] Set up TypeScript, Vite+ toolchain (`vp check`, `vp test`)
-- [ ] Configure commander entry point (`bin/grimoire`)
-- [ ] Set up project structure (src/core, src/cli, src/server)
-- [ ] Add basic CI (lint, typecheck, test)
+- [x] Initialize Node.js project with pnpm
+- [x] Set up TypeScript, Vite+ toolchain (`vp check`, `vp test`)
+- [x] Configure commander entry point (`bin/grimoire`)
+- [x] Set up project structure (src/core, src/cli, src/server)
+- [x] Add basic CI (lint, typecheck, test)
 - [ ] Publish placeholder to npm (`npx grimoire-ai` prints version)
 
 **Dogfood gate:** `grimoire --version` works via npx.

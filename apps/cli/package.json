@@ -2,15 +2,22 @@
   "name": "grimoire-ai",
   "version": "0.0.1",
   "description": "Local-first, AI-native requirements management CLI",
+  "license": "MIT",
   "bin": {
     "grimoire": "./dist/index.mjs"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsdown src/index.ts --format esm --out-dir dist",
-    "dev": "tsdown src/index.ts --format esm --out-dir dist --watch"
+    "dev": "tsdown src/index.ts --format esm --out-dir dist --watch",
+    "test": "vp test",
+    "check": "vp check"
   },
   "dependencies": {
+    "@grimoire-ai/core": "workspace:*",
     "commander": "^13.0.0"
   },
   "devDependencies": {
