@@ -5,6 +5,7 @@ import { setFormat, type OutputFormat } from "./output.ts";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerOverviewCommand } from "./commands/overview.ts";
 import { registerDocumentCommands } from "./commands/document.ts";
+import { registerLogCommand } from "./commands/log.ts";
 
 const program = new Command();
 
@@ -22,5 +23,6 @@ program
 registerInitCommand(program);
 registerOverviewCommand(program);
 registerDocumentCommands(program);
+registerLogCommand(program);
 
 program.parse();

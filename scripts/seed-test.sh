@@ -261,9 +261,100 @@ React 19 with Vite for fast development iteration and broad ecosystem.
 - **Svelte:** Smaller bundle but smaller ecosystem
 - **Vue:** Good option but team has more React experience" > /dev/null
 
+# --- Logs & Comments ---
+echo "Adding changelog entries and comments..."
+
+# Log progress on the Google OAuth task
+$G log task-google-oauth "Registered app in Google Cloud Console. OAuth consent screen configured." \
+  --author "mike" --cwd "$TEST_DIR" > /dev/null 2>&1 || true
+
+# We need actual IDs — grab them from list output
+GOOGLE_TASK_ID=$($G task list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Google")) | .id')
+GITHUB_TASK_ID=$($G task list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("GitHub")) | .id')
+JWT_TASK_ID=$($G task list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("JWT")) | .id')
+STRIPE_TASK_ID=$($G task list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Stripe")) | .id')
+AUTH_TEST_ID=$($G task list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Auth Integration")) | .id')
+
+AUTH_FEAT_ID=$($G feature list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Authentication")) | .id')
+PAYMENT_FEAT_ID=$($G feature list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Payment")) | .id')
+NOTIF_FEAT_ID=$($G feature list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Notification")) | .id')
+
+OAUTH_REQ_ID=$($G requirement list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("OAuth")) | .id')
+SESSION_REQ_ID=$($G requirement list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Session")) | .id')
+STRIPE_REQ_ID=$($G requirement list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Stripe")) | .id')
+
+JWT_ADR_ID=$($G decision list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("JWT")) | .id')
+STRIPE_ADR_ID=$($G decision list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("Stripe")) | .id')
+REACT_ADR_ID=$($G decision list --cwd "$TEST_DIR" | jq -r '.documents[] | select(.title | contains("React")) | .id')
+
+# Task changelog entries (progress tracking)
+$G log "$GOOGLE_TASK_ID" "Registered app in Google Cloud Console. OAuth consent screen configured." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G log "$GOOGLE_TASK_ID" "Implemented passport-google-oauth20 strategy. Callback route working locally." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G log "$GITHUB_TASK_ID" "Blocked — waiting on Google OAuth to land first so we can reuse the shared auth middleware." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G log "$STRIPE_TASK_ID" "Spike: reviewed Stripe webhook best practices. Need to handle idempotency at the handler level." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+
+# Task comments (discussion & questions)
+$G comment "$GOOGLE_TASK_ID" "Should we also support Google Workspace accounts or just consumer Gmail?" \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$GOOGLE_TASK_ID" "Workspace accounts work with the same OAuth flow — no extra config needed." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G comment "$JWT_TASK_ID" "What should the access token expiry be? 15 min seems standard but some teams prefer 5 min." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$JWT_TASK_ID" "15 min is the sweet spot — 5 min causes too many silent refreshes on slow connections." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G comment "$STRIPE_TASK_ID" "Do we need to handle dispute webhooks in v1 or can that wait?" \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$AUTH_TEST_ID" "We should use msw for mocking OAuth providers rather than nock — better DX." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+
+# Requirement logs
+$G log "$OAUTH_REQ_ID" "Google OAuth strategy implemented and tested. Moving to GitHub next." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G log "$STRIPE_REQ_ID" "Stripe SDK v14.5 added to dependencies. Webhook endpoint scaffolded." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+
+# Requirement comments
+$G comment "$OAUTH_REQ_ID" "Should we support SAML as well, or is OAuth sufficient for v1?" \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$OAUTH_REQ_ID" "OAuth is sufficient for v1. SAML is an enterprise feature we can add later." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G comment "$SESSION_REQ_ID" "Revisited after reading the Clerk docs — their approach to short-lived JWTs + refresh is worth noting." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+
+# Feature logs
+$G log "$AUTH_FEAT_ID" "OAuth requirement partially done — Google working, GitHub next." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G log "$PAYMENT_FEAT_ID" "Stripe integration underway. Webhook handler being built." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+
+# Feature comments
+$G comment "$AUTH_FEAT_ID" "Should we prioritize MFA before launching or is OAuth sufficient for initial release?" \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$AUTH_FEAT_ID" "OAuth is enough for launch. MFA can be a fast-follow in the next sprint." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+$G comment "$NOTIF_FEAT_ID" "This is lower priority — parking until auth and payments are stable." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+
+# Decision logs & comments
+$G log "$JWT_ADR_ID" "Status changed to accepted. Team aligned on JWT approach." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$JWT_ADR_ID" "Revisited after reading the Clerk docs — their short-lived JWT + refresh pattern validates our choice." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G log "$STRIPE_ADR_ID" "Confirmed after evaluating Square's subscription API — Stripe is significantly better." \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$REACT_ADR_ID" "Team has more React experience but Svelte's bundle size is tempting for a local tool. Worth revisiting?" \
+  --author mike --cwd "$TEST_DIR" > /dev/null
+$G comment "$REACT_ADR_ID" "For a local-first tool, bundle size matters less. React ecosystem wins here." \
+  --author claude-code --cwd "$TEST_DIR" > /dev/null
+
 echo ""
 echo "Done! Test grimoire seeded at .g-test/"
 echo ""
 echo "Try:"
 echo "  node apps/cli/dist/index.mjs feature list --cwd .g-test"
 echo "  node apps/cli/dist/index.mjs task list --status todo --cwd .g-test"
+echo "  node apps/cli/dist/index.mjs task get $GOOGLE_TASK_ID --cwd .g-test"

@@ -22,6 +22,9 @@ export {
   updateDocument,
   deleteDocument,
   resolveDocumentId,
+  resolveDocumentIdAnyType,
+  appendLog,
+  appendComment,
 } from "./documents.ts";
 export type {
   CreateDocumentResult,
@@ -29,6 +32,8 @@ export type {
   ListDocumentsResult,
   UpdateDocumentResult,
   DeleteDocumentResult,
+  ResolvedDocument,
+  AppendEntryResult,
 } from "./documents.ts";
 
 export { parseDocument, readDocument } from "./frontmatter.ts";

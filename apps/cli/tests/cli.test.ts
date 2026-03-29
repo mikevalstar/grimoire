@@ -173,3 +173,128 @@ describe("overview command", () => {
     }
   });
 });
+
+describe("log and comment commands", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "grimoire-test-"));
+    run(["init", "--name", "Test Project", "--cwd", tempDir]);
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  function createFeature(): string {
+    const output = run(["feature", "create", "--title", "Test Feature", "--cwd", tempDir]);
+    return JSON.parse(output).id;
+  }
+
+  test("grimoire log appends a changelog entry", async () => {
+    const id = createFeature();
+    const output = run(["log", id, "Implemented the thing.", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.success).toBe(true);
+    expect(result.id).toBe(id);
+    expect(result.section).toBe("changelog");
+    expect(result.author).toBe("agent");
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    expect(content).toContain("Implemented the thing.");
+    expect(content).toContain("## Changelog");
+    // Entry should appear after ## Changelog, not in ## Comments
+    const changelogIdx = content.indexOf("## Changelog");
+    const entryIdx = content.indexOf("Implemented the thing.");
+    expect(entryIdx).toBeGreaterThan(changelogIdx);
+  });
+
+  test("grimoire log --comment appends to comments section", async () => {
+    const id = createFeature();
+    const output = run(["log", id, "Should we add pagination?", "--comment", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.success).toBe(true);
+    expect(result.section).toBe("comments");
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    expect(content).toContain("> Should we add pagination?");
+    // Comment should appear between ## Comments and ## Changelog
+    const commentsIdx = content.indexOf("## Comments");
+    const changelogIdx = content.indexOf("## Changelog");
+    const entryIdx = content.indexOf("> Should we add pagination?");
+    expect(entryIdx).toBeGreaterThan(commentsIdx);
+    expect(entryIdx).toBeLessThan(changelogIdx);
+  });
+
+  test("grimoire comment is shorthand for log --comment", async () => {
+    const id = createFeature();
+    const output = run(["comment", id, "Is this the right approach?", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.success).toBe(true);
+    expect(result.section).toBe("comments");
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    expect(content).toContain("> Is this the right approach?");
+  });
+
+  test("--author sets custom author", async () => {
+    const id = createFeature();
+    const output = run(["log", id, "Fixed the bug.", "--author", "mike", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.author).toBe("mike");
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    expect(content).toContain("| mike");
+  });
+
+  test("resolves by uid", async () => {
+    const id = createFeature();
+    const uid = id.split("-")[1]; // extract uid from feat-XXXXX-title
+    const output = run(["log", uid, "Logged by uid.", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.success).toBe(true);
+    expect(result.id).toBe(id);
+  });
+
+  test("entries include date and time", async () => {
+    const id = createFeature();
+    run(["log", id, "Time test.", "--cwd", tempDir]);
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    // Match pattern: ### YYYY-MM-DD HH:mm | agent
+    expect(content).toMatch(/### \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| agent\nTime test\./);
+  });
+
+  test("updates the updated field in frontmatter", async () => {
+    const id = createFeature();
+    run(["log", id, "Some change.", "--cwd", tempDir]);
+
+    const content = await readFile(join(tempDir, ".grimoire/features", `${id}.md`), "utf-8");
+    const today = new Date().toISOString().slice(0, 10);
+    expect(content).toContain(`updated: "${today}"`);
+  });
+
+  test("fails for non-existent ID", () => {
+    const stderr = runErr(["log", "nonexistent-id", "message", "--cwd", tempDir]);
+    const parsed = JSON.parse(stderr);
+    expect(parsed.error).toContain("not found");
+  });
+
+  test("works across document types", async () => {
+    // Create a task and log to it
+    const taskOutput = run(["task", "create", "--title", "Test Task", "--cwd", tempDir]);
+    const taskId = JSON.parse(taskOutput).id;
+
+    const output = run(["log", taskId, "Started work.", "--cwd", tempDir]);
+    const result = JSON.parse(output);
+
+    expect(result.success).toBe(true);
+    expect(result.type).toBe("task");
+    expect(result.id).toBe(taskId);
+  });
+});

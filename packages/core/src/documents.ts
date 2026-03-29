@@ -2,6 +2,7 @@ import { mkdir, readdir, writeFile, rename, rm, access } from "node:fs/promises"
 import { join } from "node:path";
 import { customAlphabet } from "nanoid";
 import { readDocument } from "./frontmatter.ts";
+import { readFile, writeFile as fsWriteFile } from "node:fs/promises";
 import {
   type DocumentType,
   type CreateDocumentOptions,
@@ -9,15 +10,20 @@ import {
   type ListDocumentsOptions,
   type UpdateDocumentOptions,
   type DeleteDocumentOptions,
+  type AppendLogOptions,
+  type AppendCommentOptions,
   createDocumentOptionsSchema,
   getDocumentOptionsSchema,
   listDocumentsOptionsSchema,
   updateDocumentOptionsSchema,
   deleteDocumentOptionsSchema,
+  appendLogOptionsSchema,
+  appendCommentOptionsSchema,
   featureFrontmatterSchema,
   requirementFrontmatterSchema,
   taskFrontmatterSchema,
   decisionFrontmatterSchema,
+  documentTypes,
 } from "./schemas.ts";
 
 const GRIMOIRE_DIR = ".grimoire";
@@ -264,8 +270,10 @@ export async function createDocument(
 
   const frontmatter = buildFrontmatter(type, base);
   const body = opts.body || `# ${opts.title}`;
-  const changelog = `---\n\n## Changelog\n\n### ${today} | grimoire\nDocument created.\n`;
-  const content = `${frontmatter}\n\n${body}\n\n${changelog}`;
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const tail = `---\n\n## Comments\n\n---\n\n## Changelog\n\n### ${today} ${time} | grimoire\nDocument created.\n`;
+  const content = `${frontmatter}\n\n${body}\n\n${tail}`;
 
   await writeFile(filepath, content);
 
@@ -507,4 +515,198 @@ export async function deleteDocument(
   await rename(filepath, archivePath);
 
   return { id: opts.id, type, action: "archived", filepath: relativePath };
+}
+
+// --- Type-agnostic ID resolution ---
+
+const PREFIX_TO_TYPE: Record<string, DocumentType> = {
+  feat: "feature",
+  req: "requirement",
+  task: "task",
+  adr: "decision",
+};
+
+export interface ResolvedDocument {
+  type: DocumentType;
+  id: string;
+  filepath: string;
+}
+
+/**
+ * Resolve a document ID across all document types.
+ * Tries prefix-based type inference first, then scans all types by uid.
+ */
+export async function resolveDocumentIdAnyType(
+  cwd: string,
+  input: string,
+): Promise<ResolvedDocument> {
+  const grimoireDir = join(cwd, GRIMOIRE_DIR);
+
+  // Try to infer type from prefix
+  const prefixMatch = input.match(/^(feat|req|task|adr)-/);
+  if (prefixMatch) {
+    const type = PREFIX_TO_TYPE[prefixMatch[1]];
+    if (type) {
+      try {
+        const id = await resolveDocumentId(cwd, type, input);
+        const filepath = join(grimoireDir, TYPE_DIRS[type], `${id}.md`);
+        return { type, id, filepath };
+      } catch {
+        // Fall through to scan all types
+      }
+    }
+  }
+
+  // Scan all types (for uid-only lookups)
+  for (const type of documentTypes) {
+    try {
+      const id = await resolveDocumentId(cwd, type, input);
+      const filepath = join(grimoireDir, TYPE_DIRS[type], `${id}.md`);
+      return { type, id, filepath };
+    } catch {
+      // Continue to next type
+    }
+  }
+
+  throw new Error(
+    `Document '${input}' not found. Provide a full ID (e.g., feat-x7kq2-title) or 5-character uid.`,
+  );
+}
+
+// --- Append log / comment ---
+
+export interface AppendEntryResult {
+  id: string;
+  type: DocumentType;
+  filepath: string;
+  date: string;
+  author: string;
+  section: "changelog" | "comments";
+}
+
+function formatTimestamp(): { date: string; time: string } {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return { date, time };
+}
+
+function buildEntry(
+  date: string,
+  time: string,
+  author: string,
+  message: string,
+  blockquote: boolean,
+): string {
+  const lines = message.split("\n");
+  const body = blockquote ? lines.map((line) => `> ${line}`).join("\n") : message;
+  return `### ${date} ${time} | ${author}\n${body}\n`;
+}
+
+function updateUpdatedField(content: string, date: string): string {
+  return content.replace(/^(updated:\s*).+$/m, `$1"${date}"`);
+}
+
+export async function appendLog(options: AppendLogOptions): Promise<AppendEntryResult> {
+  const opts = appendLogOptionsSchema.parse(options);
+  const cwd = opts.cwd ?? process.cwd();
+  const { type, id, filepath } = await resolveDocumentIdAnyType(cwd, opts.id);
+
+  const content = await readFile(filepath, "utf-8");
+  const { date, time } = formatTimestamp();
+  const entry = buildEntry(date, time, opts.author, opts.message, false);
+
+  let newContent: string;
+  const changelogIdx = content.indexOf("## Changelog");
+  if (changelogIdx !== -1) {
+    // Append after the ## Changelog header line
+    const afterHeader = content.indexOf("\n", changelogIdx);
+    newContent = content.slice(0, afterHeader + 1) + "\n" + entry + content.slice(afterHeader + 1);
+  } else {
+    // No changelog section — append both sections
+    newContent = content.trimEnd() + "\n\n---\n\n## Comments\n\n---\n\n## Changelog\n\n" + entry;
+  }
+
+  newContent = updateUpdatedField(newContent, date);
+  await fsWriteFile(filepath, newContent);
+
+  const relativePath = `${GRIMOIRE_DIR}/${TYPE_DIRS[type]}/${id}.md`;
+  return {
+    id,
+    type,
+    filepath: relativePath,
+    date: `${date} ${time}`,
+    author: opts.author,
+    section: "changelog",
+  };
+}
+
+export async function appendComment(options: AppendCommentOptions): Promise<AppendEntryResult> {
+  const opts = appendCommentOptionsSchema.parse(options);
+  const cwd = opts.cwd ?? process.cwd();
+  const { type, id, filepath } = await resolveDocumentIdAnyType(cwd, opts.id);
+
+  const content = await readFile(filepath, "utf-8");
+  const { date, time } = formatTimestamp();
+  const entry = buildEntry(date, time, opts.author, opts.message, true);
+
+  let newContent: string;
+  const commentsIdx = content.indexOf("## Comments");
+  if (commentsIdx !== -1) {
+    // Find the separator between Comments and Changelog: "---\n\n## Changelog"
+    const separatorIdx = content.indexOf("---\n\n## Changelog", commentsIdx);
+    if (separatorIdx !== -1) {
+      // Insert before the separator
+      newContent =
+        content.slice(0, separatorIdx).trimEnd() +
+        "\n\n" +
+        entry +
+        "\n" +
+        content.slice(separatorIdx);
+    } else {
+      // Comments section exists but no changelog after it — append at end of comments
+      const afterHeader = content.indexOf("\n", commentsIdx);
+      newContent =
+        content.slice(0, afterHeader + 1) + "\n" + entry + content.slice(afterHeader + 1);
+    }
+  } else {
+    // No comments section — create both sections with the comment
+    const changelogIdx = content.indexOf("## Changelog");
+    if (changelogIdx !== -1) {
+      // Insert Comments section before the existing --- before Changelog
+      const beforeChangelog = content.lastIndexOf("---", changelogIdx);
+      if (beforeChangelog !== -1) {
+        newContent =
+          content.slice(0, beforeChangelog).trimEnd() +
+          "\n\n---\n\n## Comments\n\n" +
+          entry +
+          "\n" +
+          content.slice(beforeChangelog);
+      } else {
+        newContent =
+          content.slice(0, changelogIdx).trimEnd() +
+          "\n\n---\n\n## Comments\n\n" +
+          entry +
+          "\n" +
+          content.slice(changelogIdx);
+      }
+    } else {
+      // No sections at all
+      newContent =
+        content.trimEnd() + "\n\n---\n\n## Comments\n\n" + entry + "\n---\n\n## Changelog\n";
+    }
+  }
+
+  newContent = updateUpdatedField(newContent, date);
+  await fsWriteFile(filepath, newContent);
+
+  const relativePath = `${GRIMOIRE_DIR}/${TYPE_DIRS[type]}/${id}.md`;
+  return {
+    id,
+    type,
+    filepath: relativePath,
+    date: `${date} ${time}`,
+    author: opts.author,
+    section: "comments",
+  };
 }

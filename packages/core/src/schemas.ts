@@ -173,6 +173,20 @@ export const deleteDocumentOptionsSchema = z.object({
   cwd: z.string().optional(),
 });
 
+export const appendLogOptionsSchema = z.object({
+  id: z.string(),
+  message: z.string().min(1),
+  author: z.string().optional().default("agent"),
+  cwd: z.string().optional(),
+});
+
+export const appendCommentOptionsSchema = z.object({
+  id: z.string(),
+  message: z.string().min(1),
+  author: z.string().optional().default("agent"),
+  cwd: z.string().optional(),
+});
+
 // --- Inferred types ---
 
 export type OverviewFrontmatter = z.infer<typeof overviewFrontmatterSchema>;
@@ -187,3 +201,5 @@ export type GetDocumentOptions = z.infer<typeof getDocumentOptionsSchema>;
 export type ListDocumentsOptions = z.infer<typeof listDocumentsOptionsSchema>;
 export type UpdateDocumentOptions = z.infer<typeof updateDocumentOptionsSchema>;
 export type DeleteDocumentOptions = z.infer<typeof deleteDocumentOptionsSchema>;
+export type AppendLogOptions = z.infer<typeof appendLogOptionsSchema>;
+export type AppendCommentOptions = z.infer<typeof appendCommentOptionsSchema>;
