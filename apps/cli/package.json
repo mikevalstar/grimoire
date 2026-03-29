@@ -11,8 +11,8 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --out-dir dist",
-    "dev": "tsdown src/index.ts --format esm --out-dir dist --watch",
+    "build": "vp pack",
+    "dev": "vp pack --watch",
     "test": "vp test",
     "check": "vp check"
   },
@@ -22,7 +22,6 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsdown": "latest",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

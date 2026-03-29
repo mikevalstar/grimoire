@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc && vp build",
-    "preview": "vp preview"
+    "build": "vp build",
+    "preview": "vp preview",
+    "check": "vp check"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

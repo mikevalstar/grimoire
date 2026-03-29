@@ -17,38 +17,47 @@ vp install
 
 ### Run the CLI locally
 
-Until the package is published, use these internal workspace commands to build and test the CLI locally:
+Use the workspace scripts so the CLI is built through Vite+ rather than calling `tsdown` directly:
 
 ```bash
-cd apps/cli
-npx tsdown src/index.ts --format esm --out-dir dist
-node dist/index.mjs --help
-node dist/index.mjs init
+vp run grimoire -- --help
+vp run grimoire -- init
 ```
 
-Or use the dev watcher:
+Or run the CLI package watcher directly:
 
 ```bash
-cd apps/cli
-npx tsdown src/index.ts --format esm --out-dir dist --watch
+vp run grimoire-ai#dev
 ```
 
 ### Other commands
 
-- Check everything is ready:
+- Format the repo:
 
 ```bash
-vp run ready
+vp run fmt
 ```
 
-- Run the tests:
+- Lint and type-check the repo:
 
 ```bash
-vp run test -r
+vp run check
+```
+
+- Run package tests:
+
+```bash
+vp run test
 ```
 
 - Build the monorepo:
 
 ```bash
-vp run build -r
+vp run build
+```
+
+- Run the full local validation flow:
+
+```bash
+vp run ready
 ```
