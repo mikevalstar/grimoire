@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { VERSION } from "@grimoire-ai/core";
+import { registerInitCommand } from "./commands/init.ts";
+import { registerOverviewCommand } from "./commands/overview.ts";
 
 const program = new Command();
 
 program
   .name("grimoire")
   .description("Grimoire AI — local-first, AI-native requirements management")
-  .version(VERSION);
+  .version(VERSION)
+  .option("--cwd <path>", "Target directory (defaults to current working directory)");
 
-program
-  .command("init")
-  .description("Initialize .grimoire/ in current directory")
-  .action(() => {
-    console.log(JSON.stringify({ message: "grimoire init is not yet implemented." }));
-  });
+registerInitCommand(program);
+registerOverviewCommand(program);
 
 program.parse();

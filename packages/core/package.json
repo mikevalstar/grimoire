@@ -17,6 +17,11 @@
     "test": "vp test",
     "check": "vp check"
   },
+  "dependencies": {
+    "gray-matter": "catalog:",
+    "zod": "catalog:",
+    "zod-matter": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

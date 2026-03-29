@@ -22,8 +22,10 @@ Bootstrap the repo and toolchain. No runtime functionality yet.
 
 The minimum to start using Grimoire on itself.
 
-- [ ] `grimoire init` — create `.grimoire/` directory, `overview.md`, `config.yaml`
-- [ ] Copy `.skills/` files on init
+- [x] `grimoire init` — create `.grimoire/` directory, `overview.md`, `config.yaml`
+- [x] Copy `.skills/` files on init
+- [x] Check/update `.gitignore` for `.grimoire/.cache/`
+- [x] Inject grimoire section into `CLAUDE.md`/`AGENTS.md` (with `<!--GRIMOIRE START-->` / `<!--GRIMOIRE END-->` tags)
 - [ ] Markdown parser: read/write YAML frontmatter + body + changelog sections
 - [ ] `grimoire overview` — read and display the overview document
 - [ ] `grimoire <type> create` — create feature, requirement, task, decision files

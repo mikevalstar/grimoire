@@ -26,5 +26,8 @@ dist-ssr
 # Grimoire cache (derived from markdown files)
 .grimoire/.cache/
 
+# Grimoire test files
+.g-test/
+
 # AI agent worktrees
 .claude/worktrees/
