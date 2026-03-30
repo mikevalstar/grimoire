@@ -150,7 +150,7 @@ export const getDocumentOptionsSchema = z.object({
 });
 
 export const listDocumentsOptionsSchema = z.object({
-  type: z.enum(["feature", "requirement", "task", "decision"]),
+  type: z.enum(["feature", "requirement", "task", "decision", "all"]),
   status: z.string().optional(),
   priority: z.string().optional(),
   tag: z.string().optional(),

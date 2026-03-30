@@ -168,22 +168,7 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
             cwd: globalOpts.cwd,
           });
 
-          printResult(result, (data) => {
-            const d = data as { type: string; count: number; documents: Record<string, unknown>[] };
-            if (d.documents.length === 0) return c.dim(`No ${type} documents found.`);
-            return d.documents
-              .map((item) => {
-                const parts = [c.id(asText(item.id) ?? "")];
-                const title = asText(item.title);
-                const status = asText(item.status);
-                const priority = asText(item.priority);
-                if (title) parts.push(` ${title}`);
-                if (status) parts.push(` [${c.status(status)}]`);
-                if (priority) parts.push(` (${c.priority(priority)})`);
-                return parts.join("");
-              })
-              .join("\n");
-          });
+          printResult(result, (data) => formatDocumentList(data, type, false));
         } catch (err) {
           printError(err instanceof Error ? err.message : String(err));
         }
@@ -285,8 +270,68 @@ function registerTypeCommands(program: Command, type: DocumentType): void {
     });
 }
 
+function formatDocumentList(data: unknown, label: string, showType: boolean): string {
+  const d = data as { type: string; count: number; documents: Record<string, unknown>[] };
+  if (d.documents.length === 0) return c.dim(`No ${label} documents found.`);
+  return d.documents
+    .map((item) => {
+      const parts = [c.id(asText(item.id) ?? "")];
+      const title = asText(item.title);
+      const status = asText(item.status);
+      const priority = asText(item.priority);
+      const docType = asText(item.type);
+      if (showType && docType) parts.push(` ${c.dim(`[${docType}]`)}`);
+      if (title) parts.push(` ${title}`);
+      if (status) parts.push(` [${c.status(status)}]`);
+      if (priority) parts.push(` (${c.priority(priority)})`);
+      return parts.join("");
+    })
+    .join("\n");
+}
+
 export function registerDocumentCommands(program: Command): void {
   for (const type of DOCUMENT_TYPES) {
     registerTypeCommands(program, type);
   }
+}
+
+export function registerListCommand(program: Command): void {
+  program
+    .command("list")
+    .description("List all documents across all types")
+    .option("--status <status>", "Filter by status")
+    .option("--priority <priority>", "Filter by priority")
+    .option("--tag <tag>", "Filter by tag")
+    .option("--feature <feature-id>", "Filter by parent feature")
+    .option("--limit <n>", "Limit results", Number.parseInt)
+    .option("--sort <field>", "Sort by field (default: updated)")
+    .action(
+      async (opts: {
+        status?: string;
+        priority?: string;
+        tag?: string;
+        feature?: string;
+        limit?: number;
+        sort?: string;
+      }) => {
+        const globalOpts = program.opts<{ cwd?: string }>();
+
+        try {
+          const result = await listDocuments({
+            type: "all",
+            status: opts.status,
+            priority: opts.priority,
+            tag: opts.tag,
+            feature: opts.feature,
+            limit: opts.limit,
+            sort: opts.sort ?? "updated",
+            cwd: globalOpts.cwd,
+          });
+
+          printResult(result, (data) => formatDocumentList(data, "matching", true));
+        } catch (err) {
+          printError(err instanceof Error ? err.message : String(err));
+        }
+      },
+    );
 }

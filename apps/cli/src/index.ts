@@ -4,9 +4,11 @@ import { VERSION } from "@grimoire-ai/core";
 import { setFormat, type OutputFormat } from "./output.ts";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerOverviewCommand } from "./commands/overview.ts";
-import { registerDocumentCommands } from "./commands/document.ts";
+import { registerDocumentCommands, registerListCommand } from "./commands/document.ts";
 import { registerLogCommand } from "./commands/log.ts";
 import { registerValidateCommand } from "./commands/validate.ts";
+import { registerSyncCommand } from "./commands/sync.ts";
+import { registerSearchCommand } from "./commands/search.ts";
 
 const program = new Command();
 
@@ -24,7 +26,10 @@ program
 registerInitCommand(program);
 registerOverviewCommand(program);
 registerDocumentCommands(program);
+registerListCommand(program);
 registerLogCommand(program);
 registerValidateCommand(program);
+registerSyncCommand(program);
+registerSearchCommand(program);
 
 program.parse();

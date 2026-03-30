@@ -30,6 +30,7 @@ export type {
   CreateDocumentResult,
   GetDocumentResult,
   ListDocumentsResult,
+  ListDocumentItem,
   UpdateDocumentResult,
   DeleteDocumentResult,
   ResolvedDocument,
@@ -41,5 +42,27 @@ export type { ValidateResult, ValidateIssue } from "./validate.ts";
 
 export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
+
+export { search } from "./search.ts";
+export type { SearchResult, SearchResponse, SearchOptions } from "./search.ts";
+
+export { sync } from "./sync.ts";
+export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts";
+
+export { autoSync } from "./auto-sync.ts";
+export type { AutoSyncResult } from "./auto-sync.ts";
+
+export { loadConfig } from "./config.ts";
+export type { GrimoireConfig } from "./config.ts";
+
+export {
+  getDatabasePath,
+  openDatabase,
+  closeDatabase,
+  getDatabase,
+  initializeSchema,
+  rebuildFtsIndex,
+} from "./database.ts";
+export type { DuckDBConnection } from "./database.ts";
 
 export * from "./schemas.ts";
