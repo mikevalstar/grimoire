@@ -1,6 +1,6 @@
 {
   "name": "@grimoire-ai/server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fastify HTTP server for Grimoire AI web UI",
   "license": "MIT",
   "files": [
