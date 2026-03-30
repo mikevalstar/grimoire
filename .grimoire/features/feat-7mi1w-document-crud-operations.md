@@ -3,10 +3,10 @@ id: "feat-7mi1w-document-crud-operations"
 uid: "7mi1w"
 title: "Document CRUD Operations"
 type: "feature"
-status: "in-progress"
+status: "complete"
 priority: "high"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - cli

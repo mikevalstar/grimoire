@@ -3,15 +3,15 @@ id: "req-wh7lk-duckdb-backed-list-with-filters"
 uid: "wh7lk"
 title: "DuckDB-Backed List with Filters"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-vcodc-duckdb-sync-database"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - cli
   - database
-feature: "feat-vcodc-duckdb-sync-database"
 tasks: []
 depends_on: []
 ---

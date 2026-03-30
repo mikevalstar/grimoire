@@ -3,14 +3,14 @@ id: "req-k65nk-full-sync-rebuild"
 uid: "k65nk"
 title: "Full Sync Rebuild"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-vcodc-duckdb-sync-database"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - sync
-feature: "feat-vcodc-duckdb-sync-database"
 tasks: []
 depends_on: []
 ---

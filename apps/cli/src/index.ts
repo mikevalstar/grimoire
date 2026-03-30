@@ -9,6 +9,10 @@ import { registerLogCommand } from "./commands/log.ts";
 import { registerValidateCommand } from "./commands/validate.ts";
 import { registerSyncCommand } from "./commands/sync.ts";
 import { registerSearchCommand } from "./commands/search.ts";
+import { registerLinksCommand } from "./commands/links.ts";
+import { registerTreeCommand } from "./commands/tree.ts";
+import { registerOrphansCommand } from "./commands/orphans.ts";
+import { registerStatusCommand } from "./commands/status.ts";
 
 const program = new Command();
 
@@ -31,5 +35,9 @@ registerLogCommand(program);
 registerValidateCommand(program);
 registerSyncCommand(program);
 registerSearchCommand(program);
+registerLinksCommand(program);
+registerTreeCommand(program);
+registerOrphansCommand(program);
+registerStatusCommand(program);
 
 program.parse();

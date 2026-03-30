@@ -3,15 +3,15 @@ id: "req-syd6t-fts-index-setup"
 uid: "syd6t"
 title: "FTS Index Setup"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-n8gsu-search-full-text-semantic"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - search
   - fts
-feature: "feat-n8gsu-search-full-text-semantic"
 tasks: []
 depends_on: []
 ---

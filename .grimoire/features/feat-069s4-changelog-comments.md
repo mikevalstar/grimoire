@@ -3,10 +3,10 @@ id: "feat-069s4-changelog-comments"
 uid: "069s4"
 title: "Changelog & Comments"
 type: "feature"
-status: "in-progress"
+status: "complete"
 priority: "medium"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - cli

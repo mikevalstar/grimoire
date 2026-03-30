@@ -3,10 +3,10 @@ id: "feat-j4al2-validation"
 uid: "j4al2"
 title: "Validation"
 type: "feature"
-status: "in-progress"
+status: "complete"
 priority: "medium"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - cli

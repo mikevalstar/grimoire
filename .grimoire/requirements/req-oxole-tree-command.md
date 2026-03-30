@@ -3,15 +3,15 @@ id: "req-oxole-tree-command"
 uid: "oxole"
 title: "Tree Command"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "medium"
+feature: "feat-86vkx-relationships-graph"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - graph
   - cli
-feature: "feat-86vkx-relationships-graph"
 tasks: []
 depends_on: []
 ---

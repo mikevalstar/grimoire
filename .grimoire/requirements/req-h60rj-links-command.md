@@ -3,15 +3,15 @@ id: "req-h60rj-links-command"
 uid: "h60rj"
 title: "Links Command"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-86vkx-relationships-graph"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - graph
   - cli
-feature: "feat-86vkx-relationships-graph"
 tasks: []
 depends_on: []
 ---

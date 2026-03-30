@@ -3,14 +3,14 @@ id: "req-9a7o0-duckdb-setup-schema"
 uid: "9a7o0"
 title: "DuckDB Setup & Schema"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-vcodc-duckdb-sync-database"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - database
-feature: "feat-vcodc-duckdb-sync-database"
 tasks: []
 depends_on: []
 ---
