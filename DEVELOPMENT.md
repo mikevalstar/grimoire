@@ -41,6 +41,8 @@ vp run grimoire -- feature list --cwd .g-test
 vp run grimoire -- task list --status todo --cwd .g-test
 ```
 
+Packaged CLI auto-sync regressions are covered in `apps/cli/tests/auto-sync.test.ts`. That battery exercises the built `apps/cli/dist/index.mjs` binary against a temp `--cwd` project and verifies when DuckDB is created, when it stays stale, and when list-driven auto-sync picks up direct markdown edits plus CLI `update` and `delete` operations.
+
 ## Commands
 
 - **Format:** `vp fmt`

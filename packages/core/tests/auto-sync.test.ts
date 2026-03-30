@@ -1,4 +1,4 @@
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, rm, unlink } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -137,6 +137,26 @@ Document created.
     expect(result.synced).toBe(true);
     expect(result.result).toBeDefined();
     expect(result.result!.incremental).toBe(true);
+  });
+
+  test("triggers sync when files are deleted after last sync", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Soon Deleted");
+
+    await sync({ cwd: tempDir });
+    closeDatabase();
+
+    await new Promise((r) => setTimeout(r, 50));
+    await unlink(join(grimoireDir, "features", "feat-abc12-soon-deleted.md"));
+
+    const result = await autoSync(tempDir);
+
+    expect(result.enabled).toBe(true);
+    expect(result.synced).toBe(true);
+    expect(result.result).toBeDefined();
+    expect(result.result!.incremental).toBe(true);
+    expect(result.result!.files_processed).toBe(1);
+    expect(result.result!.documents_synced).toBe(0);
   });
 
   test("respects auto_sync: false in config", async () => {

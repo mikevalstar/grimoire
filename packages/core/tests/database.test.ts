@@ -79,7 +79,7 @@ describe("database", () => {
       "SELECT value FROM _meta WHERE key = 'schema_version'",
     );
     const version = reader.getRows()[0]![0];
-    expect(version).toBe("2");
+    expect(version).toBe("3");
   });
 
   test("getDatabase opens and initializes schema", async () => {

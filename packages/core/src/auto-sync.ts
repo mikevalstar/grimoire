@@ -34,6 +34,15 @@ export interface AutoSyncResult {
 async function hasChangedFiles(grimoireDir: string, lastSyncAt: Date): Promise<boolean> {
   const lastSyncMs = lastSyncAt.getTime();
 
+  // Check the root directory itself so overview.md creation/deletion and
+  // subdirectory churn can trigger a sync even when no file mtime changed yet.
+  try {
+    const s = await stat(grimoireDir);
+    if (s.mtimeMs > lastSyncMs) return true;
+  } catch {
+    return true;
+  }
+
   // Check overview.md
   try {
     const s = await stat(join(grimoireDir, "overview.md"));
@@ -46,12 +55,15 @@ async function hasChangedFiles(grimoireDir: string, lastSyncAt: Date): Promise<b
   // Check subdirectories
   for (const dirName of SCAN_DIRS) {
     const dirPath = join(grimoireDir, dirName);
-    let entries: import("node:fs").Dirent[];
     try {
-      entries = await readdir(dirPath, { withFileTypes: true });
+      const dirStat = await stat(dirPath);
+      if (dirStat.mtimeMs > lastSyncMs) return true;
     } catch {
-      continue;
+      return true;
     }
+
+    let entries: import("node:fs").Dirent[];
+    entries = await readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isFile() && entry.name.endsWith(".md")) {
         const s = await stat(join(dirPath, entry.name));
