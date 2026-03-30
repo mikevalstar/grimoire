@@ -3,15 +3,15 @@ id: "req-f6zc6-rest-api-for-core-operations"
 uid: "f6zc6"
 title: "REST API for Core Operations"
 type: "requirement"
-status: "draft"
+status: "in-progress"
 priority: "high"
+feature: "feat-fv5ft-web-ui"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - api
   - server
   - infrastructure
-feature: "feat-fv5ft-web-ui"
 tasks: []
 depends_on: []
 ---
@@ -48,6 +48,10 @@ Expose the core library operations as REST API endpoints so the web UI can perfo
 ---
 
 ## Changelog
+
+### 2026-03-30 19:16 | grimoire
+
+GET endpoints implemented: /api/status, /api/documents/:type (with status/priority/sort filters), /api/documents/:type/:id. Remaining: POST (create), PUT (update), DELETE (archive), GET /api/search, GET /api/relationships/:id, GET /api/tree.
 
 ### 2026-03-30 07:42 | grimoire
 

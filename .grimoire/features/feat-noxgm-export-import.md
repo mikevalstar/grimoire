@@ -9,7 +9,10 @@ created: "2026-03-29"
 updated: "2026-03-29"
 tags:
   - cli
-requirements: []
+  - phase-5
+requirements:
+  - req-i321l-export-command
+  - req-p230i-import-command
 decisions: []
 ---
 

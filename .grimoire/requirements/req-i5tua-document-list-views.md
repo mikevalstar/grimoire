@@ -3,14 +3,14 @@ id: "req-i5tua-document-list-views"
 uid: "i5tua"
 title: "Document List Views"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-fv5ft-web-ui"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - frontend
   - documents
-feature: "feat-fv5ft-web-ui"
 tasks: []
 depends_on: []
 ---

@@ -11,7 +11,10 @@ tags:
   - core
   - search
   - ai
-requirements: []
+  - phase-4
+requirements:
+  - req-a5lk8-context-command-core
+  - req-nlmcd-context-command-options
 decisions: []
 ---
 

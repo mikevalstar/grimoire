@@ -3,15 +3,15 @@ id: "req-vj1r5-document-detail-view"
 uid: "vj1r5"
 title: "Document Detail View"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-fv5ft-web-ui"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - frontend
   - documents
   - markdown
-feature: "feat-fv5ft-web-ui"
 tasks: []
 depends_on: []
 ---
