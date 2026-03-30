@@ -3,15 +3,15 @@ id: "req-cpsjh-status-command"
 uid: "cpsjh"
 title: "Status Command"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "medium"
+feature: "feat-s46ae-project-status-dashboard"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - cli
   - dashboard
-feature: "feat-s46ae-project-status-dashboard"
 tasks: []
 depends_on: []
 ---

@@ -61,6 +61,15 @@ export type { TreeNode, TreeResponse, TreeOptions } from "./tree.ts";
 export { orphans } from "./orphans.ts";
 export type { OrphanItem, OrphansResponse, OrphansOptions } from "./orphans.ts";
 
+export { status } from "./status.ts";
+export type {
+  StatusCounts,
+  StatusByStatus,
+  RecentDocument,
+  StatusResponse,
+  StatusOptions,
+} from "./status.ts";
+
 export { loadConfig } from "./config.ts";
 export type { GrimoireConfig } from "./config.ts";
 

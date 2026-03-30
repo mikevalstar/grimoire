@@ -78,7 +78,27 @@ Add the database layer. Search makes the tool genuinely useful for orientation.
 
 ---
 
-## Phase 3: Semantic Search & Context
+## Phase 3: Web UI
+
+Visual management layer for humans. Not required for core functionality.
+
+- [ ] Fastify server with static asset serving
+- [ ] `grimoire ui` — launch server, auto-open browser
+- [ ] React + Vite SPA scaffold
+- [ ] Document list views (filterable, sortable)
+- [ ] Document detail view (rendered markdown, frontmatter sidebar)
+- [ ] Create / edit documents in browser
+- [ ] Relationship graph visualization
+- [ ] Search interface (keyword + semantic)
+- [ ] Project dashboard (status overview, charts)
+- [ ] File watcher for live sync when UI is running
+- [ ] `--interactive` flag scaffolding (human-readable output)
+
+**Dogfood gate:** Open the browser to visually review and manage Grimoire's own project docs. Edit a task status from the UI and see it reflected in the markdown file.
+
+---
+
+## Phase 4: Semantic Search & Context
 
 The killer feature. Agents can now get oriented in one command.
 
@@ -97,26 +117,6 @@ The killer feature. Agents can now get oriented in one command.
 - [ ] Pluggable embedding backends: Ollama, OpenAI (via config)
 
 **Dogfood gate:** `grimoire context "I need to build the web UI"` returns the feature doc, related requirements, open tasks, and relevant ADRs — all in one call. This is the command agents use to bootstrap context.
-
----
-
-## Phase 4: Web UI
-
-Visual management layer for humans. Not required for core functionality.
-
-- [ ] `--interactive` flag scaffolding (human-readable output)
-- [ ] Fastify server with static asset serving
-- [ ] `grimoire ui` — launch server, auto-open browser
-- [ ] React + Vite SPA scaffold
-- [ ] Document list views (filterable, sortable)
-- [ ] Document detail view (rendered markdown, frontmatter sidebar)
-- [ ] Create / edit documents in browser
-- [ ] Relationship graph visualization
-- [ ] Search interface (keyword + semantic)
-- [ ] Project dashboard (status overview, charts)
-- [ ] File watcher for live sync when UI is running
-
-**Dogfood gate:** Open the browser to visually review and manage Grimoire's own project docs. Edit a task status from the UI and see it reflected in the markdown file.
 
 ---
 

@@ -3,14 +3,14 @@ id: "req-tzoe9-auto-sync-on-cli-commands"
 uid: "tzoe9"
 title: "Auto-Sync on CLI Commands"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "medium"
+feature: "feat-vcodc-duckdb-sync-database"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - sync
-feature: "feat-vcodc-duckdb-sync-database"
 tasks: []
 depends_on: []
 ---

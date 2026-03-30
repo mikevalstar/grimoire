@@ -3,15 +3,15 @@ id: "req-xoohd-keyword-search-command"
 uid: "xoohd"
 title: "Keyword Search Command"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-n8gsu-search-full-text-semantic"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - search
   - cli
-feature: "feat-n8gsu-search-full-text-semantic"
 tasks: []
 depends_on: []
 ---

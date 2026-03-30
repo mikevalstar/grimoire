@@ -3,14 +3,14 @@ id: "req-v0b67-incremental-sync"
 uid: "v0b67"
 title: "Incremental Sync"
 type: "requirement"
-status: "draft"
+status: "done"
 priority: "high"
+feature: "feat-vcodc-duckdb-sync-database"
 created: "2026-03-30"
 updated: "2026-03-30"
 tags:
   - phase-2
   - sync
-feature: "feat-vcodc-duckdb-sync-database"
 tasks: []
 depends_on: []
 ---
