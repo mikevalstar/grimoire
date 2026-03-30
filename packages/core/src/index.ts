@@ -30,6 +30,7 @@ export type {
   CreateDocumentResult,
   GetDocumentResult,
   ListDocumentsResult,
+  ListDocumentItem,
   UpdateDocumentResult,
   DeleteDocumentResult,
   ResolvedDocument,

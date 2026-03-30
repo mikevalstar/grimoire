@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { customAlphabet } from "nanoid";
 import { readDocument } from "./frontmatter.ts";
 import { readFile, writeFile as fsWriteFile } from "node:fs/promises";
+import { getDatabase } from "./database.ts";
+import { autoSync } from "./auto-sync.ts";
 import {
   type DocumentType,
   type CreateDocumentOptions,
@@ -185,18 +187,21 @@ export interface GetDocumentResult {
   body: string;
 }
 
+export interface ListDocumentItem {
+  id: string;
+  uid: string;
+  title: string;
+  type: string;
+  status: string;
+  priority: string;
+  updated: string;
+  filepath: string;
+}
+
 export interface ListDocumentsResult {
-  type: DocumentType;
+  type: string;
   count: number;
-  documents: Array<{
-    id: string;
-    uid: string;
-    title: string;
-    status: string;
-    priority: string;
-    updated: string;
-    filepath: string;
-  }>;
+  documents: ListDocumentItem[];
 }
 
 export interface UpdateDocumentResult {
@@ -326,9 +331,95 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
   const cwd = opts.cwd ?? process.cwd();
   const type = opts.type;
 
+  // Try DuckDB-backed list first
+  try {
+    return await listDocumentsFromDb(opts, cwd);
+  } catch {
+    // Fall back to filesystem scan (DB not available or out of date)
+  }
+
+  // Filesystem fallback (only for single type, not "all")
+  if (type === "all") {
+    // Without DB, list all types by combining filesystem scans
+    const allDocs: ListDocumentItem[] = [];
+    for (const t of documentTypes) {
+      const result = await listDocumentsFromFs({ ...opts, type: t }, cwd);
+      allDocs.push(...result.documents);
+    }
+    return sortAndLimit(allDocs, opts, type);
+  }
+
+  return listDocumentsFromFs(opts, cwd);
+}
+
+const VALID_SORT_FIELDS = new Set(["updated", "created", "title", "priority", "status"]);
+
+/** SQL-escape a string value (single quotes). */
+function escSql(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+/** Query DuckDB for documents with filters, sorting, and limit. */
+async function listDocumentsFromDb(
+  opts: ListDocumentsOptions,
+  cwd: string,
+): Promise<ListDocumentsResult> {
+  // Auto-sync before reading from DB
+  await autoSync(cwd);
+
+  const connection = await getDatabase(cwd);
+
+  const conditions: string[] = [];
+  if (opts.type !== "all") {
+    conditions.push(`type = '${escSql(opts.type)}'`);
+  } else {
+    // Exclude overview from "all" listings
+    conditions.push(`type != 'overview'`);
+  }
+  if (opts.status) conditions.push(`status = '${escSql(opts.status)}'`);
+  if (opts.priority) conditions.push(`priority = '${escSql(opts.priority)}'`);
+  if (opts.tag) conditions.push(`list_contains(tags, '${escSql(opts.tag)}')`);
+  if (opts.feature) {
+    // Feature filter: check relationships table for parent_feature
+    conditions.push(
+      `id IN (SELECT source_id FROM relationships WHERE target_id = '${escSql(opts.feature)}' AND relationship = 'parent_feature')`,
+    );
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const sortField = VALID_SORT_FIELDS.has(opts.sort) ? opts.sort : "updated";
+  const orderBy = `ORDER BY ${sortField} DESC NULLS LAST`;
+  const limit = opts.limit ? `LIMIT ${opts.limit}` : "";
+
+  const sql = `SELECT id, title, type, status, priority, updated, filepath, frontmatter FROM documents ${where} ${orderBy} ${limit}`;
+  const result = await connection.runAndReadAll(sql);
+  const rows = result.getRows();
+
+  const documents: ListDocumentItem[] = rows.map((row) => {
+    const fm = row[7] ? JSON.parse(row[7] as string) : {};
+    return {
+      id: (row[0] as string) ?? "",
+      uid: (fm.uid as string) ?? "",
+      title: (row[1] as string) ?? "",
+      type: (row[2] as string) ?? "",
+      status: (row[3] as string) ?? "",
+      priority: (row[4] as string) ?? "",
+      updated: row[5] ? String(row[5]) : "",
+      filepath: (row[6] as string) ?? "",
+    };
+  });
+
+  return { type: opts.type, count: documents.length, documents };
+}
+
+/** Filesystem-based list (original implementation, single type only). */
+async function listDocumentsFromFs(
+  opts: ListDocumentsOptions,
+  cwd: string,
+): Promise<ListDocumentsResult> {
+  const type = opts.type as DocumentType;
   const typeDir = await ensureTypeDir(cwd, type);
 
-  // Read all .md files in the directory
   let files: string[];
   try {
     files = (await readdir(typeDir)).filter((f) => f.endsWith(".md"));
@@ -337,14 +428,13 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
   }
 
   const schema = TYPE_SCHEMAS[type];
-  const documents: ListDocumentsResult["documents"] = [];
+  const documents: ListDocumentItem[] = [];
 
   for (const file of files) {
     try {
       const { frontmatter } = readDocument(join(typeDir, file), schema);
       const fm = frontmatter as Record<string, unknown>;
 
-      // Apply filters
       if (opts.status && fm.status !== opts.status) continue;
       if (opts.priority && fm.priority !== opts.priority) continue;
       if (opts.tag) {
@@ -352,7 +442,6 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
         if (!tags.includes(opts.tag)) continue;
       }
       if (opts.feature) {
-        // For requirements/tasks, check feature field; for decisions, check features array
         if (type === "decision") {
           const features = (fm.features as string[]) ?? [];
           if (!features.includes(opts.feature)) continue;
@@ -365,6 +454,7 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
         id: fm.id as string,
         uid: (fm.uid as string) ?? "",
         title: fm.title as string,
+        type,
         status: (fm.status as string) ?? "",
         priority: (fm.priority as string) ?? "",
         updated: (fm.updated as string) ?? "",
@@ -375,17 +465,23 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
     }
   }
 
-  // Sort
-  const sortField = opts.sort as keyof (typeof documents)[0];
+  return sortAndLimit(documents, opts, opts.type);
+}
+
+/** Apply sort and limit to a document array. */
+function sortAndLimit(
+  documents: ListDocumentItem[],
+  opts: ListDocumentsOptions,
+  type: string,
+): ListDocumentsResult {
+  const sortField = opts.sort as keyof ListDocumentItem;
   documents.sort((a, b) => {
     const av = a[sortField] ?? "";
     const bv = b[sortField] ?? "";
-    return bv.localeCompare(av); // descending by default
+    return String(bv).localeCompare(String(av));
   });
 
-  // Limit
   const limited = opts.limit ? documents.slice(0, opts.limit) : documents;
-
   return { type, count: limited.length, documents: limited };
 }
 
