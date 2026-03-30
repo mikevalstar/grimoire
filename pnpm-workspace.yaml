@@ -5,11 +5,23 @@ packages:
 
 catalog:
   "@duckdb/node-api": ^1.5.1-r.1
+  "@fastify/cors": ^11
+  "@fastify/static": ^9
+  "@tanstack/react-query": ^5
+  "@tanstack/react-router": ^1
+  "@tanstack/router-plugin": ^1
   "@types/node": ^24
+  "@types/react": ^19
+  "@types/react-dom": ^19
+  "@vitejs/plugin-react": ^4
   "@vitest/coverage-v8": ^4.1.2
+  fastify: ^5
   gray-matter: ^4.0.3
   nanoid: ^5.1.7
+  open: ^10
   picocolors: ^1.1.1
+  react: ^19
+  react-dom: ^19
   typescript: ^6
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vite-plus: latest
