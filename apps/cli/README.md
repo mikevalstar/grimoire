@@ -27,6 +27,8 @@ npx skills add mikevalstar/grimoire
 grimoire overview                          # Project overview
 grimoire feature list                      # List all features
 grimoire task list --status todo           # Find open work
+grimoire search "authentication"           # Full-text + semantic search
+grimoire context "implement OAuth login"   # AI-optimized context retrieval
 ```
 
 ### Create documents
@@ -53,7 +55,7 @@ grimoire ui                                # Launch web dashboard on port 4444
 grimoire ui --port 8080                    # Custom port
 ```
 
-The web UI provides a visual dashboard with document browsing, filtering, sorting, and rendered markdown.
+The web UI provides a visual dashboard with document browsing, filtering, sorting, and rendered markdown — useful for reviewing project state at a glance.
 
 ### Validate
 
@@ -119,10 +121,19 @@ All commands output JSON by default (AI mode). Use `--format cli` for human-read
 grimoire feature list --format cli
 ```
 
-## Development
+## Packages
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, building, testing, and contributing.
+| Package                                                                  | Description                               |
+| ------------------------------------------------------------------------ | ----------------------------------------- |
+| [@grimoire-ai/cli](https://www.npmjs.com/package/@grimoire-ai/cli)       | CLI tool (this package)                   |
+| [@grimoire-ai/core](https://www.npmjs.com/package/@grimoire-ai/core)     | Core library — file I/O, database, search |
+| [@grimoire-ai/server](https://www.npmjs.com/package/@grimoire-ai/server) | Fastify server for the web UI             |
+
+## Links
+
+- [Website](https://grimoireai.quest)
+- [GitHub](https://github.com/mikevalstar/grimoire)
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/mikevalstar/grimoire/blob/main/LICENSE)
