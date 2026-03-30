@@ -47,11 +47,11 @@ The minimum to start using Grimoire on itself.
 
 Make the package runnable outside the repo while keeping the testing path inside the workspace until this phase is complete.
 
-- [ ] Publish placeholder to npm (`npx grimoire-ai` prints version)
-- [ ] Define and document the pre-publish local test flow using internal workspace commands
-- [ ] Smoke test the packaged CLI before wider release
+- [x] Publish placeholder to npm (`npx @grimoire-ai/cli` prints version)
+- [x] Define and document the pre-publish local test flow using internal workspace commands
+- [x] Smoke test the packaged CLI before wider release
 
-**Dogfood gate:** `npx grimoire-ai --version` works, but day-to-day development can still rely on internal workspace commands.
+**Dogfood gate:** `npx @grimoire-ai/cli --version` works, but day-to-day development can still rely on internal workspace commands.
 
 ---
 
