@@ -39,7 +39,7 @@ describe("orphans", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await orphans({ cwd: tempDir });
     expect(result.count).toBe(0);
@@ -55,7 +55,7 @@ describe("orphans", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await orphans({ cwd: tempDir });
     expect(result.count).toBe(1);
@@ -65,7 +65,7 @@ describe("orphans", () => {
 
   test("excludes overview from orphan detection", async () => {
     // Only overview exists — should report no orphans
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await orphans({ cwd: tempDir });
     expect(result.count).toBe(0);
@@ -88,7 +88,7 @@ describe("orphans", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const featureOrphans = await orphans({ type: "feature", cwd: tempDir });
     expect(featureOrphans.count).toBe(1);
@@ -111,7 +111,7 @@ describe("orphans", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await orphans({ cwd: tempDir });
     expect(result.orphans[0]).toEqual(

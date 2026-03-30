@@ -107,7 +107,7 @@ Document created.
     await writeOverview();
 
     // Initial sync
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
     // Wait briefly to ensure mtime is before last_sync_at
@@ -124,7 +124,7 @@ Document created.
     await writeOverview();
 
     // Initial sync
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
     // Wait then add a new file
@@ -143,7 +143,7 @@ Document created.
     await writeOverview();
     await writeFeature("abc12", "Soon Deleted");
 
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
     await new Promise((r) => setTimeout(r, 50));

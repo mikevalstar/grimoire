@@ -148,4 +148,61 @@ export async function rebuildFtsIndex(connection: DuckDBConnection): Promise<voi
   );
 }
 
+let vssLoaded = false;
+
+/**
+ * Ensure the VSS extension is installed and loaded.
+ * Returns true if VSS is available, false otherwise.
+ */
+async function ensureVss(connection: DuckDBConnection): Promise<boolean> {
+  if (vssLoaded) return true;
+  try {
+    await connection.run("INSTALL vss");
+    await connection.run("LOAD vss");
+    vssLoaded = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * (Re)create the HNSW vector similarity index on the documents table.
+ * Must be called after embeddings are populated (e.g. after sync).
+ * No-op if the vss extension isn't loaded or no embeddings exist.
+ */
+export async function rebuildVssIndex(connection: DuckDBConnection): Promise<void> {
+  try {
+    if (!(await ensureVss(connection))) return;
+
+    // Check if any embeddings exist before creating the index
+    const result = await connection.runAndReadAll(
+      "SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL",
+    );
+    const count = result.getRows()[0]?.[0] as number;
+    if (count === 0) return;
+
+    // Drop existing index if present
+    try {
+      await connection.run("DROP INDEX IF EXISTS embedding_idx");
+    } catch {
+      // Index may not exist — that's fine
+    }
+
+    // Create HNSW index with cosine metric
+    await connection.run(
+      "CREATE INDEX embedding_idx ON documents USING HNSW (embedding) WITH (metric = 'cosine')",
+    );
+  } catch {
+    // VSS extension not available or index creation failed — keyword search still works
+  }
+}
+
+/**
+ * Check if the VSS extension is loaded and functional.
+ */
+export async function isVssAvailable(connection: DuckDBConnection): Promise<boolean> {
+  return ensureVss(connection);
+}
+
 export type { DuckDBConnection };

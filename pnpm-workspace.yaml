@@ -5,12 +5,14 @@ packages:
 allowBuilds:
   esbuild: true
   msw: true
+  onnxruntime-node: true
 
 catalog:
   "@duckdb/node-api": ^1.5.1-r.1
   "@fastify/cors": ^11
   "@fastify/static": ^9
   "@fontsource-variable/geist": ^5.2.8
+  "@huggingface/transformers": ^4.0.0
   "@tailwindcss/vite": ^4.2.2
   "@tanstack/react-query": ^5
   "@tanstack/react-router": ^1

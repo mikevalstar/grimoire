@@ -22,7 +22,7 @@ describe("status", () => {
   });
 
   test("returns zero counts for empty project", async () => {
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     expect(result.counts.total).toBe(0);
@@ -37,7 +37,7 @@ describe("status", () => {
     await createDocument({ type: "feature", title: "F2", tags: [], body: "", cwd: tempDir });
     await createDocument({ type: "decision", title: "D1", tags: [], body: "", cwd: tempDir });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     expect(result.counts.features).toBe(2);
@@ -48,7 +48,7 @@ describe("status", () => {
   test("reports status breakdown by type", async () => {
     await createDocument({ type: "feature", title: "F1", tags: [], body: "", cwd: tempDir });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     expect(result.by_status.feature).toBeDefined();
@@ -81,7 +81,7 @@ describe("status", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     // Default task status is "todo" which counts as open
@@ -92,7 +92,7 @@ describe("status", () => {
   test("reports orphaned documents", async () => {
     await createDocument({ type: "feature", title: "Lonely", tags: [], body: "", cwd: tempDir });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     expect(result.orphaned_documents).toBe(1);
@@ -103,7 +103,7 @@ describe("status", () => {
     await createDocument({ type: "feature", title: "F2", tags: [], body: "", cwd: tempDir });
     await createDocument({ type: "feature", title: "F3", tags: [], body: "", cwd: tempDir });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ limit: 2, cwd: tempDir });
     expect(result.recent).toHaveLength(2);
@@ -112,7 +112,7 @@ describe("status", () => {
   test("recent documents include expected fields", async () => {
     await createDocument({ type: "feature", title: "F1", tags: [], body: "", cwd: tempDir });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await status({ cwd: tempDir });
     expect(result.recent[0]).toEqual(

@@ -1,11 +1,14 @@
 /**
- * Full-text keyword search using DuckDB FTS extension with BM25 ranking.
- * Phase 2: keyword-only search. Semantic/hybrid search added in Phase 3.
+ * Hybrid search combining BM25 full-text search with semantic vector similarity.
+ * Supports three modes: hybrid (default), keyword-only, and semantic-only.
+ * Gracefully falls back to keyword-only if embeddings are unavailable.
  */
 
 import { z } from "zod";
-import { getDatabase } from "./database.ts";
+import { getDatabase, isVssAvailable } from "./database.ts";
 import { autoSync } from "./auto-sync.ts";
+import { generateEmbedding } from "./embeddings.ts";
+import { loadConfig } from "./config.ts";
 
 export interface SearchResult {
   id: string;
@@ -18,6 +21,7 @@ export interface SearchResult {
 
 export interface SearchResponse {
   query: string;
+  mode: "hybrid" | "keyword" | "semantic";
   results: SearchResult[];
   count: number;
 }
@@ -28,6 +32,7 @@ const searchOptionsSchema = z.object({
   status: z.string().optional(),
   tag: z.string().optional(),
   limit: z.number().int().positive().default(20),
+  mode: z.enum(["hybrid", "keyword", "semantic"]).default("hybrid"),
   cwd: z.string().optional(),
 });
 
@@ -52,7 +57,6 @@ function extractSnippet(body: string, query: string, maxLen = 200): string {
   }
 
   if (bestIndex === -1) {
-    // No term match in body — return the beginning
     return body.length <= maxLen ? body : `${body.slice(0, maxLen)}...`;
   }
 
@@ -63,59 +67,265 @@ function extractSnippet(body: string, query: string, maxLen = 200): string {
   return `${prefix}${body.slice(start, end)}${suffix}`;
 }
 
+/** Build WHERE clause fragments for common filters. */
+function buildFilterClause(
+  opts: { type: string; status?: string; tag?: string },
+  alias: string,
+): string {
+  const conditions: string[] = [];
+  if (opts.type !== "all") {
+    conditions.push(`${alias}.type = '${esc(opts.type)}'`);
+  }
+  if (opts.status) {
+    conditions.push(`${alias}.status = '${esc(opts.status)}'`);
+  }
+  if (opts.tag) {
+    conditions.push(`list_contains(${alias}.tags, '${esc(opts.tag)}')`);
+  }
+  return conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+}
+
+interface ScoredDoc {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  body: string;
+  keywordScore: number;
+  semanticScore: number;
+  combinedScore: number;
+}
+
 /**
- * Search documents using BM25 full-text search.
- * Requires a prior `grimoire sync` to populate the FTS index.
+ * Run BM25 keyword search and return scored results.
+ */
+async function keywordSearch(
+  connection: Awaited<ReturnType<typeof getDatabase>>,
+  query: string,
+  filterClause: string,
+  limit: number,
+): Promise<Map<string, ScoredDoc>> {
+  const sql = `
+    SELECT d.id, d.title, d.type, d.status, d.body,
+           fts_main_documents.match_bm25(d.id, '${esc(query)}') AS score
+    FROM documents d
+    WHERE score IS NOT NULL
+    ${filterClause}
+    ORDER BY score DESC
+    LIMIT ${limit}
+  `;
+
+  const result = await connection.runAndReadAll(sql);
+  const rows = result.getRows();
+  const docs = new Map<string, ScoredDoc>();
+
+  for (const row of rows) {
+    const id = row[0] as string;
+    docs.set(id, {
+      id,
+      title: row[1] as string,
+      type: row[2] as string,
+      status: (row[3] as string) ?? "",
+      body: (row[4] as string) ?? "",
+      keywordScore: row[5] as number,
+      semanticScore: 0,
+      combinedScore: 0,
+    });
+  }
+
+  return docs;
+}
+
+/**
+ * Run vector similarity search and return scored results.
+ * Uses cosine distance via DuckDB array_cosine_distance.
+ */
+async function semanticSearch(
+  connection: Awaited<ReturnType<typeof getDatabase>>,
+  queryEmbedding: number[],
+  filterClause: string,
+  limit: number,
+): Promise<Map<string, ScoredDoc>> {
+  const vecStr = `[${queryEmbedding.join(",")}]::FLOAT[768]`;
+
+  const sql = `
+    SELECT d.id, d.title, d.type, d.status, d.body,
+           1 - array_cosine_distance(d.embedding, ${vecStr}) AS score
+    FROM documents d
+    WHERE d.embedding IS NOT NULL
+    ${filterClause}
+    ORDER BY score DESC
+    LIMIT ${limit}
+  `;
+
+  const result = await connection.runAndReadAll(sql);
+  const rows = result.getRows();
+  const docs = new Map<string, ScoredDoc>();
+
+  for (const row of rows) {
+    const id = row[0] as string;
+    docs.set(id, {
+      id,
+      title: row[1] as string,
+      type: row[2] as string,
+      status: (row[3] as string) ?? "",
+      body: (row[4] as string) ?? "",
+      keywordScore: 0,
+      semanticScore: row[5] as number,
+      combinedScore: 0,
+    });
+  }
+
+  return docs;
+}
+
+/**
+ * Normalize scores to [0, 1] range using min-max normalization.
+ */
+function normalizeScores(
+  docs: Map<string, ScoredDoc>,
+  field: "keywordScore" | "semanticScore",
+): void {
+  if (docs.size === 0) return;
+
+  let min = Infinity;
+  let max = -Infinity;
+  for (const doc of docs.values()) {
+    const val = doc[field];
+    if (val < min) min = val;
+    if (val > max) max = val;
+  }
+
+  const range = max - min;
+  if (range === 0) {
+    // All scores are the same — normalize to 1.0
+    for (const doc of docs.values()) {
+      doc[field] = doc[field] > 0 ? 1.0 : 0;
+    }
+    return;
+  }
+
+  for (const doc of docs.values()) {
+    doc[field] = (doc[field] - min) / range;
+  }
+}
+
+/**
+ * Search documents using hybrid BM25 + semantic search.
+ * Falls back to keyword-only if embeddings are unavailable.
  */
 export async function search(options: SearchOptions): Promise<SearchResponse> {
   const opts = searchOptionsSchema.parse(options);
   const cwd = opts.cwd ?? process.cwd();
 
-  // Auto-sync if needed
   await autoSync(cwd);
 
   const connection = await getDatabase(cwd);
+  const config = await loadConfig(cwd);
+  const filterClause = buildFilterClause(opts, "d");
 
-  // Build WHERE clause for filters
-  const conditions: string[] = [];
+  let effectiveMode = opts.mode;
 
-  if (opts.type !== "all") {
-    conditions.push(`d.type = '${esc(opts.type)}'`);
+  // Check if semantic search is possible
+  if (effectiveMode !== "keyword") {
+    const hasVss = await isVssAvailable(connection);
+    if (!hasVss) {
+      // Fallback to keyword-only
+      effectiveMode = "keyword";
+    } else {
+      // Check if any embeddings exist
+      const result = await connection.runAndReadAll(
+        "SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL",
+      );
+      const count = result.getRows()[0]?.[0] as number;
+      if (count === 0) {
+        effectiveMode = "keyword";
+      }
+    }
   }
-  if (opts.status) {
-    conditions.push(`d.status = '${esc(opts.status)}'`);
+
+  // Keyword-only mode
+  if (effectiveMode === "keyword") {
+    const keywordDocs = await keywordSearch(connection, opts.query, filterClause, opts.limit);
+
+    const results: SearchResult[] = Array.from(keywordDocs.values()).map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      type: doc.type,
+      status: doc.status,
+      score: doc.keywordScore,
+      snippet: extractSnippet(doc.body, opts.query),
+    }));
+
+    return { query: opts.query, mode: "keyword", results, count: results.length };
   }
-  if (opts.tag) {
-    conditions.push(`list_contains(d.tags, '${esc(opts.tag)}')`);
+
+  // Generate query embedding for semantic modes
+  const queryEmbedding = await generateEmbedding(opts.query, { prefix: "search_query" });
+
+  // Semantic-only mode
+  if (effectiveMode === "semantic") {
+    const semanticDocs = await semanticSearch(connection, queryEmbedding, filterClause, opts.limit);
+
+    const results: SearchResult[] = Array.from(semanticDocs.values()).map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      type: doc.type,
+      status: doc.status,
+      score: doc.semanticScore,
+      snippet: extractSnippet(doc.body, opts.query),
+    }));
+
+    return { query: opts.query, mode: "semantic", results, count: results.length };
   }
 
-  const whereClause = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+  // Hybrid mode — run both searches and merge
+  const [keywordDocs, semanticDocs] = await Promise.all([
+    keywordSearch(connection, opts.query, filterClause, opts.limit * 2),
+    semanticSearch(connection, queryEmbedding, filterClause, opts.limit * 2),
+  ]);
 
-  const sql = `
-    SELECT d.id, d.title, d.type, d.status, d.body,
-           fts_main_documents.match_bm25(d.id, '${esc(opts.query)}') AS score
-    FROM documents d
-    WHERE score IS NOT NULL
-    ${whereClause}
-    ORDER BY score DESC
-    LIMIT ${opts.limit}
-  `;
+  // Normalize scores independently
+  normalizeScores(keywordDocs, "keywordScore");
+  normalizeScores(semanticDocs, "semanticScore");
 
-  const result = await connection.runAndReadAll(sql);
-  const rows = result.getRows();
+  // Merge results
+  const merged = new Map<string, ScoredDoc>();
 
-  const results: SearchResult[] = rows.map((row) => ({
-    id: row[0] as string,
-    title: row[1] as string,
-    type: row[2] as string,
-    status: (row[3] as string) ?? "",
-    snippet: extractSnippet((row[4] as string) ?? "", opts.query),
-    score: row[5] as number,
+  for (const [id, doc] of keywordDocs) {
+    merged.set(id, { ...doc });
+  }
+
+  for (const [id, doc] of semanticDocs) {
+    const existing = merged.get(id);
+    if (existing) {
+      existing.semanticScore = doc.semanticScore;
+    } else {
+      merged.set(id, { ...doc });
+    }
+  }
+
+  // Compute combined scores using configured weights
+  const kw = config.search.keyword_weight;
+  const sw = config.search.semantic_weight;
+
+  for (const doc of merged.values()) {
+    doc.combinedScore = kw * doc.keywordScore + sw * doc.semanticScore;
+  }
+
+  // Sort by combined score and take top N
+  const sorted = Array.from(merged.values())
+    .sort((a, b) => b.combinedScore - a.combinedScore)
+    .slice(0, opts.limit);
+
+  const results: SearchResult[] = sorted.map((doc) => ({
+    id: doc.id,
+    title: doc.title,
+    type: doc.type,
+    status: doc.status,
+    score: doc.combinedScore,
+    snippet: extractSnippet(doc.body, opts.query),
   }));
 
-  return {
-    query: opts.query,
-    results,
-    count: results.length,
-  };
+  return { query: opts.query, mode: "hybrid", results, count: results.length };
 }

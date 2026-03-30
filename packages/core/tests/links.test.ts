@@ -30,7 +30,7 @@ describe("links", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await links({ id: feature.id, cwd: tempDir });
     expect(result.id).toBe(feature.id);
@@ -39,7 +39,7 @@ describe("links", () => {
   });
 
   test("throws for nonexistent document", async () => {
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     await expect(links({ id: "feat-zzzzz-nope", cwd: tempDir })).rejects.toThrow(
       "Document not found",
@@ -64,7 +64,7 @@ describe("links", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     // From the requirement's perspective: outbound parent_feature link
     const reqLinks = await links({ id: req.id, cwd: tempDir });
@@ -109,7 +109,7 @@ describe("links", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     // Feature has only inbound links (requirement points to it)
     const outOnly = await links({ id: feature.id, direction: "out", cwd: tempDir });
@@ -137,7 +137,7 @@ describe("links", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const parentLinks = await links({
       id: feature.id,
@@ -181,7 +181,7 @@ describe("links", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     // Depth 1 from feature: only the requirement (inbound parent_feature)
     const depth1 = await links({ id: feature.id, depth: 1, cwd: tempDir });

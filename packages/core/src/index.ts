@@ -46,6 +46,12 @@ export type { ParsedDocument } from "./frontmatter.ts";
 export { search } from "./search.ts";
 export type { SearchResult, SearchResponse, SearchOptions } from "./search.ts";
 
+export { generateEmbedding, generateEmbeddings, EMBEDDING_DIM } from "./embeddings.ts";
+export type { ProgressCallback } from "./embeddings.ts";
+
+export { loadEmbeddingCache } from "./embedding-cache.ts";
+export type { EmbeddingCache } from "./embedding-cache.ts";
+
 export { sync } from "./sync.ts";
 export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts";
 
@@ -80,6 +86,8 @@ export {
   getDatabase,
   initializeSchema,
   rebuildFtsIndex,
+  rebuildVssIndex,
+  isVssAvailable,
 } from "./database.ts";
 export type { DuckDBConnection } from "./database.ts";
 

@@ -22,7 +22,7 @@ describe("tree", () => {
   });
 
   test("returns empty tree when no documents exist", async () => {
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await tree({ cwd: tempDir });
     expect(result.tree).toEqual([]);
@@ -56,7 +56,7 @@ describe("tree", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await tree({ cwd: tempDir });
     expect(result.count).toBe(3);
@@ -96,7 +96,7 @@ describe("tree", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await tree({ feature: feat1.id, cwd: tempDir });
     expect(result.tree).toHaveLength(1);
@@ -105,7 +105,7 @@ describe("tree", () => {
   });
 
   test("throws for nonexistent feature filter", async () => {
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     await expect(tree({ feature: "feat-zzzzz-nope", cwd: tempDir })).rejects.toThrow(
       "Feature not found",
@@ -121,7 +121,7 @@ describe("tree", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     const result = await tree({ cwd: tempDir });
     expect(result.count).toBe(1);
@@ -137,7 +137,7 @@ describe("tree", () => {
       cwd: tempDir,
     });
 
-    await sync({ cwd: tempDir, full: true });
+    await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     // Default status for features is "proposed"
     const result = await tree({ status: "proposed", cwd: tempDir });

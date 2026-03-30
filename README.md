@@ -55,6 +55,25 @@ grimoire ui --port 8080                    # Custom port
 
 The web UI provides a visual dashboard with document browsing, filtering, sorting, and rendered markdown.
 
+### Search
+
+```bash
+grimoire search "authentication"           # Hybrid search (keyword + semantic)
+grimoire search "login flow" --keyword-only   # BM25 keyword search only
+grimoire search "user access" --semantic-only  # Vector similarity search only
+grimoire search "api" --type requirement       # Filter by document type
+```
+
+Search uses hybrid mode by default, combining BM25 full-text scores with semantic vector similarity. Weights are configurable in `.grimoire/config.yaml`:
+
+```yaml
+search:
+  keyword_weight: 0.5
+  semantic_weight: 0.5
+```
+
+Semantic search requires embeddings — run `grimoire sync` to generate them. The first sync downloads the embedding model (~270MB, cached locally).
+
 ### Validate
 
 ```bash
@@ -87,6 +106,15 @@ All documents are markdown files with YAML frontmatter, stored in `.grimoire/` a
 ```
 
 Markdown files are the source of truth. The database (DuckDB) is a derived cache that enables full-text search, semantic search, and relational queries — it's always rebuildable from files via `grimoire sync`.
+
+### Embeddings
+
+Grimoire generates local embeddings using [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `@huggingface/transformers` (ONNX runtime). No external API calls required.
+
+- Embeddings are generated during `grimoire sync` and cached in `.grimoire/.cache/embeddings.json`
+- Only regenerated when document content changes (content-hash based)
+- The ONNX model downloads automatically on first use (~270MB, cached in `~/.cache/huggingface`)
+- Embedding provider is configurable in `config.yaml` (`local`, `ollama`, `openai`)
 
 ## AI agent workflow
 

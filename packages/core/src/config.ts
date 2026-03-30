@@ -11,6 +11,15 @@ const GRIMOIRE_DIR = ".grimoire";
 const CONFIG_FILE = "config.yaml";
 
 export interface GrimoireConfig {
+  embedding: {
+    provider: "local" | "ollama" | "openai";
+    model: string;
+  };
+  search: {
+    default_limit: number;
+    keyword_weight: number;
+    semantic_weight: number;
+  };
   sync: {
     auto_sync: boolean;
     watch: boolean;
@@ -22,6 +31,15 @@ export interface GrimoireConfig {
 }
 
 const DEFAULT_CONFIG: GrimoireConfig = {
+  embedding: {
+    provider: "local",
+    model: "nomic-embed-text-v1.5",
+  },
+  search: {
+    default_limit: 10,
+    keyword_weight: 0.5,
+    semantic_weight: 0.5,
+  },
   sync: {
     auto_sync: true,
     watch: false,
@@ -45,10 +63,30 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<GrimoireC
 
   if (!raw || typeof raw !== "object") return DEFAULT_CONFIG;
 
+  const embeddingSection = raw.embedding as Record<string, unknown> | undefined;
+  const searchSection = raw.search as Record<string, unknown> | undefined;
   const syncSection = raw.sync as Record<string, unknown> | undefined;
   const uiSection = raw.ui as Record<string, unknown> | undefined;
 
   return {
+    embedding: {
+      provider:
+        embeddingSection?.provider === "ollama" || embeddingSection?.provider === "openai"
+          ? embeddingSection.provider
+          : "local",
+      model:
+        typeof embeddingSection?.model === "string"
+          ? embeddingSection.model
+          : "nomic-embed-text-v1.5",
+    },
+    search: {
+      default_limit:
+        typeof searchSection?.default_limit === "number" ? searchSection.default_limit : 10,
+      keyword_weight:
+        typeof searchSection?.keyword_weight === "number" ? searchSection.keyword_weight : 0.5,
+      semantic_weight:
+        typeof searchSection?.semantic_weight === "number" ? searchSection.semantic_weight : 0.5,
+    },
     sync: {
       auto_sync: typeof syncSection?.auto_sync === "boolean" ? syncSection.auto_sync : true,
       watch: typeof syncSection?.watch === "boolean" ? syncSection.watch : false,

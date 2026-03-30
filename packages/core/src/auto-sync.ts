@@ -98,7 +98,7 @@ export async function autoSync(cwd: string = process.cwd()): Promise<AutoSyncRes
 
     // No prior sync — need a full sync
     if (!lastSyncAt) {
-      const result = await sync({ cwd });
+      const result = await sync({ cwd, skipEmbeddings: true });
       if (result.errors.length > 0) {
         for (const err of result.errors) {
           warnings.push(`${err.file}: ${err.message}`);
@@ -114,7 +114,7 @@ export async function autoSync(cwd: string = process.cwd()): Promise<AutoSyncRes
     }
 
     // Run incremental sync
-    const result = await sync({ cwd });
+    const result = await sync({ cwd, skipEmbeddings: true });
     if (result.errors.length > 0) {
       for (const err of result.errors) {
         warnings.push(`${err.file}: ${err.message}`);

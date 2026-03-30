@@ -7,7 +7,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { getDatabase, rebuildFtsIndex } from "./database.ts";
+import { getDatabase, rebuildFtsIndex, rebuildVssIndex } from "./database.ts";
 import { readDocument } from "./frontmatter.ts";
 import { splitBodySections } from "./documents.ts";
 import {
@@ -18,6 +18,10 @@ import {
   decisionFrontmatterSchema,
 } from "./schemas.ts";
 import type { z } from "zod";
+import { generateEmbedding } from "./embeddings.ts";
+import type { ProgressCallback } from "./embeddings.ts";
+import { loadEmbeddingCache } from "./embedding-cache.ts";
+import type { EmbeddingCache } from "./embedding-cache.ts";
 
 const GRIMOIRE_DIR = ".grimoire";
 
@@ -56,6 +60,10 @@ export interface SyncOptions {
   full?: boolean;
   /** Report what would change without writing to the database. */
   dryRun?: boolean;
+  /** Callback for embedding model download progress. */
+  onProgress?: ProgressCallback;
+  /** Skip embedding generation (keyword search only). */
+  skipEmbeddings?: boolean;
 }
 
 interface ParsedFile {
@@ -235,6 +243,7 @@ function parseFile(scanned: ScannedFile): ParsedFile {
 async function insertDocument(
   connection: Awaited<ReturnType<typeof getDatabase>>,
   file: ParsedFile,
+  embedding?: number[],
 ): Promise<void> {
   const fm = file.frontmatter;
   const id = asStr(fm.id);
@@ -247,9 +256,11 @@ async function insertDocument(
 
   const { content } = splitBodySections(file.body);
 
+  const embeddingLiteral = embedding ? `[${embedding.join(",")}]::FLOAT[768]` : "NULL";
+
   await connection.run(
-    `INSERT INTO documents (id, title, type, status, priority, created, updated, tags, filepath, body, frontmatter)
-     VALUES (${sqlLiteral(id)}, ${sqlLiteral(title)}, ${sqlLiteral(file.type)}, ${sqlLiteral(status)}, ${sqlLiteral(priority)}, ${sqlLiteral(created)}, ${sqlLiteral(updated)}, ${sqlLiteral(tags)}, ${sqlLiteral(file.filepath)}, ${sqlLiteral(content.trim())}, ${sqlLiteral(JSON.stringify(fm))})
+    `INSERT INTO documents (id, title, type, status, priority, created, updated, tags, filepath, body, embedding, frontmatter)
+     VALUES (${sqlLiteral(id)}, ${sqlLiteral(title)}, ${sqlLiteral(file.type)}, ${sqlLiteral(status)}, ${sqlLiteral(priority)}, ${sqlLiteral(created)}, ${sqlLiteral(updated)}, ${sqlLiteral(tags)}, ${sqlLiteral(file.filepath)}, ${sqlLiteral(content.trim())}, ${embeddingLiteral}, ${sqlLiteral(JSON.stringify(fm))})
      ON CONFLICT (id) DO UPDATE SET
        title = excluded.title,
        type = excluded.type,
@@ -260,6 +271,7 @@ async function insertDocument(
        tags = excluded.tags,
        filepath = excluded.filepath,
        body = excluded.body,
+       embedding = excluded.embedding,
        frontmatter = excluded.frontmatter`,
   );
 }
@@ -403,6 +415,41 @@ async function insertChangelog(
   return count;
 }
 
+// ── Embedding generation ──────────────────────────────────────────────────
+
+/**
+ * Generate an embedding for a parsed file, using the cache when possible.
+ * Returns the embedding vector or undefined if generation fails.
+ */
+async function getOrGenerateEmbedding(
+  file: ParsedFile,
+  contentHash: string | undefined,
+  cache: EmbeddingCache,
+  errors: SyncError[],
+  onProgress?: ProgressCallback,
+): Promise<number[] | undefined> {
+  if (!contentHash) return undefined;
+
+  // Check cache first
+  const cached = cache.get(contentHash);
+  if (cached) return cached;
+
+  // Generate new embedding
+  try {
+    const { content } = splitBodySections(file.body);
+    const text = `${asStr(file.frontmatter.title)}\n${content}`.trim();
+    const embedding = await generateEmbedding(text, { onProgress });
+    cache.set(contentHash, embedding);
+    return embedding;
+  } catch (err) {
+    errors.push({
+      file: file.filepath,
+      message: `Embedding generation failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return undefined;
+  }
+}
+
 // ── Stored hash operations ─────────────────────────────────────────────────
 
 /** Load stored content hashes from the database. Returns null if table is missing or empty (no prior sync). */
@@ -510,10 +557,10 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
   }
 
   if (isFullSync) {
-    return fullSync(connection, scannedFiles, currentHashes, errors);
+    return fullSync(connection, scannedFiles, currentHashes, errors, options);
   }
 
-  return incrementalSync(connection, scannedFiles, currentHashes, storedHashes!, errors);
+  return incrementalSync(connection, scannedFiles, currentHashes, storedHashes!, errors, options);
 }
 
 /**
@@ -588,6 +635,7 @@ async function fullSync(
   scannedFiles: ScannedFile[],
   currentHashes: Map<string, string>,
   errors: SyncError[],
+  options: SyncOptions = {},
 ): Promise<SyncResult> {
   const parsed: ParsedFile[] = [];
 
@@ -607,13 +655,24 @@ async function fullSync(
   await connection.run("DELETE FROM relationships");
   await connection.run("DELETE FROM documents");
 
-  // Insert all documents
+  // Generate embeddings (if enabled) and insert all documents
+  const cwd = options.cwd ?? process.cwd();
+  const cache = options.skipEmbeddings ? null : await loadEmbeddingCache(cwd);
   let documentsInserted = 0;
   const documentIds = new Set<string>();
 
   for (const file of parsed) {
     try {
-      await insertDocument(connection, file);
+      const embedding = cache
+        ? await getOrGenerateEmbedding(
+            file,
+            currentHashes.get(file.filepath),
+            cache,
+            errors,
+            options.onProgress,
+          )
+        : undefined;
+      await insertDocument(connection, file, embedding);
       documentIds.add(asStr(file.frontmatter.id));
       documentsInserted++;
     } catch (err) {
@@ -623,6 +682,8 @@ async function fullSync(
       });
     }
   }
+
+  if (cache) await cache.save();
 
   // Insert relationships
   const relationships = extractRelationships(parsed);
@@ -638,6 +699,9 @@ async function fullSync(
 
   // Rebuild FTS index after all documents are inserted
   await rebuildFtsIndex(connection);
+
+  // Rebuild VSS index if embeddings were generated
+  if (cache) await rebuildVssIndex(connection);
 
   // Save hashes and sync timestamp for future incremental syncs
   await saveHashes(connection, currentHashes);
@@ -671,6 +735,7 @@ async function incrementalSync(
   currentHashes: Map<string, string>,
   storedHashes: Map<string, string>,
   errors: SyncError[],
+  options: SyncOptions = {},
 ): Promise<SyncResult> {
   // Determine changed, new, and deleted files
   const changedFiles: ScannedFile[] = [];
@@ -759,11 +824,23 @@ async function incrementalSync(
     await connection.run(`DELETE FROM changelog_entries WHERE document_id = ${sqlLiteral(id)}`);
   }
 
-  // Upsert changed/new documents
+  // Generate embeddings (if enabled) and upsert changed/new documents
+  const cwd = options.cwd ?? process.cwd();
+  const cache = options.skipEmbeddings ? null : await loadEmbeddingCache(cwd);
   let documentsUpserted = 0;
+
   for (const file of changedParsed) {
     try {
-      await insertDocument(connection, file);
+      const embedding = cache
+        ? await getOrGenerateEmbedding(
+            file,
+            currentHashes.get(file.filepath),
+            cache,
+            errors,
+            options.onProgress,
+          )
+        : undefined;
+      await insertDocument(connection, file, embedding);
       documentsUpserted++;
     } catch (err) {
       errors.push({
@@ -772,6 +849,8 @@ async function incrementalSync(
       });
     }
   }
+
+  if (cache) await cache.save();
 
   // Rebuild all relationships (cheap, ensures cross-document consistency)
   const documentIds = new Set<string>();
@@ -791,6 +870,9 @@ async function incrementalSync(
 
   // Rebuild FTS index after document changes
   await rebuildFtsIndex(connection);
+
+  // Rebuild VSS index if embeddings were generated
+  if (cache) await rebuildVssIndex(connection);
 
   // Save updated hashes and sync timestamp
   await saveHashes(connection, currentHashes);

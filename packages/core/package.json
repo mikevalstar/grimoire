@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@duckdb/node-api": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "gray-matter": "catalog:",
     "nanoid": "catalog:",
     "yaml": "catalog:",

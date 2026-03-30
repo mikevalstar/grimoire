@@ -145,7 +145,7 @@ Updated acceptance criteria.
     await writeOverview();
     await writeFeature("abc12", "User Auth");
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result.files_processed).toBe(2);
     expect(result.documents_synced).toBe(2);
@@ -157,7 +157,7 @@ Updated acceptance criteria.
     const featId = await writeFeature("abc12", "Auth");
     await writeRequirement("def34", "Login Flow", featId);
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result.files_processed).toBe(3);
     expect(result.documents_synced).toBe(3);
@@ -169,7 +169,7 @@ Updated acceptance criteria.
     const featId = await writeFeature("abc12", "Auth", [reqId]);
     await writeRequirement("def34", "Login Flow", featId);
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // feature → has_requirement → req, and req → parent_feature → feat
     expect(result.relationships_synced).toBeGreaterThanOrEqual(2);
@@ -180,7 +180,7 @@ Updated acceptance criteria.
     const featId = await writeFeature("abc12", "Auth");
     await writeRequirement("def34", "Login Flow", featId);
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // overview: 1 changelog, feature: 1 changelog, requirement: 1 comment + 2 changelogs
     expect(result.changelog_entries_synced).toBeGreaterThanOrEqual(4);
@@ -195,7 +195,7 @@ Updated acceptance criteria.
       "This is not valid frontmatter at all",
     );
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result.documents_synced).toBe(1); // only overview
     expect(result.errors.length).toBeGreaterThan(0);
@@ -207,13 +207,13 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // First sync
-    const result1 = await sync({ cwd: tempDir });
+    const result1 = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result1.documents_synced).toBe(2);
 
     // Remove feature file and re-sync with full rebuild
     await rm(join(grimoireDir, "features", "feat-abc12-auth.md"));
     closeDatabase();
-    const result2 = await sync({ cwd: tempDir, full: true });
+    const result2 = await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
 
     expect(result2.documents_synced).toBe(1); // only overview remains
   });
@@ -223,7 +223,7 @@ Updated acceptance criteria.
     // Feature referencing a non-existent requirement
     await writeFeature("abc12", "Auth", ["req-nonexistent-missing"]);
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result.documents_synced).toBe(2);
     expect(result.errors.some((e) => e.message.includes("target document not found"))).toBe(true);
@@ -231,7 +231,7 @@ Updated acceptance criteria.
 
   test("returns correct JSON structure", async () => {
     await writeOverview();
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result).toHaveProperty("files_processed");
     expect(result).toHaveProperty("documents_synced");
@@ -244,7 +244,7 @@ Updated acceptance criteria.
 
   test("first sync is always a full rebuild", async () => {
     await writeOverview();
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
 
     expect(result.incremental).toBe(false);
     expect(result.documents_synced).toBe(1);
@@ -255,13 +255,13 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // First sync — full rebuild
-    const result1 = await sync({ cwd: tempDir });
+    const result1 = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result1.incremental).toBe(false);
     expect(result1.documents_synced).toBe(2);
 
     // Second sync — no changes, should be incremental
     closeDatabase();
-    const result2 = await sync({ cwd: tempDir });
+    const result2 = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result2.incremental).toBe(true);
     expect(result2.documents_synced).toBe(0);
     expect(result2.files_processed).toBe(0);
@@ -273,7 +273,7 @@ Updated acceptance criteria.
     const featId = await writeFeature("abc12", "Auth");
 
     // First sync
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
     // Modify the feature file body (replace description text)
@@ -284,7 +284,7 @@ Updated acceptance criteria.
       original.replace("Feature description.", "Updated feature description."),
     );
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result.errors.length).toBe(0);
     expect(result.incremental).toBe(true);
     expect(result.documents_synced).toBe(1); // only the changed file
@@ -294,13 +294,13 @@ Updated acceptance criteria.
     await writeOverview();
 
     // First sync with just overview
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // Add a new feature
     closeDatabase();
     await writeFeature("xyz99", "New Feature");
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result.incremental).toBe(true);
     expect(result.documents_synced).toBe(1); // only the new file
   });
@@ -310,13 +310,13 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // First sync
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // Remove the feature file
     closeDatabase();
     await rm(join(grimoireDir, "features", "feat-abc12-auth.md"));
 
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result.incremental).toBe(true);
     expect(result.files_processed).toBe(1); // the deleted file counts
   });
@@ -326,11 +326,11 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // First sync stores hashes
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // Force full rebuild
     closeDatabase();
-    const result = await sync({ cwd: tempDir, full: true });
+    const result = await sync({ cwd: tempDir, full: true, skipEmbeddings: true });
     expect(result.incremental).toBe(false);
     expect(result.documents_synced).toBe(2); // all documents re-synced
   });
@@ -339,7 +339,7 @@ Updated acceptance criteria.
     await writeOverview();
     await writeFeature("abc12", "Auth");
 
-    const result = await sync({ cwd: tempDir, dryRun: true });
+    const result = await sync({ cwd: tempDir, dryRun: true, skipEmbeddings: true });
 
     expect(result.dry_run).toBe(true);
     expect(result.incremental).toBe(false);
@@ -354,11 +354,11 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // Dry run should not create hashes
-    await sync({ cwd: tempDir, dryRun: true });
+    await sync({ cwd: tempDir, dryRun: true, skipEmbeddings: true });
 
     // A real sync after dry-run should still be a full rebuild (no stored hashes)
     closeDatabase();
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result.incremental).toBe(false);
     expect(result.documents_synced).toBe(2);
   });
@@ -368,11 +368,11 @@ Updated acceptance criteria.
     await writeFeature("abc12", "Auth");
 
     // First real sync to store hashes
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // Force dry-run should show all files as updates
     closeDatabase();
-    const result = await sync({ cwd: tempDir, full: true, dryRun: true });
+    const result = await sync({ cwd: tempDir, full: true, dryRun: true, skipEmbeddings: true });
 
     expect(result.dry_run).toBe(true);
     expect(result.incremental).toBe(false);
@@ -384,7 +384,7 @@ Updated acceptance criteria.
     await writeOverview();
     const featId = await writeFeature("abc12", "Auth");
 
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
     // Modify the feature file
@@ -392,7 +392,7 @@ Updated acceptance criteria.
     const original = await readFile(featPath, "utf-8");
     await writeFile(featPath, original.replace("Feature description.", "Updated."));
 
-    const result = await sync({ cwd: tempDir, dryRun: true });
+    const result = await sync({ cwd: tempDir, dryRun: true, skipEmbeddings: true });
 
     expect(result.dry_run).toBe(true);
     expect(result.incremental).toBe(true);
@@ -405,10 +405,10 @@ Updated acceptance criteria.
     await writeOverview();
     await writeFeature("abc12", "Auth");
 
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
     closeDatabase();
 
-    const result = await sync({ cwd: tempDir, dryRun: true });
+    const result = await sync({ cwd: tempDir, dryRun: true, skipEmbeddings: true });
 
     expect(result.dry_run).toBe(true);
     expect(result.incremental).toBe(true);
@@ -422,11 +422,11 @@ Updated acceptance criteria.
     await writeRequirement("def34", "Login Flow", featId);
 
     // First sync
-    await sync({ cwd: tempDir });
+    await sync({ cwd: tempDir, skipEmbeddings: true });
 
     // No changes — relationships should still be intact
     closeDatabase();
-    const result = await sync({ cwd: tempDir });
+    const result = await sync({ cwd: tempDir, skipEmbeddings: true });
     expect(result.incremental).toBe(true);
     expect(result.relationships_synced).toBeGreaterThanOrEqual(2);
   });
