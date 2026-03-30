@@ -42,4 +42,13 @@ export type { ValidateResult, ValidateIssue } from "./validate.ts";
 export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
 
+export {
+  getDatabasePath,
+  openDatabase,
+  closeDatabase,
+  getDatabase,
+  initializeSchema,
+} from "./database.ts";
+export type { DuckDBConnection } from "./database.ts";
+
 export * from "./schemas.ts";

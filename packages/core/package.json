@@ -21,6 +21,7 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@duckdb/node-api": "catalog:",
     "gray-matter": "catalog:",
     "nanoid": "catalog:",
     "zod": "catalog:",
