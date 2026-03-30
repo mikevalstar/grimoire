@@ -9,8 +9,11 @@ Grimoire stores project knowledge — features, requirements, tasks, and archite
 ## Quick start
 
 ```bash
+# Install the CLI
+npm install -g @grimoire-ai/cli
+
 # Initialize grimoire in your project
-npx grimoire-ai init --name "My Project"
+grimoire init --name "My Project"
 
 # Install AI agent skills (agentskills.io)
 npx skills add mikevalstar/grimoire
