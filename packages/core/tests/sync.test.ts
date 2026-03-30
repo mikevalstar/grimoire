@@ -335,6 +335,86 @@ Updated acceptance criteria.
     expect(result.documents_synced).toBe(2); // all documents re-synced
   });
 
+  test("dry-run on first sync reports all files as adds", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    const result = await sync({ cwd: tempDir, dryRun: true });
+
+    expect(result.dry_run).toBe(true);
+    expect(result.incremental).toBe(false);
+    expect(result.documents_synced).toBe(0);
+    expect(result.changes).toBeDefined();
+    expect(result.changes!.length).toBe(2);
+    expect(result.changes!.every((c) => c.action === "add")).toBe(true);
+  });
+
+  test("dry-run does not write to database", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    // Dry run should not create hashes
+    await sync({ cwd: tempDir, dryRun: true });
+
+    // A real sync after dry-run should still be a full rebuild (no stored hashes)
+    closeDatabase();
+    const result = await sync({ cwd: tempDir });
+    expect(result.incremental).toBe(false);
+    expect(result.documents_synced).toBe(2);
+  });
+
+  test("dry-run with force shows all files even when hashes exist", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    // First real sync to store hashes
+    await sync({ cwd: tempDir });
+
+    // Force dry-run should show all files as updates
+    closeDatabase();
+    const result = await sync({ cwd: tempDir, full: true, dryRun: true });
+
+    expect(result.dry_run).toBe(true);
+    expect(result.incremental).toBe(false);
+    expect(result.changes!.length).toBe(2);
+    expect(result.changes!.every((c) => c.action === "update")).toBe(true);
+  });
+
+  test("incremental dry-run detects changes without writing", async () => {
+    await writeOverview();
+    const featId = await writeFeature("abc12", "Auth");
+
+    await sync({ cwd: tempDir });
+    closeDatabase();
+
+    // Modify the feature file
+    const featPath = join(grimoireDir, "features", `${featId}.md`);
+    const original = await readFile(featPath, "utf-8");
+    await writeFile(featPath, original.replace("Feature description.", "Updated."));
+
+    const result = await sync({ cwd: tempDir, dryRun: true });
+
+    expect(result.dry_run).toBe(true);
+    expect(result.incremental).toBe(true);
+    expect(result.changes!.length).toBe(1);
+    expect(result.changes![0]!.action).toBe("update");
+    expect(result.changes![0]!.filepath).toContain("feat-abc12-auth");
+  });
+
+  test("incremental dry-run with no changes reports empty", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    await sync({ cwd: tempDir });
+    closeDatabase();
+
+    const result = await sync({ cwd: tempDir, dryRun: true });
+
+    expect(result.dry_run).toBe(true);
+    expect(result.incremental).toBe(true);
+    expect(result.changes!.length).toBe(0);
+  });
+
   test("incremental sync preserves relationships across unchanged documents", async () => {
     await writeOverview();
     const reqId = "req-def34-login-flow";

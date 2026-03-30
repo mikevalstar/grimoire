@@ -34,6 +34,11 @@ export interface SyncError {
   message: string;
 }
 
+export interface DryRunChange {
+  filepath: string;
+  action: "add" | "update" | "remove";
+}
+
 export interface SyncResult {
   files_processed: number;
   documents_synced: number;
@@ -41,12 +46,16 @@ export interface SyncResult {
   changelog_entries_synced: number;
   errors: SyncError[];
   incremental: boolean;
+  dry_run?: boolean;
+  changes?: DryRunChange[];
 }
 
 export interface SyncOptions {
   cwd?: string;
   /** Force a full rebuild even when incremental sync is available. */
   full?: boolean;
+  /** Report what would change without writing to the database. */
+  dryRun?: boolean;
 }
 
 interface ParsedFile {
@@ -461,17 +470,84 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
   // 3. Open database
   const connection = await getDatabase(cwd);
 
-  // 4. Determine if we can do incremental sync
-  let storedHashes: Map<string, string> | null = null;
-  if (!options.full) {
-    storedHashes = await loadStoredHashes(connection);
+  // 4. Load stored hashes (needed for both sync and dry-run)
+  const storedHashes = await loadStoredHashes(connection);
+  const isFullSync = options.full || !storedHashes;
+
+  // 5. Handle dry-run mode
+  if (options.dryRun) {
+    return dryRun(scannedFiles, currentHashes, storedHashes, isFullSync, errors);
   }
 
-  if (options.full || !storedHashes) {
+  if (isFullSync) {
     return fullSync(connection, scannedFiles, currentHashes, errors);
   }
 
-  return incrementalSync(connection, scannedFiles, currentHashes, storedHashes, errors);
+  return incrementalSync(connection, scannedFiles, currentHashes, storedHashes!, errors);
+}
+
+/**
+ * Dry-run — compute what would change without writing to the database.
+ */
+function dryRun(
+  scannedFiles: ScannedFile[],
+  currentHashes: Map<string, string>,
+  storedHashes: Map<string, string> | null,
+  isFullSync: boolean,
+  errors: SyncError[],
+): SyncResult {
+  const changes: DryRunChange[] = [];
+
+  if (isFullSync) {
+    // Full rebuild: every current file is effectively re-added
+    for (const file of scannedFiles) {
+      if (currentHashes.has(file.filepath)) {
+        const action = storedHashes?.has(file.filepath) ? "update" : "add";
+        changes.push({ filepath: file.filepath, action });
+      }
+    }
+    // Files in stored hashes but not in current scan are removed
+    if (storedHashes) {
+      const currentFilepaths = new Set(currentHashes.keys());
+      for (const filepath of storedHashes.keys()) {
+        if (!currentFilepaths.has(filepath)) {
+          changes.push({ filepath, action: "remove" });
+        }
+      }
+    }
+  } else {
+    // Incremental: only changed/new/deleted files
+    for (const file of scannedFiles) {
+      const currentHash = currentHashes.get(file.filepath);
+      if (!currentHash) continue;
+
+      const storedHash = storedHashes!.get(file.filepath);
+      if (!storedHash) {
+        changes.push({ filepath: file.filepath, action: "add" });
+      } else if (currentHash !== storedHash) {
+        changes.push({ filepath: file.filepath, action: "update" });
+      }
+    }
+
+    // Deleted files
+    const currentFilepaths = new Set(currentHashes.keys());
+    for (const filepath of storedHashes!.keys()) {
+      if (!currentFilepaths.has(filepath)) {
+        changes.push({ filepath, action: "remove" });
+      }
+    }
+  }
+
+  return {
+    files_processed: changes.length,
+    documents_synced: 0,
+    relationships_synced: 0,
+    changelog_entries_synced: 0,
+    errors,
+    incremental: !isFullSync,
+    dry_run: true,
+    changes,
+  };
 }
 
 /**

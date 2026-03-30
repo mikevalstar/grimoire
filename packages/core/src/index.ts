@@ -43,7 +43,7 @@ export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
 
 export { sync } from "./sync.ts";
-export type { SyncResult, SyncOptions, SyncError } from "./sync.ts";
+export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts";
 
 export {
   getDatabasePath,
