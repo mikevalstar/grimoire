@@ -59,20 +59,20 @@ Make the package runnable outside the repo while keeping the testing path inside
 
 Add the database layer. Search makes the tool genuinely useful for orientation.
 
-- [ ] DuckDB setup via `duckdb-async` — create tables (documents, relationships, changelog_entries)
-- [ ] `grimoire sync` — full rebuild: parse all markdown files into DuckDB
-- [ ] Incremental sync: content-hash based, only re-process changed files
-- [ ] `--force` and `--dry-run` flags for sync
-- [ ] Auto-sync on CLI commands when files have changed
-- [ ] Relationship extraction: parse frontmatter links into `relationships` table
-- [ ] FTS index via DuckDB `fts` extension
-- [ ] `grimoire search <query>` — keyword search (BM25)
-- [ ] `grimoire <type> list` — upgrade to use DuckDB with filters (status, priority, tag, feature)
-- [ ] `grimoire links <id>` — show relationships for a document
-- [ ] `grimoire tree` — feature/requirement/task hierarchy
-- [ ] `grimoire orphans` — find unlinked documents
-- [ ] `grimoire status` — project dashboard (counts, recent changes)
-- [ ] Update `skills/grimoire/SKILL.md` with search and context command documentation
+- [x] DuckDB setup via `duckdb-async` — create tables (documents, relationships, changelog_entries)
+- [x] `grimoire sync` — full rebuild: parse all markdown files into DuckDB
+- [x] Incremental sync: content-hash based, only re-process changed files
+- [x] `--force` and `--dry-run` flags for sync
+- [x] Auto-sync on CLI commands when files have changed
+- [x] Relationship extraction: parse frontmatter links into `relationships` table
+- [x] FTS index via DuckDB `fts` extension
+- [x] `grimoire search <query>` — keyword search (BM25)
+- [x] `grimoire <type> list` — upgrade to use DuckDB with filters (status, priority, tag, feature)
+- [x] `grimoire links <id>` — show relationships for a document
+- [x] `grimoire tree` — feature/requirement/task hierarchy
+- [x] `grimoire orphans` — find unlinked documents
+- [x] `grimoire status` — project dashboard (counts, recent changes)
+- [x] Update `skills/grimoire/SKILL.md` with search and context command documentation
 
 **Dogfood gate:** `grimoire search "authentication"` returns relevant docs. `grimoire tree` shows the full hierarchy. `grimoire status` gives a project snapshot. Agents can orient themselves with search.
 
@@ -82,17 +82,17 @@ Add the database layer. Search makes the tool genuinely useful for orientation.
 
 Visual management layer for humans. Not required for core functionality.
 
-- [ ] Fastify server with static asset serving
-- [ ] `grimoire ui` — launch server, auto-open browser
-- [ ] React + Vite SPA scaffold
+- [x] Fastify server with static asset serving
+- [x] `grimoire ui` — launch server, auto-open browser
+- [x] React + Vite SPA scaffold
+- [x] Project dashboard (status overview, charts)
+- [ ] REST API for core operations (document CRUD, search, relationships)
 - [ ] Document list views (filterable, sortable)
 - [ ] Document detail view (rendered markdown, frontmatter sidebar)
 - [ ] Create / edit documents in browser
 - [ ] Relationship graph visualization
 - [ ] Search interface (keyword + semantic)
-- [ ] Project dashboard (status overview, charts)
 - [ ] File watcher for live sync when UI is running
-- [ ] `--interactive` flag scaffolding (human-readable output)
 
 **Dogfood gate:** Open the browser to visually review and manage Grimoire's own project docs. Edit a task status from the UI and see it reflected in the markdown file.
 

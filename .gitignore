@@ -13,6 +13,9 @@ dist-ssr
 coverage
 *.local
 
+# Auto-generated tsgo declaration files
+*.d.ts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -46,6 +46,15 @@ grimoire log <id> "Implemented OAuth callback handler" --author claude-code
 grimoire comment <id> "Should we support SAML as well?"
 ```
 
+### Web UI
+
+```bash
+grimoire ui                                # Launch web dashboard on port 4444
+grimoire ui --port 8080                    # Custom port
+```
+
+The web UI provides a visual dashboard with document browsing, filtering, sorting, and rendered markdown.
+
 ### Validate
 
 ```bash

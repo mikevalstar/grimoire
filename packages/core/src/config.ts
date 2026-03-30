@@ -15,12 +15,20 @@ export interface GrimoireConfig {
     auto_sync: boolean;
     watch: boolean;
   };
+  ui: {
+    port: number;
+    auto_open: boolean;
+  };
 }
 
 const DEFAULT_CONFIG: GrimoireConfig = {
   sync: {
     auto_sync: true,
     watch: false,
+  },
+  ui: {
+    port: 4444,
+    auto_open: true,
   },
 };
 
@@ -38,11 +46,16 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<GrimoireC
   if (!raw || typeof raw !== "object") return DEFAULT_CONFIG;
 
   const syncSection = raw.sync as Record<string, unknown> | undefined;
+  const uiSection = raw.ui as Record<string, unknown> | undefined;
 
   return {
     sync: {
       auto_sync: typeof syncSection?.auto_sync === "boolean" ? syncSection.auto_sync : true,
       watch: typeof syncSection?.watch === "boolean" ? syncSection.watch : false,
+    },
+    ui: {
+      port: typeof uiSection?.port === "number" ? uiSection.port : 4444,
+      auto_open: typeof uiSection?.auto_open === "boolean" ? uiSection.auto_open : true,
     },
   };
 }

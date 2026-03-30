@@ -162,23 +162,6 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 - run: vp test
 ```
 
-## Running the CLI Locally
-
-To test the CLI against source without publishing:
-
-1. Build core then CLI: `cd packages/core && vp pack && cd ../../apps/cli && vp pack`
-2. Run CLI commands from the project root:
-   ```
-   node apps/cli/dist/index.mjs <command> [options]
-   ```
-   Example: `node apps/cli/dist/index.mjs search "full text search" --format json`
-
-You can also import the built core library directly for ad-hoc testing:
-
-```
-node --input-type=module -e "import { sync, search } from './packages/core/dist/index.mjs'; ..."
-```
-
 ## Review Checklist for Agents
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.

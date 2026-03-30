@@ -3,14 +3,25 @@ id: "feat-fv5ft-web-ui"
 uid: "fv5ft"
 title: "Web UI"
 type: "feature"
-status: "proposed"
+status: "in-progress"
 priority: "medium"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - ui
   - web
-requirements: []
+requirements:
+  - req-nghbo-fastify-server-with-static-asset-serving
+  - req-k5mlr-grimoire-ui-cli-command
+  - req-qq0d6-react-vite-spa-scaffold
+  - req-535og-project-status-dashboard
+  - req-f6zc6-rest-api-for-core-operations
+  - req-i5tua-document-list-views
+  - req-vj1r5-document-detail-view
+  - req-ykbww-create-and-edit-documents-in-browser
+  - req-bnq1e-relationship-graph-visualization
+  - req-0kjcs-search-interface
+  - req-upy6j-file-watcher-for-live-sync
 decisions: []
 ---
 

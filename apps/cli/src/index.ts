@@ -13,6 +13,7 @@ import { registerLinksCommand } from "./commands/links.ts";
 import { registerTreeCommand } from "./commands/tree.ts";
 import { registerOrphansCommand } from "./commands/orphans.ts";
 import { registerStatusCommand } from "./commands/status.ts";
+import { registerUiCommand } from "./commands/ui.ts";
 
 const program = new Command();
 
@@ -39,5 +40,6 @@ registerLinksCommand(program);
 registerTreeCommand(program);
 registerOrphansCommand(program);
 registerStatusCommand(program);
+registerUiCommand(program);
 
 program.parse();
