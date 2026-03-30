@@ -69,7 +69,7 @@ describe("database", () => {
 
     const reader = await connection.runAndReadAll("SELECT count(*) FROM duckdb_tables()");
     const count = reader.getRows()[0]![0];
-    expect(count).toBe(4n);
+    expect(count).toBe(5n);
   });
 
   test("_meta contains correct schema version", async () => {
@@ -79,7 +79,7 @@ describe("database", () => {
       "SELECT value FROM _meta WHERE key = 'schema_version'",
     );
     const version = reader.getRows()[0]![0];
-    expect(version).toBe("1");
+    expect(version).toBe("2");
   });
 
   test("getDatabase opens and initializes schema", async () => {

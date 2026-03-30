@@ -1,4 +1,4 @@
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -210,9 +210,10 @@ Updated acceptance criteria.
     const result1 = await sync({ cwd: tempDir });
     expect(result1.documents_synced).toBe(2);
 
-    // Remove feature file and re-sync
+    // Remove feature file and re-sync with full rebuild
     await rm(join(grimoireDir, "features", "feat-abc12-auth.md"));
-    const result2 = await sync({ cwd: tempDir });
+    closeDatabase();
+    const result2 = await sync({ cwd: tempDir, full: true });
 
     expect(result2.documents_synced).toBe(1); // only overview remains
   });
@@ -237,6 +238,116 @@ Updated acceptance criteria.
     expect(result).toHaveProperty("relationships_synced");
     expect(result).toHaveProperty("changelog_entries_synced");
     expect(result).toHaveProperty("errors");
+    expect(result).toHaveProperty("incremental");
     expect(Array.isArray(result.errors)).toBe(true);
+  });
+
+  test("first sync is always a full rebuild", async () => {
+    await writeOverview();
+    const result = await sync({ cwd: tempDir });
+
+    expect(result.incremental).toBe(false);
+    expect(result.documents_synced).toBe(1);
+  });
+
+  test("second sync with no changes is incremental with zero documents synced", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    // First sync — full rebuild
+    const result1 = await sync({ cwd: tempDir });
+    expect(result1.incremental).toBe(false);
+    expect(result1.documents_synced).toBe(2);
+
+    // Second sync — no changes, should be incremental
+    closeDatabase();
+    const result2 = await sync({ cwd: tempDir });
+    expect(result2.incremental).toBe(true);
+    expect(result2.documents_synced).toBe(0);
+    expect(result2.files_processed).toBe(0);
+    expect(result2.errors.length).toBe(0);
+  });
+
+  test("incremental sync detects changed files", async () => {
+    await writeOverview();
+    const featId = await writeFeature("abc12", "Auth");
+
+    // First sync
+    await sync({ cwd: tempDir });
+    closeDatabase();
+
+    // Modify the feature file body (replace description text)
+    const featPath = join(grimoireDir, "features", `${featId}.md`);
+    const original = await readFile(featPath, "utf-8");
+    await writeFile(
+      featPath,
+      original.replace("Feature description.", "Updated feature description."),
+    );
+
+    const result = await sync({ cwd: tempDir });
+    expect(result.errors.length).toBe(0);
+    expect(result.incremental).toBe(true);
+    expect(result.documents_synced).toBe(1); // only the changed file
+  });
+
+  test("incremental sync detects new files", async () => {
+    await writeOverview();
+
+    // First sync with just overview
+    await sync({ cwd: tempDir });
+
+    // Add a new feature
+    closeDatabase();
+    await writeFeature("xyz99", "New Feature");
+
+    const result = await sync({ cwd: tempDir });
+    expect(result.incremental).toBe(true);
+    expect(result.documents_synced).toBe(1); // only the new file
+  });
+
+  test("incremental sync detects deleted files", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    // First sync
+    await sync({ cwd: tempDir });
+
+    // Remove the feature file
+    closeDatabase();
+    await rm(join(grimoireDir, "features", "feat-abc12-auth.md"));
+
+    const result = await sync({ cwd: tempDir });
+    expect(result.incremental).toBe(true);
+    expect(result.files_processed).toBe(1); // the deleted file counts
+  });
+
+  test("full flag forces full rebuild even when hashes exist", async () => {
+    await writeOverview();
+    await writeFeature("abc12", "Auth");
+
+    // First sync stores hashes
+    await sync({ cwd: tempDir });
+
+    // Force full rebuild
+    closeDatabase();
+    const result = await sync({ cwd: tempDir, full: true });
+    expect(result.incremental).toBe(false);
+    expect(result.documents_synced).toBe(2); // all documents re-synced
+  });
+
+  test("incremental sync preserves relationships across unchanged documents", async () => {
+    await writeOverview();
+    const reqId = "req-def34-login-flow";
+    const featId = await writeFeature("abc12", "Auth", [reqId]);
+    await writeRequirement("def34", "Login Flow", featId);
+
+    // First sync
+    await sync({ cwd: tempDir });
+
+    // No changes — relationships should still be intact
+    closeDatabase();
+    const result = await sync({ cwd: tempDir });
+    expect(result.incremental).toBe(true);
+    expect(result.relationships_synced).toBeGreaterThanOrEqual(2);
   });
 });

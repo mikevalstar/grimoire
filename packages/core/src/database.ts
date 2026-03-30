@@ -11,7 +11,7 @@ import { mkdir } from "node:fs/promises";
 const GRIMOIRE_DIR = ".grimoire";
 const CACHE_DIR = ".cache";
 const DB_FILENAME = "grimoire.duckdb";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 interface DatabaseState {
   instance: DuckDBInstance;
@@ -112,6 +112,13 @@ export async function initializeSchema(connection: DuckDBConnection): Promise<vo
       content TEXT NOT NULL,
       is_comment BOOLEAN DEFAULT FALSE,
       FOREIGN KEY (document_id) REFERENCES documents(id)
+    );
+  `);
+
+  await connection.run(`
+    CREATE TABLE IF NOT EXISTS content_hashes (
+      filepath VARCHAR PRIMARY KEY,
+      content_hash VARCHAR NOT NULL
     );
   `);
 }

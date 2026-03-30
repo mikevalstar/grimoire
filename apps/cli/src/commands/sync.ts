@@ -7,7 +7,8 @@ function formatSyncResult(data: unknown): string {
   const result = data as SyncResult;
   const lines: string[] = [];
 
-  lines.push(c.success("Sync complete."));
+  const mode = result.incremental ? "Incremental sync" : "Full sync";
+  lines.push(c.success(`${mode} complete.`));
   lines.push("");
   lines.push(c.label("Files processed:", String(result.files_processed)));
   lines.push(c.label("Documents synced:", String(result.documents_synced)));
@@ -28,12 +29,13 @@ function formatSyncResult(data: unknown): string {
 export function registerSyncCommand(program: Command): void {
   program
     .command("sync")
-    .description("Rebuild DuckDB database from markdown files")
-    .action(async () => {
+    .description("Sync DuckDB database from markdown files")
+    .option("--full", "Force a full rebuild instead of incremental sync")
+    .action(async (opts: { full?: boolean }) => {
       const globalOpts = program.opts<{ cwd?: string }>();
 
       try {
-        const result = await sync({ cwd: globalOpts.cwd });
+        const result = await sync({ cwd: globalOpts.cwd, full: opts.full });
         printResult(result, formatSyncResult);
       } catch (err) {
         printError(err instanceof Error ? err.message : String(err));
