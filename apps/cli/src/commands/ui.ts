@@ -18,9 +18,9 @@ export function registerUiCommand(program: Command): void {
       const port = opts.port ? Number.parseInt(opts.port, 10) : config.ui.port;
       const autoOpen = opts.open && config.ui.auto_open;
 
-      // Resolve the website dist directory relative to this CLI package
+      // Resolve the website dist directory bundled alongside this CLI package
       const cliDir = dirname(fileURLToPath(import.meta.url));
-      const staticDir = resolve(cliDir, "../../website/dist");
+      const staticDir = resolve(cliDir, "../website/dist");
 
       const { address } = await startServer({ cwd, port, staticDir });
 

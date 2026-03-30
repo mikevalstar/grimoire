@@ -1,6 +1,6 @@
 {
   "name": "@grimoire-ai/server",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Fastify HTTP server for Grimoire AI web UI",
   "homepage": "https://grimoireai.quest",
   "license": "MIT",

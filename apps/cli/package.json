@@ -1,6 +1,6 @@
 {
   "name": "@grimoire-ai/cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Local-first, AI-native requirements management CLI",
   "homepage": "https://grimoireai.quest",
   "license": "MIT",
@@ -13,14 +13,15 @@
     "grimoire": "./dist/index.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "website"
   ],
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "vp pack",
+    "build": "vp pack && mkdir -p website && cp -r ../website/dist website/dist",
     "dev": "vp pack --watch",
     "test": "vp test",
     "check": "vp check"
