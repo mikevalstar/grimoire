@@ -13,13 +13,16 @@ function TasksPage() {
     queryFn: () => fetchDocuments("task"),
   });
 
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p style={{ color: "#dc2626" }}>Error: {error.message}</p>;
+  if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
+  if (error) return <p className="text-destructive">Error: {error.message}</p>;
   if (!data) return null;
 
   return (
-    <div>
-      <h2 style={{ margin: "0 0 1rem 0" }}>Tasks ({data.count})</h2>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
+        <p className="text-sm text-muted-foreground">{data.count} documents</p>
+      </div>
       <DocumentList data={data} />
     </div>
   );

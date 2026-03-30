@@ -13,8 +13,8 @@ function IndexPage() {
     queryFn: fetchStatus,
   });
 
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p style={{ color: "#dc2626" }}>Error: {error.message}</p>;
+  if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
+  if (error) return <p className="text-destructive">Error: {error.message}</p>;
   if (!data) return null;
 
   return <StatusDashboard data={data} />;

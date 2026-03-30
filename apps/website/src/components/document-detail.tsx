@@ -1,6 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import type { DocumentDetail } from "../lib/api.ts";
 import { StatusBadge, PriorityBadge } from "./status-badge.tsx";
+import { Markdown } from "./markdown.tsx";
+import { Badge } from "./ui/badge.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card.tsx";
 
 const TYPE_LABELS: Record<string, string> = {
   feature: "Features",
@@ -39,132 +43,136 @@ export function DocumentDetailView({ data }: { data: DocumentDetail }) {
   const requirementId = str(fm.requirement);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Breadcrumb */}
-      <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-        <Link to={backPath as "/"} style={{ color: "#2563eb", textDecoration: "none" }}>
-          {backLabel}
-        </Link>
-        {" / "}
-        <span>{title}</span>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/* Back link */}
+      <Link
+        to={backPath as "/"}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {backLabel}
+      </Link>
 
       {/* Title and badges */}
       <div>
-        <h2 style={{ margin: "0 0 0.5rem 0" }}>{title}</h2>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           {status && <StatusBadge status={status} />}
           {priority && <PriorityBadge priority={priority} />}
+          {tags.map((tag) => (
+            <Badge key={tag} variant="outline">
+              {tag}
+            </Badge>
+          ))}
         </div>
       </div>
 
-      {/* Metadata */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: "0.25rem 1rem",
-          fontSize: "0.875rem",
-          padding: "0.75rem",
-          backgroundColor: "#f9fafb",
-          borderRadius: "0.5rem",
-        }}
-      >
-        <span style={{ color: "#6b7280" }}>ID</span>
-        <span style={{ fontFamily: "monospace", fontSize: "0.8125rem" }}>{data.id}</span>
+      {/* Metadata card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">ID</dt>
+            <dd className="font-mono text-xs">{data.id}</dd>
 
-        {created && (
-          <>
-            <span style={{ color: "#6b7280" }}>Created</span>
-            <span>{created}</span>
-          </>
-        )}
-        {updated && (
-          <>
-            <span style={{ color: "#6b7280" }}>Updated</span>
-            <span>{updated}</span>
-          </>
-        )}
-        {assignee && (
-          <>
-            <span style={{ color: "#6b7280" }}>Assignee</span>
-            <span>{assignee}</span>
-          </>
-        )}
-        {tags.length > 0 && (
-          <>
-            <span style={{ color: "#6b7280" }}>Tags</span>
-            <span>{tags.join(", ")}</span>
-          </>
-        )}
-        {featureId && (
-          <>
-            <span style={{ color: "#6b7280" }}>Feature</span>
-            <Link
-              to={`/features/${featureId}` as "/"}
-              style={{ color: "#2563eb", textDecoration: "none" }}
-            >
-              {featureId}
-            </Link>
-          </>
-        )}
-        {requirementId && (
-          <>
-            <span style={{ color: "#6b7280" }}>Requirement</span>
-            <Link
-              to={`/requirements/${requirementId}` as "/"}
-              style={{ color: "#2563eb", textDecoration: "none" }}
-            >
-              {requirementId}
-            </Link>
-          </>
-        )}
-      </div>
+            {created && (
+              <>
+                <dt className="text-muted-foreground">Created</dt>
+                <dd>{created}</dd>
+              </>
+            )}
+            {updated && (
+              <>
+                <dt className="text-muted-foreground">Updated</dt>
+                <dd>{updated}</dd>
+              </>
+            )}
+            {assignee && (
+              <>
+                <dt className="text-muted-foreground">Assignee</dt>
+                <dd>{assignee}</dd>
+              </>
+            )}
+            {featureId && (
+              <>
+                <dt className="text-muted-foreground">Feature</dt>
+                <dd>
+                  <Link
+                    to={`/features/${featureId}` as "/"}
+                    className="text-primary hover:underline"
+                  >
+                    {featureId}
+                  </Link>
+                </dd>
+              </>
+            )}
+            {requirementId && (
+              <>
+                <dt className="text-muted-foreground">Requirement</dt>
+                <dd>
+                  <Link
+                    to={`/requirements/${requirementId}` as "/"}
+                    className="text-primary hover:underline"
+                  >
+                    {requirementId}
+                  </Link>
+                </dd>
+              </>
+            )}
+          </dl>
+        </CardContent>
+      </Card>
 
       {/* Related documents */}
-      <RelatedLinks label="Requirements" ids={strArr(fm.requirements)} type="requirements" />
-      <RelatedLinks label="Tasks" ids={strArr(fm.tasks)} type="tasks" />
-      <RelatedLinks label="Decisions" ids={strArr(fm.decisions)} type="decisions" />
-      <RelatedLinks label="Features" ids={strArr(fm.features)} type="features" />
-      <RelatedLinks label="Dependencies" ids={strArr(fm.depends_on)} type="" />
+      <RelatedSection label="Requirements" ids={strArr(fm.requirements)} type="requirements" />
+      <RelatedSection label="Tasks" ids={strArr(fm.tasks)} type="tasks" />
+      <RelatedSection label="Decisions" ids={strArr(fm.decisions)} type="decisions" />
+      <RelatedSection label="Features" ids={strArr(fm.features)} type="features" />
+      <RelatedSection label="Dependencies" ids={strArr(fm.depends_on)} type="" />
 
       {/* Body */}
       {data.body && (
-        <div
-          style={{
-            whiteSpace: "pre-wrap",
-            fontFamily: "system-ui, sans-serif",
-            lineHeight: 1.6,
-            fontSize: "0.9375rem",
-            borderTop: "1px solid #e5e7eb",
-            paddingTop: "1rem",
-          }}
-        >
-          {data.body}
-        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <Markdown content={data.body} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 }
 
-function RelatedLinks({ label, ids, type }: { label: string; ids: string[]; type: string }) {
+function RelatedSection({ label, ids, type }: { label: string; ids: string[]; type: string }) {
   if (ids.length === 0) return null;
 
   return (
-    <div style={{ fontSize: "0.875rem" }}>
-      <strong>{label}: </strong>
-      {ids.map((id, i) => (
-        <span key={id}>
-          {i > 0 && ", "}
-          {type ? (
-            <Link to={`/${type}/${id}` as "/"} style={{ color: "#2563eb", textDecoration: "none" }}>
-              {id}
-            </Link>
-          ) : (
-            <span style={{ fontFamily: "monospace" }}>{id}</span>
+    <Card>
+      <CardHeader>
+        <CardTitle>{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {ids.map((id) =>
+            type ? (
+              <Link
+                key={id}
+                to={`/${type}/${id}` as "/"}
+                className="text-sm text-primary hover:underline"
+              >
+                <Badge variant="outline" className="font-mono">
+                  {id}
+                </Badge>
+              </Link>
+            ) : (
+              <Badge key={id} variant="outline" className="font-mono">
+                {id}
+              </Badge>
+            ),
           )}
-        </span>
-      ))}
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

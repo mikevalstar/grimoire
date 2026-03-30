@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import type { DocumentListResponse } from "../lib/api.ts";
 import { StatusBadge, PriorityBadge } from "./status-badge.tsx";
+import { Card, CardContent } from "./ui/card.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table.tsx";
 
 const TYPE_ROUTES: Record<string, string> = {
   feature: "/features",
@@ -13,40 +15,50 @@ export function DocumentList({ data }: { data: DocumentListResponse }) {
   const basePath = TYPE_ROUTES[data.type] ?? "/";
 
   if (data.documents.length === 0) {
-    return <p style={{ color: "#6b7280" }}>No documents found.</p>;
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-muted-foreground">
+          No documents found.
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-      <thead>
-        <tr style={{ borderBottom: "2px solid #e5e7eb", textAlign: "left" }}>
-          <th style={{ padding: "0.5rem" }}>Title</th>
-          <th style={{ padding: "0.5rem" }}>Status</th>
-          <th style={{ padding: "0.5rem" }}>Priority</th>
-          <th style={{ padding: "0.5rem" }}>Updated</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.documents.map((doc) => (
-          <tr key={doc.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-            <td style={{ padding: "0.5rem" }}>
-              <Link
-                to={`${basePath}/${doc.id}` as "/"}
-                style={{ color: "#2563eb", textDecoration: "none" }}
-              >
-                {doc.title}
-              </Link>
-            </td>
-            <td style={{ padding: "0.5rem" }}>
-              <StatusBadge status={doc.status} />
-            </td>
-            <td style={{ padding: "0.5rem" }}>
-              <PriorityBadge priority={doc.priority} />
-            </td>
-            <td style={{ padding: "0.5rem", color: "#6b7280" }}>{doc.updated}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead className="text-right">Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.documents.map((doc) => (
+              <TableRow key={doc.id}>
+                <TableCell>
+                  <Link
+                    to={`${basePath}/${doc.id}` as "/"}
+                    className="font-medium text-foreground hover:text-primary"
+                  >
+                    {doc.title}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={doc.status} />
+                </TableCell>
+                <TableCell>
+                  <PriorityBadge priority={doc.priority} />
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">{doc.updated}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

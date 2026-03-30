@@ -1,156 +1,190 @@
 import { Link } from "@tanstack/react-router";
+import { BookOpen, CheckSquare, ListChecks, Scale, AlertTriangle, CheckCircle } from "lucide-react";
 import type { StatusResponse } from "../lib/api.ts";
 import { StatusBadge } from "./status-badge.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table.tsx";
 
-const TYPE_LABELS: Record<string, string> = {
-  feature: "Features",
-  requirement: "Requirements",
-  task: "Tasks",
-  decision: "Decisions",
+const TYPE_CONFIG: Record<string, { label: string; route: string; icon: typeof BookOpen }> = {
+  feature: { label: "Features", route: "/features", icon: BookOpen },
+  requirement: { label: "Requirements", route: "/requirements", icon: ListChecks },
+  task: { label: "Tasks", route: "/tasks", icon: CheckSquare },
+  decision: { label: "Decisions", route: "/decisions", icon: Scale },
 };
 
-const TYPE_ROUTES: Record<string, string> = {
-  feature: "/features",
-  requirement: "/requirements",
-  task: "/tasks",
-  decision: "/decisions",
-};
-
-function CountCard({ label, count, to }: { label: string; count: number; to: string }) {
+function CountCard({
+  label,
+  count,
+  to,
+  icon: Icon,
+}: {
+  label: string;
+  count: number;
+  to: string;
+  icon: typeof BookOpen;
+}) {
   return (
-    <Link
-      to={to as "/"}
-      style={{
-        padding: "1rem",
-        border: "1px solid #e5e7eb",
-        borderRadius: "0.5rem",
-        textAlign: "center",
-        textDecoration: "none",
-        color: "inherit",
-      }}
-    >
-      <div style={{ fontSize: "2rem", fontWeight: 700 }}>{count}</div>
-      <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>{label}</div>
+    <Link to={to as "/"} className="group block no-underline">
+      <Card className="transition-all group-hover:border-primary/30 group-hover:shadow-md">
+        <CardHeader className="flex-row items-center justify-between pb-2">
+          <CardTitle>{label}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">{count}</div>
+        </CardContent>
+      </Card>
     </Link>
   );
 }
 
-function HealthIndicator({ label, value, good }: { label: string; value: number; good: boolean }) {
+function HealthCard({ data }: { data: StatusResponse }) {
+  const items = [
+    {
+      label: "Open tasks",
+      value: data.open_tasks,
+      good: data.open_tasks === 0,
+    },
+    {
+      label: "Blocked tasks",
+      value: data.blocked_tasks,
+      good: data.blocked_tasks === 0,
+    },
+    {
+      label: "Orphaned docs",
+      value: data.orphaned_documents,
+      good: data.orphaned_documents === 0,
+    },
+    {
+      label: `Stale (>${data.stale_threshold_days}d)`,
+      value: data.stale_documents,
+      good: data.stale_documents === 0,
+    },
+  ];
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ color: good ? "#16a34a" : "#eab308", fontSize: "1.25rem" }}>
-        {good ? "\u2713" : "\u26A0"}
-      </span>
-      <span>
-        {label}: <strong>{value}</strong>
-      </span>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Project Health</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3">
+          {items.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 text-sm">
+              {item.good ? (
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              )}
+              <span className="text-muted-foreground">{item.label}</span>
+              <span className="ml-auto font-semibold">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 export function StatusDashboard({ data }: { data: StatusResponse }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <h2 style={{ margin: 0 }}>Project Status</h2>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Project overview and health at a glance.</p>
+      </div>
 
-      {/* Document counts */}
-      <section>
-        <h3 style={{ marginTop: 0 }}>Documents</h3>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: "0.75rem",
-          }}
-        >
-          <CountCard label="Features" count={data.counts.features} to="/features" />
-          <CountCard label="Requirements" count={data.counts.requirements} to="/requirements" />
-          <CountCard label="Tasks" count={data.counts.tasks} to="/tasks" />
-          <CountCard label="Decisions" count={data.counts.decisions} to="/decisions" />
-        </div>
-      </section>
+      {/* Count cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <CountCard label="Features" count={data.counts.features} to="/features" icon={BookOpen} />
+        <CountCard
+          label="Requirements"
+          count={data.counts.requirements}
+          to="/requirements"
+          icon={ListChecks}
+        />
+        <CountCard label="Tasks" count={data.counts.tasks} to="/tasks" icon={CheckSquare} />
+        <CountCard label="Decisions" count={data.counts.decisions} to="/decisions" icon={Scale} />
+      </div>
 
-      {/* Status breakdown */}
-      <section>
-        <h3 style={{ marginTop: 0 }}>By Status</h3>
-        {Object.entries(data.by_status).map(([type, statuses]) => (
-          <div key={type} style={{ marginBottom: "0.5rem" }}>
-            <strong>{TYPE_LABELS[type] ?? type}: </strong>
-            {Object.entries(statuses).map(([st, cnt]) => (
-              <span key={st} style={{ marginRight: "0.75rem" }}>
-                <StatusBadge status={st} /> {cnt}
-              </span>
-            ))}
-          </div>
-        ))}
-      </section>
-
-      {/* Task health */}
-      <section>
-        <h3 style={{ marginTop: 0 }}>Task Health</h3>
-        <div style={{ display: "flex", gap: "2rem" }}>
-          <div>
-            Open tasks: <strong>{data.open_tasks}</strong>
-          </div>
-          {data.blocked_tasks > 0 && (
-            <div style={{ color: "#dc2626" }}>
-              Blocked: <strong>{data.blocked_tasks}</strong>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Status breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Status Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3">
+              {Object.entries(data.by_status).map(([type, statuses]) => {
+                const config = TYPE_CONFIG[type];
+                return (
+                  <div key={type}>
+                    <div className="mb-1 text-sm font-medium">{config?.label ?? type}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(statuses).map(([st, cnt]) => (
+                        <span
+                          key={st}
+                          className="flex items-center gap-1 text-xs text-muted-foreground"
+                        >
+                          <StatusBadge status={st} />
+                          <span>{cnt}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
-      </section>
+          </CardContent>
+        </Card>
 
-      {/* Health indicators */}
-      <section>
-        <h3 style={{ marginTop: 0 }}>Health</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <HealthIndicator
-            label="Orphaned documents"
-            value={data.orphaned_documents}
-            good={data.orphaned_documents === 0}
-          />
-          <HealthIndicator
-            label={`Stale documents (>${data.stale_threshold_days}d)`}
-            value={data.stale_documents}
-            good={data.stale_documents === 0}
-          />
-        </div>
-      </section>
+        {/* Health */}
+        <HealthCard data={data} />
+      </div>
 
       {/* Recent updates */}
       {data.recent.length > 0 && (
-        <section>
-          <h3 style={{ marginTop: 0 }}>Recent Updates</h3>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #e5e7eb", textAlign: "left" }}>
-                <th style={{ padding: "0.5rem" }}>Updated</th>
-                <th style={{ padding: "0.5rem" }}>Type</th>
-                <th style={{ padding: "0.5rem" }}>Title</th>
-                <th style={{ padding: "0.5rem" }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recent.map((doc) => (
-                <tr key={doc.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <td style={{ padding: "0.5rem", color: "#6b7280" }}>{doc.updated}</td>
-                  <td style={{ padding: "0.5rem", color: "#6b7280" }}>{doc.type}</td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <Link
-                      to={`${TYPE_ROUTES[doc.type] ?? "/"}/${doc.id}` as "/"}
-                      style={{ color: "#2563eb", textDecoration: "none" }}
-                    >
-                      {doc.title}
-                    </Link>
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <StatusBadge status={doc.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Updates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recent.map((doc) => {
+                  const config = TYPE_CONFIG[doc.type];
+                  return (
+                    <TableRow key={doc.id}>
+                      <TableCell>
+                        <Link
+                          to={`${config?.route ?? "/"}/${doc.id}` as "/"}
+                          className="font-medium text-foreground hover:text-primary"
+                        >
+                          {doc.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground capitalize">{doc.type}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={doc.status} />
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {doc.updated}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
