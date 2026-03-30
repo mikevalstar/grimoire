@@ -52,6 +52,9 @@ export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts
 export { autoSync } from "./auto-sync.ts";
 export type { AutoSyncResult } from "./auto-sync.ts";
 
+export { links } from "./links.ts";
+export type { LinkItem, LinksResponse, LinksOptions } from "./links.ts";
+
 export { loadConfig } from "./config.ts";
 export type { GrimoireConfig } from "./config.ts";
 
