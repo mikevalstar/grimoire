@@ -1,6 +1,6 @@
 {
   "name": "@grimoire-ai/core",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Core library for Grimoire AI — file I/O, search, and database operations",
   "license": "MIT",
   "files": [

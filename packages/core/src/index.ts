@@ -3,7 +3,7 @@
  * Shared by the CLI and server layers.
  */
 
-export const VERSION = "0.1.2";
+export const VERSION = "0.2.0";
 
 export function getVersion(): string {
   return VERSION;
