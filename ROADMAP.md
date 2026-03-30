@@ -82,17 +82,17 @@ Add the database layer. Search makes the tool genuinely useful for orientation.
 
 Visual management layer for humans. Not required for core functionality.
 
-- [ ] Fastify server with static asset serving
-- [ ] `grimoire ui` — launch server, auto-open browser
-- [ ] React + Vite SPA scaffold
+- [x] Fastify server with static asset serving
+- [x] `grimoire ui` — launch server, auto-open browser
+- [x] React + Vite SPA scaffold
+- [x] Project dashboard (status overview, charts)
+- [ ] REST API for core operations (document CRUD, search, relationships)
 - [ ] Document list views (filterable, sortable)
 - [ ] Document detail view (rendered markdown, frontmatter sidebar)
 - [ ] Create / edit documents in browser
 - [ ] Relationship graph visualization
 - [ ] Search interface (keyword + semantic)
-- [ ] Project dashboard (status overview, charts)
 - [ ] File watcher for live sync when UI is running
-- [ ] `--interactive` flag scaffolding (human-readable output)
 
 **Dogfood gate:** Open the browser to visually review and manage Grimoire's own project docs. Edit a task status from the UI and see it reflected in the markdown file.
 
