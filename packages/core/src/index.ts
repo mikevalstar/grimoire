@@ -45,6 +45,12 @@ export type { ParsedDocument } from "./frontmatter.ts";
 export { sync } from "./sync.ts";
 export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts";
 
+export { autoSync } from "./auto-sync.ts";
+export type { AutoSyncResult } from "./auto-sync.ts";
+
+export { loadConfig } from "./config.ts";
+export type { GrimoireConfig } from "./config.ts";
+
 export {
   getDatabasePath,
   openDatabase,

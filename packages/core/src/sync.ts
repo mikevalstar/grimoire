@@ -438,6 +438,36 @@ async function saveHashes(
   }
 }
 
+// ── Sync timestamp operations ─────────────────────────────────────────
+
+/** Save the current time as the last sync timestamp. */
+async function saveSyncTimestamp(
+  connection: Awaited<ReturnType<typeof getDatabase>>,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await connection.run(
+    `INSERT INTO _meta (key, value) VALUES ('last_sync_at', '${now}')
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+  );
+}
+
+/** Load the last sync timestamp from the database. Returns null if never synced. */
+export async function loadSyncTimestamp(
+  connection: Awaited<ReturnType<typeof getDatabase>>,
+): Promise<Date | null> {
+  try {
+    const result = await connection.runAndReadAll(
+      "SELECT value FROM _meta WHERE key = 'last_sync_at'",
+    );
+    const rows = result.getRows();
+    if (rows.length === 0) return null;
+    const d = new Date(rows[0]![0] as string);
+    return Number.isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /**
@@ -606,8 +636,9 @@ async function fullSync(
   // Insert changelog entries
   const changelogInserted = await insertChangelog(connection, parsed, documentIds, errors);
 
-  // Save hashes for future incremental syncs
+  // Save hashes and sync timestamp for future incremental syncs
   await saveHashes(connection, currentHashes);
+  await saveSyncTimestamp(connection);
 
   return {
     files_processed:
@@ -755,8 +786,9 @@ async function incrementalSync(
   // Insert changelog entries for changed documents
   const changelogInserted = await insertChangelog(connection, changedParsed, documentIds, errors);
 
-  // Save updated hashes
+  // Save updated hashes and sync timestamp
   await saveHashes(connection, currentHashes);
+  await saveSyncTimestamp(connection);
 
   return {
     files_processed: changedFiles.length + deletedFilepaths.length,
