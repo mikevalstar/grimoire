@@ -1,20 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import type { StatusResponse } from "../lib/api.ts";
-
-const STATUS_COLORS: Record<string, string> = {
-  "in-progress": "#2563eb",
-  todo: "#eab308",
-  draft: "#eab308",
-  proposed: "#eab308",
-  done: "#16a34a",
-  complete: "#16a34a",
-  accepted: "#16a34a",
-  approved: "#16a34a",
-  blocked: "#dc2626",
-  rejected: "#dc2626",
-  deprecated: "#6b7280",
-  cancelled: "#6b7280",
-  superseded: "#6b7280",
-};
+import { StatusBadge } from "./status-badge.tsx";
 
 const TYPE_LABELS: Record<string, string> = {
   feature: "Features",
@@ -23,38 +9,29 @@ const TYPE_LABELS: Record<string, string> = {
   decision: "Decisions",
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status] ?? "#6b7280";
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "0.125rem 0.5rem",
-        borderRadius: "9999px",
-        fontSize: "0.75rem",
-        fontWeight: 500,
-        color: "white",
-        backgroundColor: color,
-      }}
-    >
-      {status}
-    </span>
-  );
-}
+const TYPE_ROUTES: Record<string, string> = {
+  feature: "/features",
+  requirement: "/requirements",
+  task: "/tasks",
+  decision: "/decisions",
+};
 
-function CountCard({ label, count }: { label: string; count: number }) {
+function CountCard({ label, count, to }: { label: string; count: number; to: string }) {
   return (
-    <div
+    <Link
+      to={to as "/"}
       style={{
         padding: "1rem",
         border: "1px solid #e5e7eb",
         borderRadius: "0.5rem",
         textAlign: "center",
+        textDecoration: "none",
+        color: "inherit",
       }}
     >
       <div style={{ fontSize: "2rem", fontWeight: 700 }}>{count}</div>
       <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>{label}</div>
-    </div>
+    </Link>
   );
 }
 
@@ -86,10 +63,10 @@ export function StatusDashboard({ data }: { data: StatusResponse }) {
             gap: "0.75rem",
           }}
         >
-          <CountCard label="Features" count={data.counts.features} />
-          <CountCard label="Requirements" count={data.counts.requirements} />
-          <CountCard label="Tasks" count={data.counts.tasks} />
-          <CountCard label="Decisions" count={data.counts.decisions} />
+          <CountCard label="Features" count={data.counts.features} to="/features" />
+          <CountCard label="Requirements" count={data.counts.requirements} to="/requirements" />
+          <CountCard label="Tasks" count={data.counts.tasks} to="/tasks" />
+          <CountCard label="Decisions" count={data.counts.decisions} to="/decisions" />
         </div>
       </section>
 
@@ -158,7 +135,14 @@ export function StatusDashboard({ data }: { data: StatusResponse }) {
                 <tr key={doc.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                   <td style={{ padding: "0.5rem", color: "#6b7280" }}>{doc.updated}</td>
                   <td style={{ padding: "0.5rem", color: "#6b7280" }}>{doc.type}</td>
-                  <td style={{ padding: "0.5rem" }}>{doc.title}</td>
+                  <td style={{ padding: "0.5rem" }}>
+                    <Link
+                      to={`${TYPE_ROUTES[doc.type] ?? "/"}/${doc.id}` as "/"}
+                      style={{ color: "#2563eb", textDecoration: "none" }}
+                    >
+                      {doc.title}
+                    </Link>
+                  </td>
                   <td style={{ padding: "0.5rem" }}>
                     <StatusBadge status={doc.status} />
                   </td>

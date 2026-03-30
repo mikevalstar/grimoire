@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { statusRoutes } from "./routes/status.ts";
+import { documentRoutes } from "./routes/documents.ts";
 
 export interface ServerOptions {
   cwd: string;
@@ -17,6 +18,7 @@ export async function createServer(options: ServerOptions) {
   await fastify.register(fastifyCors, { origin: true });
 
   await fastify.register(statusRoutes, { cwd });
+  await fastify.register(documentRoutes, { cwd });
 
   if (staticDir) {
     await fastify.register(fastifyStatic, {

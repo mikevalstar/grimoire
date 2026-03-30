@@ -13,10 +13,12 @@
     "test:coverage": "vp run -r test --coverage",
     "grimoire": "vp run grimoire-ai#build && node apps/cli/dist/index.mjs",
     "dev": "vp run website#dev",
+    "dev-web": "vp run -r build && concurrently -k -n core,server,cli,api,web -c blue,magenta,cyan,yellow,green \"vp run @grimoire-ai/core#dev\" \"vp run @grimoire-ai/server#dev\" \"vp run @grimoire-ai/cli#dev\" \"node --watch-path=packages/core/dist --watch-path=packages/server/dist --watch-path=apps/cli/dist apps/cli/dist/index.mjs ui --no-open\" \"vp run website#dev\"",
     "prepare": "vp config"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",
+    "concurrently": "catalog:",
     "vite-plus": "catalog:"
   },
   "engines": {
