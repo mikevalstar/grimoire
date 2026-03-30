@@ -55,6 +55,12 @@ export type { AutoSyncResult } from "./auto-sync.ts";
 export { links } from "./links.ts";
 export type { LinkItem, LinksResponse, LinksOptions } from "./links.ts";
 
+export { tree } from "./tree.ts";
+export type { TreeNode, TreeResponse, TreeOptions } from "./tree.ts";
+
+export { orphans } from "./orphans.ts";
+export type { OrphanItem, OrphansResponse, OrphansOptions } from "./orphans.ts";
+
 export { loadConfig } from "./config.ts";
 export type { GrimoireConfig } from "./config.ts";
 
