@@ -1,9 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { BookOpen, CheckSquare, ListChecks, Scale, AlertTriangle, CheckCircle } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import type { StatusResponse } from "../lib/api.ts";
 import { StatusBadge } from "./status-badge.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table.tsx";
+
+function formatDate(dateStr: string): string {
+  try {
+    return format(parseISO(dateStr), "MMM d, yyyy");
+  } catch {
+    return dateStr;
+  }
+}
 
 const TYPE_CONFIG: Record<string, { label: string; route: string; icon: typeof BookOpen }> = {
   feature: { label: "Features", route: "/features", icon: BookOpen },
@@ -176,7 +185,7 @@ export function StatusDashboard({ data }: { data: StatusResponse }) {
                         <StatusBadge status={doc.status} />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {doc.updated}
+                        {formatDate(doc.updated)}
                       </TableCell>
                     </TableRow>
                   );

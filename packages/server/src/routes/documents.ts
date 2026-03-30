@@ -12,12 +12,22 @@ export async function documentRoutes(
   fastify: FastifyInstance,
   opts: { cwd: string },
 ): Promise<void> {
-  fastify.get<{ Params: { type: string } }>("/api/documents/:type", async (request, reply) => {
+  fastify.get<{
+    Params: { type: string };
+    Querystring: { status?: string; priority?: string; sort?: string };
+  }>("/api/documents/:type", async (request, reply) => {
     const { type } = request.params;
     if (!isValidType(type)) {
       return reply.status(400).send({ error: `Invalid document type: ${type}` });
     }
-    return listDocuments({ type, sort: "updated", cwd: opts.cwd });
+    const { status, priority, sort } = request.query;
+    return listDocuments({
+      type,
+      status: status || undefined,
+      priority: priority || undefined,
+      sort: sort || "updated",
+      cwd: opts.cwd,
+    });
   });
 
   fastify.get<{ Params: { type: string; id: string } }>(

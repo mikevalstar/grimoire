@@ -58,8 +58,22 @@ export async function fetchStatus(): Promise<StatusResponse> {
   return res.json() as Promise<StatusResponse>;
 }
 
-export async function fetchDocuments(type: string): Promise<DocumentListResponse> {
-  const res = await fetch(`${BASE}/documents/${type}`);
+export interface DocumentListFilters {
+  status?: string;
+  priority?: string;
+  sort?: string;
+}
+
+export async function fetchDocuments(
+  type: string,
+  filters?: DocumentListFilters,
+): Promise<DocumentListResponse> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.priority) params.set("priority", filters.priority);
+  if (filters?.sort) params.set("sort", filters.sort);
+  const qs = params.toString();
+  const res = await fetch(`${BASE}/documents/${type}${qs ? `?${qs}` : ""}`);
   if (!res.ok) throw new Error(`Failed to fetch ${type}s: ${res.statusText}`);
   return res.json() as Promise<DocumentListResponse>;
 }

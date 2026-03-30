@@ -14,8 +14,11 @@
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
+    "@tanstack/router-zod-adapter": "catalog:",
     "class-variance-authority": "catalog:",
+    "clipboard-copy": "catalog:",
     "clsx": "catalog:",
+    "date-fns": "catalog:",
     "lucide-react": "catalog:",
     "radix-ui": "catalog:",
     "react": "catalog:",
@@ -25,7 +28,8 @@
     "shadcn": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tanstack/router-plugin": "catalog:",

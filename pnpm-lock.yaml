@@ -30,6 +30,9 @@ catalogs:
     '@tanstack/router-plugin':
       specifier: ^1
       version: 1.167.9
+    '@tanstack/router-zod-adapter':
+      specifier: ^1.81.5
+      version: 1.81.5
     '@types/node':
       specifier: ^25
       version: 25.5.0
@@ -48,12 +51,18 @@ catalogs:
     class-variance-authority:
       specifier: ^0.7.1
       version: 0.7.1
+    clipboard-copy:
+      specifier: ^4.0.1
+      version: 4.0.1
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
     concurrently:
       specifier: ^9.2.1
       version: 9.2.1
+    date-fns:
+      specifier: ^4.1.0
+      version: 4.1.0
     fastify:
       specifier: ^5
       version: 5.8.4
@@ -175,12 +184,21 @@ importers:
       '@tanstack/react-router':
         specifier: 'catalog:'
         version: 1.168.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/router-zod-adapter':
+        specifier: 'catalog:'
+        version: 1.81.5(@tanstack/react-router@1.168.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(zod@4.3.6)
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
+      clipboard-copy:
+        specifier: 'catalog:'
+        version: 4.0.1
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.1.0
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -211,6 +229,9 @@ importers:
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
     devDependencies:
       '@tanstack/router-plugin':
         specifier: 'catalog:'
@@ -2061,6 +2082,13 @@ packages:
     resolution: {integrity: sha512-nRcYw+w2OEgK6VfjirYvGyPLOK+tZQz1jkYcmH5AjMamQ9PycnlxZF2aEZtPpNoUsaceX2bHptn6Ub5hGXqNvw==}
     engines: {node: '>=20.19'}
 
+  '@tanstack/router-zod-adapter@1.81.5':
+    resolution: {integrity: sha512-oJp3QaCI5YwW7H46iuivC8pJLmYboXa1OztncRZNmfVBX69FZ7DodfxdrwNzceGpN3sXZT/f0t4sV05dKsneHg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      '@tanstack/react-router': '>=1.43.2'
+      zod: '>=3'
+
   '@tanstack/store@0.9.3':
     resolution: {integrity: sha512-8reSzl/qGWGGVKhBoxXPMWzATSbZLZFWhwBAFO9NAyp0TxzfBP0mIrGb8CP8KrQTmvzXlR/vFPPUrHTLBGyFyw==}
 
@@ -2544,6 +2572,9 @@ packages:
     resolution: {integrity: sha512-ouuZd4/dm2Sw5Gmqy6bGyNNNe1qt9RpmxveLSO7KcgsTnU7RXfsw+/bukWGo1abgBiMAic068rclZsO4IWmmxQ==}
     engines: {node: '>= 12'}
 
+  clipboard-copy@4.0.1:
+    resolution: {integrity: sha512-wOlqdqziE/NNTUJsfSgXmBMIrYmfd5V0HCGsR8uAKHcg+h9NENWINcfRjtWGU77wDHC8B8ijV4hMTGYbrKovng==}
+
   cliui@8.0.1:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
     engines: {node: '>=12'}
@@ -2632,6 +2663,9 @@ packages:
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
     engines: {node: '>= 12'}
+
+  date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -6114,6 +6148,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@tanstack/router-zod-adapter@1.81.5(@tanstack/react-router@1.168.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(zod@4.3.6)':
+    dependencies:
+      '@tanstack/react-router': 1.168.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod: 4.3.6
+
   '@tanstack/store@0.9.3': {}
 
   '@tanstack/virtual-file-routes@1.161.7': {}
@@ -6633,6 +6672,8 @@ snapshots:
 
   cli-width@4.1.0: {}
 
+  clipboard-copy@4.0.1: {}
+
   cliui@8.0.1:
     dependencies:
       string-width: 4.2.3
@@ -6703,6 +6744,8 @@ snapshots:
   csstype@3.2.3: {}
 
   data-uri-to-buffer@4.0.1: {}
+
+  date-fns@4.1.0: {}
 
   debug@4.4.3:
     dependencies:

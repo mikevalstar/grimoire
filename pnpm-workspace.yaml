@@ -2,6 +2,9 @@ packages:
   - apps/*
   - packages/*
   - tools/*
+allowBuilds:
+  esbuild: true
+  msw: true
 
 catalog:
   "@duckdb/node-api": ^1.5.1-r.1
@@ -12,14 +15,17 @@ catalog:
   "@tanstack/react-query": ^5
   "@tanstack/react-router": ^1
   "@tanstack/router-plugin": ^1
+  "@tanstack/router-zod-adapter": ^1.81.5
   "@types/node": ^25
   "@types/react": ^19
   "@types/react-dom": ^19
   "@vitejs/plugin-react": ^6
   "@vitest/coverage-v8": ^4.1.2
   class-variance-authority: ^0.7.1
+  clipboard-copy: ^4.0.1
   clsx: ^2.1.1
   concurrently: ^9.2.1
+  date-fns: ^4.1.0
   fastify: ^5
   gray-matter: ^4.0.3
   lucide-react: ^1.7.0
