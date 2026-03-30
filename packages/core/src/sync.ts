@@ -7,7 +7,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { getDatabase } from "./database.ts";
+import { getDatabase, rebuildFtsIndex } from "./database.ts";
 import { readDocument } from "./frontmatter.ts";
 import { splitBodySections } from "./documents.ts";
 import {
@@ -636,6 +636,9 @@ async function fullSync(
   // Insert changelog entries
   const changelogInserted = await insertChangelog(connection, parsed, documentIds, errors);
 
+  // Rebuild FTS index after all documents are inserted
+  await rebuildFtsIndex(connection);
+
   // Save hashes and sync timestamp for future incremental syncs
   await saveHashes(connection, currentHashes);
   await saveSyncTimestamp(connection);
@@ -785,6 +788,9 @@ async function incrementalSync(
 
   // Insert changelog entries for changed documents
   const changelogInserted = await insertChangelog(connection, changedParsed, documentIds, errors);
+
+  // Rebuild FTS index after document changes
+  await rebuildFtsIndex(connection);
 
   // Save updated hashes and sync timestamp
   await saveHashes(connection, currentHashes);

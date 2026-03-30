@@ -11,7 +11,7 @@ import { mkdir } from "node:fs/promises";
 const GRIMOIRE_DIR = ".grimoire";
 const CACHE_DIR = ".cache";
 const DB_FILENAME = "grimoire.duckdb";
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 interface DatabaseState {
   instance: DuckDBInstance;
@@ -86,7 +86,8 @@ export async function initializeSchema(connection: DuckDBConnection): Promise<vo
       filepath VARCHAR NOT NULL,
       body TEXT NOT NULL,
       embedding FLOAT[768],
-      frontmatter JSON
+      frontmatter JSON,
+      tags_text VARCHAR GENERATED ALWAYS AS (array_to_string(tags, ' ')) VIRTUAL
     );
   `);
 
@@ -121,6 +122,30 @@ export async function initializeSchema(connection: DuckDBConnection): Promise<vo
       content_hash VARCHAR NOT NULL
     );
   `);
+
+  // Load FTS extension for full-text search
+  await connection.run("INSTALL fts");
+  await connection.run("LOAD fts");
+}
+
+/**
+ * (Re)create the FTS index on the documents table.
+ * Must be called after documents are inserted/updated (e.g. after sync).
+ * Drops existing index first to ensure a clean rebuild.
+ */
+export async function rebuildFtsIndex(connection: DuckDBConnection): Promise<void> {
+  // Drop existing FTS index if present (ignore error if it doesn't exist)
+  try {
+    await connection.run("PRAGMA drop_fts_index('documents')");
+  } catch {
+    // Index may not exist yet — that's fine
+  }
+
+  // Create FTS index on title, body, and tags_text (generated column from tags array).
+  // Uses English stemmer and stopwords for natural-language BM25 ranking.
+  await connection.run(
+    "PRAGMA create_fts_index('documents', 'id', 'title', 'body', 'tags_text', stemmer = 'english', stopwords = 'english')",
+  );
 }
 
 export type { DuckDBConnection };

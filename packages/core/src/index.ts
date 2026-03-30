@@ -43,6 +43,9 @@ export type { ValidateResult, ValidateIssue } from "./validate.ts";
 export { parseDocument, readDocument } from "./frontmatter.ts";
 export type { ParsedDocument } from "./frontmatter.ts";
 
+export { search } from "./search.ts";
+export type { SearchResult, SearchResponse, SearchOptions } from "./search.ts";
+
 export { sync } from "./sync.ts";
 export type { SyncResult, SyncOptions, SyncError, DryRunChange } from "./sync.ts";
 
@@ -58,6 +61,7 @@ export {
   closeDatabase,
   getDatabase,
   initializeSchema,
+  rebuildFtsIndex,
 } from "./database.ts";
 export type { DuckDBConnection } from "./database.ts";
 

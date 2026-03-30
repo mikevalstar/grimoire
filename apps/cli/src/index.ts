@@ -8,6 +8,7 @@ import { registerDocumentCommands, registerListCommand } from "./commands/docume
 import { registerLogCommand } from "./commands/log.ts";
 import { registerValidateCommand } from "./commands/validate.ts";
 import { registerSyncCommand } from "./commands/sync.ts";
+import { registerSearchCommand } from "./commands/search.ts";
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ registerListCommand(program);
 registerLogCommand(program);
 registerValidateCommand(program);
 registerSyncCommand(program);
+registerSearchCommand(program);
 
 program.parse();
