@@ -42,7 +42,7 @@ Grimoire stores project knowledge — features, requirements, tasks, and archite
 - **Embeddings:** `@huggingface/transformers` with nomic-embed-text-v1.5
 - **Web Server:** Fastify
 - **Frontend:** React + Vite
-- **Distribution:** npm (`npx grimoire-ai`)
+- **Distribution:** npm (`npx @grimoire-ai/cli`)
 - **Agent Skills:** agentskills.io convention
 
 ## Architecture

@@ -10,7 +10,7 @@ Grimoire AI is a local-first, AI-native requirements management tool for softwar
 
 The primary interface is a CLI designed for consumption by AI coding agents (Claude Code, Cursor, Copilot, etc.). A secondary browser-based UI (launched locally, drizzle-kit style) provides humans with a visual management and exploration layer.
 
-Before the package is published, development and validation should use internal workspace commands rather than `npx grimoire-ai`.
+Before the package is published, development and validation should use internal workspace commands rather than `npx @grimoire-ai/cli`.
 
 Grimoire answers the question: **"How does an AI agent get oriented in a project — fast?"**
 
@@ -28,18 +28,18 @@ Grimoire answers the question: **"How does an AI agent get oriented in a project
 
 ## Tech Stack
 
-| Layer                | Technology                  | Purpose                                                                 |
-| -------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **Runtime**          | Node.js                     | Application runtime                                                     |
-| **CLI Framework**    | `commander`                 | CLI argument parsing and subcommands                                    |
-| **Database**         | DuckDB via `duckdb-async`   | Local query engine (gitignored, derived from files)                     |
-| **Full-Text Search** | DuckDB `fts` extension      | BM25-ranked keyword search                                              |
-| **Vector Search**    | DuckDB `vss` extension      | HNSW approximate nearest neighbor search                                |
-| **Embeddings**       | `@huggingface/transformers` | Local ONNX model inference                                              |
-| **Embedding Model**  | nomic-embed-text-v1.5       | Default model, downloaded + cached on first run                         |
-| **Web Server**       | Fastify                     | Local HTTP server for web UI                                            |
-| **Frontend**         | React + Vite                | SPA served as static assets                                             |
-| **Distribution**     | npm (`npx grimoire-ai`)     | Publish in Phase 1.5; before then, test via internal workspace commands |
+| Layer                | Technology                   | Purpose                                                                 |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| **Runtime**          | Node.js                      | Application runtime                                                     |
+| **CLI Framework**    | `commander`                  | CLI argument parsing and subcommands                                    |
+| **Database**         | DuckDB via `duckdb-async`    | Local query engine (gitignored, derived from files)                     |
+| **Full-Text Search** | DuckDB `fts` extension       | BM25-ranked keyword search                                              |
+| **Vector Search**    | DuckDB `vss` extension       | HNSW approximate nearest neighbor search                                |
+| **Embeddings**       | `@huggingface/transformers`  | Local ONNX model inference                                              |
+| **Embedding Model**  | nomic-embed-text-v1.5        | Default model, downloaded + cached on first run                         |
+| **Web Server**       | Fastify                      | Local HTTP server for web UI                                            |
+| **Frontend**         | React + Vite                 | SPA served as static assets                                             |
+| **Distribution**     | npm (`npx @grimoire-ai/cli`) | Publish in Phase 1.5; before then, test via internal workspace commands |
 
 ### Optional / Pluggable
 

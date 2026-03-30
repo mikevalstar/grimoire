@@ -1,6 +1,6 @@
 # Grimoire AI — Roadmap
 
-> Phased delivery plan. Each phase produces a dogfoodable tool. Until publishing lands in Phase 1.5, test via internal workspace commands rather than `npx grimoire-ai`.
+> Phased delivery plan. Each phase produces a dogfoodable tool. Until publishing lands in Phase 1.5, test via internal workspace commands rather than `npx @grimoire-ai/cli`.
 
 ---
 

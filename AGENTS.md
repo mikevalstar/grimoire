@@ -15,7 +15,7 @@ This file provides guidance to Claude Code and other coding agents when working 
 Grimoire AI is a local-first, AI-native requirements management CLI tool. It stores project knowledge (features, requirements, tasks, architecture decisions) as structured markdown files with YAML frontmatter in a `.grimoire/` directory. A local DuckDB database serves as a derived cache for full-text search, semantic (vector) search, and relational queries.
 
 **Domain:** grimoireai.quest
-**Distribution:** npm (`npx grimoire-ai`)
+**Distribution:** npm (`npx @grimoire-ai/cli`)
 
 ## Architecture
 
