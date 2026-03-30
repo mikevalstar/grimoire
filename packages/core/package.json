@@ -1,8 +1,14 @@
 {
   "name": "@grimoire-ai/core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Core library for Grimoire AI — file I/O, search, and database operations",
+  "homepage": "https://grimoireai.quest",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikevalstar/grimoire.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist"
   ],
