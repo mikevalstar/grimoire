@@ -393,7 +393,7 @@ export async function listDocuments(options: ListDocumentsOptions): Promise<List
  * Split a document body into content, comments section, and changelog section.
  * Comments and changelog are returned with their leading `---\n\n` separator preserved.
  */
-function splitBodySections(body: string): {
+export function splitBodySections(body: string): {
   content: string;
   comments: string;
   changelog: string;
