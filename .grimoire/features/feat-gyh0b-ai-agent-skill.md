@@ -10,7 +10,9 @@ updated: "2026-03-29"
 tags:
   - ai
   - agentskills
-requirements: []
+requirements:
+  - req-43kuq-ai-agent-skill-file
+  - req-u5eq4-skill-update-for-phase-2
 decisions: []
 ---
 

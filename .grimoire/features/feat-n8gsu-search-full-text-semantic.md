@@ -6,11 +6,14 @@ type: "feature"
 status: "proposed"
 priority: "high"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - search
-requirements: []
+  - phase-2
+requirements:
+  - req-syd6t-fts-index-setup
+  - req-xoohd-keyword-search-command
 decisions: []
 ---
 

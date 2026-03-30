@@ -6,11 +6,18 @@ type: "feature"
 status: "in-progress"
 priority: "high"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - database
-requirements: []
+  - phase-2
+requirements:
+  - req-9a7o0-duckdb-setup-schema
+  - req-k65nk-full-sync-rebuild
+  - req-v0b67-incremental-sync
+  - req-u9fim-sync-cli-flags
+  - req-tzoe9-auto-sync-on-cli-commands
+  - req-wh7lk-duckdb-backed-list-with-filters
 decisions: []
 ---
 
@@ -25,6 +32,7 @@ decisions: []
 - Three tables: documents, relationships, changelog_entries
 - Relationship extraction from frontmatter links during sync
 - Database lives at `.grimoire/.cache/grimoire.duckdb` (gitignored)
+- Upgrade `grimoire <type> list` to query DuckDB with filters
 
 ## Acceptance criteria
 
@@ -33,6 +41,7 @@ decisions: []
 - `--dry-run` reports what would change without writing
 - Auto-sync triggers when markdown files are newer than the database
 - Relationships are correctly extracted from all frontmatter link fields
+- List command uses DuckDB for filtered/sorted queries
 
 ## Non-goals
 

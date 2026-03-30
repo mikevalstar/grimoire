@@ -6,11 +6,16 @@ type: "feature"
 status: "proposed"
 priority: "high"
 created: "2026-03-29"
-updated: "2026-03-29"
+updated: "2026-03-30"
 tags:
   - core
   - graph
-requirements: []
+  - phase-2
+requirements:
+  - req-5p71s-relationship-extraction
+  - req-h60rj-links-command
+  - req-oxole-tree-command
+  - req-modzf-orphans-command
 decisions: []
 ---
 
