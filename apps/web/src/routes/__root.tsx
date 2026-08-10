@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { AppShell } from "@/components/app-shell";
 import { SetupDialog } from "@/components/setup-dialog";
 import { needsSetup } from "@/lib/api";
 import { preferencesQuery } from "@/lib/queries";
@@ -35,5 +36,9 @@ function RootLayout() {
     );
   }
 
-  return <Outlet />;
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  );
 }

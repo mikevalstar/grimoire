@@ -15,13 +15,14 @@ function BookList() {
 
   return (
     <div>
-      <h1>Grimoire Books</h1>
-      <p>{books.length} books</p>
-      <ul>
+      <p className="text-muted-foreground text-[11px] tracking-wide uppercase">{books.length} books</p>
+      <ul className="mt-3 space-y-1">
         {books.map((book) => (
-          <li key={book.id}>
+          <li key={book.id} className="text-[13px]">
             {book.title}
-            {book.authors.length > 0 && <> — {book.authors.join(", ")}</>}
+            {book.authors.length > 0 && (
+              <span className="text-muted-foreground"> — {book.authors.join(", ")}</span>
+            )}
           </li>
         ))}
       </ul>

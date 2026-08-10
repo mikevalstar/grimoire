@@ -19,6 +19,7 @@ operator flows), `external/` (verbatim snapshots of specs owned elsewhere).
 
 - [adrs/](adrs/)
 - [external/](external/)
+- [features/](features/)
 
 ### Concepts
 
