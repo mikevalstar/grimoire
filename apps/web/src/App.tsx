@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { API_BASE } from "@/lib/api";
+import { SetupDialog } from "@/components/setup-dialog";
+import { API_BASE, fetchPreferences, needsSetup, type Preferences } from "@/lib/api";
 
 // Hello world: an unstyled list of books pulled from the Calibre content
 // server through our /api/cs proxy.
@@ -27,7 +28,7 @@ async function fetchCsBooks(): Promise<CsBook[]> {
   }));
 }
 
-export default function App() {
+function BookList() {
   const [books, setBooks] = useState<CsBook[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,4 +55,24 @@ export default function App() {
       </ul>
     </div>
   );
+}
+
+export default function App() {
+  const [preferences, setPreferences] = useState<Preferences | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPreferences()
+      .then(setPreferences)
+      .catch((err: Error) => setError(err.message));
+  }, []);
+
+  if (error) return <p>Error: {error}</p>;
+  if (preferences === null) return <p>Loading…</p>;
+
+  if (needsSetup(preferences)) {
+    return <SetupDialog preferences={preferences} onSaved={setPreferences} />;
+  }
+
+  return <BookList />;
 }
