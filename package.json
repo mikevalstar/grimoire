@@ -1,0 +1,17 @@
+{
+  "name": "grimoire-books",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '@grimoire/web' --filter '@grimoire/server' dev",
+    "dev:desktop": "bun run --cwd apps/desktop dev:hmr",
+    "build:web": "bun run --cwd apps/web build",
+    "build:desktop": "bun run --cwd apps/desktop build",
+    "start:server": "bun run --cwd apps/server start",
+    "typecheck": "bun run --filter '*' typecheck"
+  }
+}

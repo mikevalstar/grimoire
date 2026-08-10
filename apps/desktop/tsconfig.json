@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // DOM lib + @types/three are needed because electrobun ships raw .ts
+    // sources that reference `self` and `three`.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["bun", "three"]
+  },
+  "include": ["src", "electrobun.config.ts"]
+}

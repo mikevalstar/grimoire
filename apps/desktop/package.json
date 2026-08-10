@@ -1,0 +1,23 @@
+{
+  "name": "@grimoire/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ui": "bun run --cwd ../web build && rm -rf dist && cp -R ../web/dist dist",
+    "dev": "bun run build:ui && bunx electrobun dev",
+    "dev:hmr": "bun run build:ui && concurrently -n vite,electrobun \"bun run --cwd ../web dev\" \"bunx electrobun dev\"",
+    "build": "bun run build:ui && bunx electrobun build --env=production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@grimoire/api": "workspace:*",
+    "electrobun": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/three": "^0.185.4",
+    "concurrently": "^10.0.4",
+    "typescript": "^7.0.2"
+  }
+}
