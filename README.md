@@ -35,7 +35,7 @@ care where it's running.
 ```bash
 bun install
 
-# Web development: Vite dev server on :5173 (HMR) + API server on :3001
+# Web development: Vite dev server on :4746 (HMR) + API server on :4747
 bun dev
 
 # Desktop development: Vite HMR + Electrobun app window
@@ -45,7 +45,7 @@ bun run dev:desktop
 ## Building / running for real
 
 ```bash
-# Hosted mode: build the UI, then run the server (PORT to override :3001)
+# Hosted mode: build the UI, then run the server (PORT to override :4747)
 bun run build:web
 bun run start:server
 

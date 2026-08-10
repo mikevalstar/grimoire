@@ -2,14 +2,14 @@ import { join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApi } from "@grimoire/api";
 
-const PORT = Number(process.env.PORT ?? 3001);
+const PORT = Number(process.env.PORT ?? 4747);
 const WEB_DIST =
   process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
 
 const app = createApi();
 
 // Serve the built web UI (SPA fallback to index.html). In dev you'll usually
-// use the Vite dev server on :5173 instead, which proxies /api here.
+// use the Vite dev server on :4746 instead, which proxies /api here.
 app.get("*", async (c) => {
   const urlPath = decodeURIComponent(new URL(c.req.url).pathname);
   const filePath = normalize(join(WEB_DIST, urlPath === "/" ? "index.html" : urlPath));

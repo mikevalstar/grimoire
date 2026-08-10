@@ -1,9 +1,9 @@
 import { BrowserWindow, Updater } from "electrobun/bun";
 import { createApi } from "@grimoire/api";
 
-const VITE_DEV_URL = "http://localhost:5173";
+const VITE_DEV_URL = "http://localhost:4746";
 // Matches the Vite proxy target so HMR dev and the packaged app agree.
-const DEFAULT_API_PORT = 3001;
+const DEFAULT_API_PORT = 4747;
 
 // The desktop app embeds the same Hono API the hosted server runs. CORS is
 // needed because the bundled UI is served from a views:// origin.

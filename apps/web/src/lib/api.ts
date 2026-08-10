@@ -6,11 +6,11 @@ export type { Book, BookList, LibraryInfo };
  * Where the API lives depends on how the UI is being served:
  * - Vite dev server / hosted server: same origin ("" — /api is proxied or local)
  * - Electrobun desktop (views:// origin): the embedded server on localhost,
- *   whose port is passed via the ?apiPort query param (default 3001).
+ *   whose port is passed via the ?apiPort query param (default 4747).
  */
 function resolveApiBase(): string {
   if (window.location.protocol === "views:") {
-    const port = new URLSearchParams(window.location.search).get("apiPort") ?? "3001";
+    const port = new URLSearchParams(window.location.search).get("apiPort") ?? "4747";
     return `http://localhost:${port}`;
   }
   return "";

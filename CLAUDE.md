@@ -21,14 +21,14 @@ the same HTTP API**.
   (server). API base resolution is in `src/lib/api.ts`: same-origin normally,
   `localhost:<apiPort>` when served from a `views://` origin.
 - `apps/server` — hosted mode: API + static serving of `apps/web/dist` with SPA
-  fallback. Port 3001 (matches the Vite dev proxy).
-- `apps/desktop` — Electrobun shell: starts the embedded API (3001, falls back
+  fallback. Port 4747 (matches the Vite dev proxy).
+- `apps/desktop` — Electrobun shell: starts the embedded API (4747, falls back
   to a random port passed via `?apiPort=`), loads Vite dev server when running
   and reachable, else the bundled `views://mainview/index.html`.
 
 ## Commands
 
-- `bun dev` — web dev (Vite :5173 + API :3001)
+- `bun dev` — web dev (Vite :4746 + API :4747; "GRIM" on a phone keypad)
 - `bun run dev:desktop` — desktop dev with HMR
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
 - `bun run build:web` / `build:desktop` / `start:server`
