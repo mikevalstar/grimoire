@@ -1,17 +1,16 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import {
-  CalibreLibrary,
-  LibraryNotFoundError,
+  CalibreTestRequestSchema,
   PREF_KEYS,
+  PreferencesUpdateSchema,
   SettingsStore,
-  defaultLibraryPath,
 } from "@grimoire/core";
-import type { BookList, CalibreServerTest, Preferences } from "@grimoire/core";
+import type { CalibreServerTest } from "@grimoire/core";
 
 export interface ApiOptions {
-  /** Path to the Calibre library directory. Defaults to $CALIBRE_LIBRARY or ~/Calibre Library. */
-  libraryPath?: string;
   /**
    * Fallback base URL for the Calibre content server, used until the user
    * saves one in preferences. Defaults to $CALIBRE_SERVER or http://localhost:8080.
@@ -24,6 +23,20 @@ export interface ApiOptions {
 }
 
 const CALIBRE_PROBE_TIMEOUT_MS = 5_000;
+
+/**
+ * zValidator hook: report a schema failure in our usual `{ error }` shape,
+ * naming the field that broke rather than dumping the whole Zod tree.
+ */
+const invalid: Parameters<typeof zValidator>[2] = (result, c) => {
+  if (result.success) return;
+  const issue = result.error.issues[0];
+  const where = issue?.path.join(".");
+  return c.json(
+    { error: where ? `${where}: ${issue?.message}` : (issue?.message ?? "Invalid request body") },
+    400,
+  );
+};
 
 /** Probe a Calibre content server by asking it for a single book id. */
 async function probeCalibreServer(baseUrl: string): Promise<CalibreServerTest> {
@@ -68,23 +81,18 @@ const STRIP_RESPONSE_HEADERS = ["content-encoding", "content-length", "transfer-
 /**
  * The Grimoire API as a Hono app. Embedded by both the desktop app and the
  * standalone server so every deployment mode speaks the same HTTP API.
+ *
+ * Library data comes from a running Calibre content server via the /api/cs
+ * proxy — we never open metadata.db ourselves.
  */
 export function createApi(options: ApiOptions = {}) {
   const app = new Hono();
-  const libraryPath = options.libraryPath ?? defaultLibraryPath();
 
   if (options.cors) {
     app.use("/api/*", cors());
   }
 
-  // Opened lazily so the server can start (and report a friendly error)
-  // before a library has been configured.
-  let library: CalibreLibrary | null = null;
-  const getLibrary = (): CalibreLibrary => {
-    library ??= new CalibreLibrary(libraryPath);
-    return library;
-  };
-
+  // Opened lazily so the server can start before anything is configured.
   let settings: SettingsStore | null = null;
   const getSettings = (): SettingsStore => {
     settings ??= new SettingsStore(options.databasePath);
@@ -92,11 +100,11 @@ export function createApi(options: ApiOptions = {}) {
   };
 
   app.onError((err, c) => {
-    if (err instanceof LibraryNotFoundError) {
-      return c.json(
-        { error: err.message, hint: "Set CALIBRE_LIBRARY to your Calibre library directory." },
-        503,
-      );
+    // Hono raises these for client-side faults it catches before us — a body
+    // that isn't JSON at all, for one. Keep the status and our { error } shape
+    // rather than reporting someone else's bad request as our 500.
+    if (err instanceof HTTPException) {
+      return c.json({ error: err.message }, err.status);
     }
     console.error(err);
     return c.json({ error: "Internal server error" }, 500);
@@ -107,37 +115,17 @@ export function createApi(options: ApiOptions = {}) {
   app.get("/api/preferences", (c) => c.json(getSettings().all()));
 
   // Merge-update: only the keys sent are touched. Values must be strings.
-  app.put("/api/preferences", async (c) => {
-    let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: "Expected a JSON object of preferences" }, 400);
-    }
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return c.json({ error: "Expected a JSON object of preferences" }, 400);
-    }
-    const entries = Object.entries(body as Record<string, unknown>);
-    const bad = entries.find(([, value]) => typeof value !== "string");
-    if (bad) {
-      return c.json({ error: `Preference "${bad[0]}" must be a string` }, 400);
-    }
-
+  app.put("/api/preferences", zValidator("json", PreferencesUpdateSchema, invalid), (c) => {
     const store = getSettings();
-    store.setMany(Object.fromEntries(entries) as Preferences);
+    store.setMany(c.req.valid("json"));
     return c.json(store.all());
   });
 
   // Probe a candidate content server (from the setup dialog's Test button)
   // before the user commits to it. Runs server-side, so no CORS involved.
-  app.post("/api/calibre/test", async (c) => {
-    let url: unknown;
-    try {
-      ({ url } = (await c.req.json()) as { url?: unknown });
-    } catch {
-      /* fall through to the stored/default URL */
-    }
-    const target = typeof url === "string" && url.trim() ? url.trim() : resolveCalibreServerUrl();
+  app.post("/api/calibre/test", zValidator("json", CalibreTestRequestSchema, invalid), async (c) => {
+    const { url } = c.req.valid("json");
+    const target = url?.trim() ? url.trim() : resolveCalibreServerUrl();
     return c.json(await probeCalibreServer(target));
   });
 
@@ -180,33 +168,8 @@ export function createApi(options: ApiOptions = {}) {
     return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
   });
 
-  app.get("/api/library", (c) => c.json(getLibrary().info()));
-
-  app.get("/api/books", (c) => {
-    const search = c.req.query("search");
-    const limit = Number(c.req.query("limit") ?? 100);
-    const offset = Number(c.req.query("offset") ?? 0);
-    const { books, total } = getLibrary().listBooks({ search, limit, offset });
-    const body: BookList = { books, total, limit, offset };
-    return c.json(body);
-  });
-
-  app.get("/api/books/:id", (c) => {
-    const book = getLibrary().getBook(Number(c.req.param("id")));
-    if (!book) return c.json({ error: "Book not found" }, 404);
-    return c.json(book);
-  });
-
-  app.get("/api/books/:id/cover", async (c) => {
-    const lib = getLibrary();
-    const book = lib.getBook(Number(c.req.param("id")));
-    if (!book?.hasCover) return c.json({ error: "No cover" }, 404);
-    const file = Bun.file(lib.coverPath(book));
-    if (!(await file.exists())) return c.json({ error: "No cover" }, 404);
-    return new Response(file, {
-      headers: { "Cache-Control": "public, max-age=3600" },
-    });
-  });
+  // Unknown /api paths answer JSON, not the hosted server's SPA fallback.
+  app.all("/api/*", (c) => c.json({ error: `No such endpoint: ${c.req.path}` }, 404));
 
   return app;
 }

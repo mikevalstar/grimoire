@@ -2,22 +2,25 @@
 
 UI for browsing/organizing a Calibre ebook library. Ships as an Electrobun
 desktop app, a self-hosted server, and a local web app from one codebase.
-Read-only against Calibre's `metadata.db` for now — Calibre remains the source
-of truth; replacing it as the backend is the long-term goal.
+Read-only against Calibre for now — Calibre remains the source of truth;
+replacing it as the backend is the long-term goal.
 
 ## Architecture
 
 Bun workspaces monorepo. The rule that keeps it coherent: **every mode speaks
 the same HTTP API**.
 
-- `packages/core` — Calibre access (`bun:sqlite`, read-only) plus `SettingsStore`,
-  Grimoire's *own* writable SQLite db (`grimoire.db` in the platform data dir —
-  see Gotchas). Types and browser-safe constants live in `src/types.ts` so
-  `apps/web` can import from `@grimoire/core/types` without touching bun-only
-  modules.
+Library data comes from a **running Calibre content server**, over HTTP, via
+the `/api/cs` proxy. Grimoire does not open `metadata.db` — see
+[ADR 0005](docs/adrs/0005-calibre-content-server-as-the-data-source.md).
+
+- `packages/core` — `SettingsStore`, Grimoire's *own* writable SQLite db
+  (`grimoire.db` in the data dir — see Gotchas). Two browser-safe modules that
+  must never import bun-only code: `src/schemas.ts` (Zod schemas for every API
+  payload, `@grimoire/core/schemas`) and `src/types.ts` (constants,
+  `@grimoire/core/types`).
 - `packages/api` — `createApi()` returns the Hono app (`/api/...` routes).
-  Embedded by both server and desktop; opens the library lazily so it can start
-  unconfigured and return a 503 with a hint. Also reverse-proxies a running
+  Embedded by both server and desktop. Reverse-proxies the running
   Calibre content server at `/api/cs/*` — e.g. `/api/cs/ajax/search`,
   `/api/cs/ajax/books`. The proxy target is resolved *per request* from the
   `calibre.serverUrl` preference (falling back to `CALIBRE_SERVER`, then
@@ -25,10 +28,11 @@ the same HTTP API**.
   restart. `GET|PUT /api/preferences` read/merge-write the key/value store;
   `POST /api/calibre/test` probes a candidate content server URL server-side
   (no CORS involved) and reports its book count.
-- `apps/web` — React 19 + Vite + Tailwind 4 + shadcn/ui. Built with
-  `base: "./"` so the same bundle works from `views://` (desktop) and `/`
-  (server). API base resolution is in `src/lib/api.ts`: same-origin normally,
-  `localhost:<apiPort>` when served from a `views://` origin.
+- `apps/web` — React 19 + Vite + Tailwind 4 + shadcn/ui, TanStack Router and
+  Query, Storybook. Built with `base: "./"` so the same bundle works from
+  `views://` (desktop) and `/` (server). API base resolution is in
+  `src/lib/api.ts`: same-origin normally, `localhost:<apiPort>` when served
+  from a `views://` origin.
 - `apps/server` — hosted mode: API + static serving of `apps/web/dist` with SPA
   fallback. Port 4747 (matches the Vite dev proxy).
 - `apps/desktop` — Electrobun shell: starts the embedded API (4747, falls back
@@ -72,8 +76,9 @@ Rules:
 
 - `bun dev` — web dev (Vite :4746 + API :4747; "GRIM" on a phone keypad)
 - `bun run dev:desktop` — desktop dev with HMR
+- `bun run storybook` — component workshop on :4748
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
-- `bun run build:web` / `build:desktop` / `start:server`
+- `bun run build:web` / `build:desktop` / `build:storybook` / `start:server`
 - `bun run docs:check` — validate the `docs/` OKF bundle (needs `okq` on PATH)
 - shadcn components: `cd apps/web && bunx shadcn@latest add <name>`
 
@@ -83,15 +88,26 @@ Rules:
   DOM lib + `@types/three` to typecheck them. Imports come from
   `electrobun/bun`, config type is `build.bun.entrypoint` in
   `electrobun.config.ts`.
-- `CALIBRE_LIBRARY` env var overrides the library path (default
-  `~/Calibre Library`); `GRIMOIRE_DATA_DIR` overrides where `grimoire.db` lives
-  (default `~/Library/Application Support/Grimoire Books` on macOS, `%APPDATA%`
-  on Windows, `$XDG_DATA_HOME/grimoire-books` elsewhere). Point it at a temp dir
-  to exercise first-run setup without clobbering real preferences.
+- `GRIMOIRE_DATA_DIR` overrides where `grimoire.db` and cached assets live
+  (default `~/.config/grimoire` on Linux and macOS, `~/Documents/Grimoire` on
+  Windows — [ADR 0007](docs/adrs/0007-user-data-and-asset-storage-location.md)).
+  Point it at a temp dir to exercise first-run setup without clobbering real
+  preferences. `CALIBRE_SERVER` is the fallback content server URL before one
+  is saved in preferences.
+- Every API payload has a Zod schema in `packages/core/src/schemas.ts` — the
+  API validates requests with `zValidator`, the client parses responses with
+  the same schema, and types are `z.infer`, never hand-written
+  ([ADR 0009](docs/adrs/0009-zod-schemas-shared-between-api-and-client.md)).
+  Schemas stay non-strict so unmodelled fields pass through.
+- Routes are file-based in `apps/web/src/routes`; `routeTree.gen.ts` is
+  generated by the Vite plugin and committed, so `typecheck` works without a
+  build. The desktop build routes in the URL fragment (no server to answer a
+  deep link from `views://`) — see `src/router.tsx`.
+- Stories live next to their component (`button.stories.tsx`), not in a
+  `stories/` folder.
 - First-run setup is driven by the `preferences.version` row: it seeds to `"0"`,
   and the web app shows the setup modal while it's below `PREFERENCES_VERSION`
   (`packages/core/src/types.ts`). Bump that constant to force users through a
   new round of setup; keep new prompts in `apps/web/src/components/setup-dialog.tsx`.
-- Calibre stores ratings 0–10; core halves them to 0–5 stars.
 - TypeScript 7 (tsgo): no `baseUrl`, and `types` must be listed explicitly per
   workspace tsconfig.

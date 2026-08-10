@@ -2,27 +2,22 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { PREF_KEYS, type Preferences } from "./types.ts";
+import type { Preferences } from "./schemas.ts";
+import { PREF_KEYS } from "./types.ts";
 
 /**
- * Where Grimoire keeps its own state (as opposed to the Calibre library, which
- * we only read). Override with $GRIMOIRE_DATA_DIR.
+ * Where Grimoire keeps its own state — grimoire.db plus cached assets. One
+ * path on Linux and macOS so it stays easy to document; Windows gets a folder
+ * users actually browse. Override with $GRIMOIRE_DATA_DIR.
  */
 export function defaultDataDir(): string {
   const override = process.env.GRIMOIRE_DATA_DIR;
   if (override) return override;
 
-  switch (process.platform) {
-    case "darwin":
-      return join(homedir(), "Library", "Application Support", "Grimoire Books");
-    case "win32":
-      return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "Grimoire Books");
-    default:
-      return join(
-        process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"),
-        "grimoire-books",
-      );
+  if (process.platform === "win32") {
+    return join(homedir(), "Documents", "Grimoire");
   }
+  return join(homedir(), ".config", "grimoire");
 }
 
 export function defaultDatabasePath(): string {

@@ -1,13 +1,16 @@
+import {
+  ApiErrorSchema,
+  CalibreServerTestSchema,
+  CsBooksSchema,
+  CsSearchSchema,
+  PreferencesSchema,
+  type CalibreServerTest,
+  type Preferences,
+} from "@grimoire/core/schemas";
 import { PREF_KEYS, PREFERENCES_VERSION } from "@grimoire/core/types";
-import type {
-  Book,
-  BookList,
-  CalibreServerTest,
-  LibraryInfo,
-  Preferences,
-} from "@grimoire/core/types";
+import type { z } from "zod";
 
-export type { Book, BookList, CalibreServerTest, LibraryInfo, Preferences };
+export type { CalibreServerTest, Preferences };
 export { PREF_KEYS, PREFERENCES_VERSION };
 
 /**
@@ -37,47 +40,64 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+/** A response that didn't match its schema — the server and this build disagree. */
+export class ApiShapeError extends Error {
+  constructor(
+    readonly path: string,
+    readonly cause: z.ZodError,
+  ) {
+    super(`${path} returned an unexpected shape: ${cause.issues[0]?.message ?? "parse failed"}`);
+    this.name = "ApiShapeError";
+  }
+}
+
+/**
+ * Fetch, then parse against the shared schema (ADR 0009) so drift surfaces
+ * here with a field path rather than as an undefined three components deep.
+ */
+async function request<S extends z.ZodType>(
   path: string,
+  schema: S,
   init?: { method: string; body?: unknown },
-): Promise<T> {
+): Promise<z.infer<S>> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: init?.method ?? "GET",
     headers: init?.body === undefined ? undefined : { "Content-Type": "application/json" },
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
   });
-  const body = await res.json();
-  if (!res.ok) {
-    throw new ApiError(res.status, body.error ?? res.statusText, body.hint);
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new ApiError(res.status, res.statusText || "The server sent a non-JSON response");
   }
-  return body as T;
-}
 
-export function fetchBooks(params: { search?: string; limit?: number; offset?: number } = {}) {
-  const query = new URLSearchParams();
-  if (params.search) query.set("search", params.search);
-  if (params.limit !== undefined) query.set("limit", String(params.limit));
-  if (params.offset !== undefined) query.set("offset", String(params.offset));
-  const qs = query.toString();
-  return request<BookList>(`/api/books${qs ? `?${qs}` : ""}`);
-}
+  if (!res.ok) {
+    const err = ApiErrorSchema.safeParse(body);
+    throw new ApiError(res.status, err.success ? err.data.error : res.statusText, err.data?.hint);
+  }
 
-export function fetchLibraryInfo() {
-  return request<LibraryInfo>("/api/library");
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) throw new ApiShapeError(path, parsed.error);
+  return parsed.data;
 }
 
 export function fetchPreferences() {
-  return request<Preferences>("/api/preferences");
+  return request("/api/preferences", PreferencesSchema);
 }
 
 /** Merge-update: only the given keys change. Returns the full new set. */
 export function savePreferences(preferences: Preferences) {
-  return request<Preferences>("/api/preferences", { method: "PUT", body: preferences });
+  return request("/api/preferences", PreferencesSchema, { method: "PUT", body: preferences });
 }
 
 /** Ask the API to probe a candidate Calibre content server URL. */
 export function testCalibreServer(url: string) {
-  return request<CalibreServerTest>("/api/calibre/test", { method: "POST", body: { url } });
+  return request("/api/calibre/test", CalibreServerTestSchema, {
+    method: "POST",
+    body: { url },
+  });
 }
 
 /** True when first-time setup hasn't been completed for this app version. */
@@ -85,6 +105,29 @@ export function needsSetup(preferences: Preferences): boolean {
   return Number(preferences[PREF_KEYS.version] ?? 0) < PREFERENCES_VERSION;
 }
 
-export function coverUrl(book: Book): string | null {
-  return book.hasCover ? `${API_BASE}/api/books/${book.id}/cover` : null;
+export interface LibraryBook {
+  id: number;
+  title: string;
+  authors: string[];
+}
+
+/**
+ * The book list, from the Calibre content server through our proxy: one call
+ * for the ids in sort order, a second for their metadata.
+ */
+export async function fetchBooks(): Promise<LibraryBook[]> {
+  const search = await request("/api/cs/ajax/search?num=9999&sort=title", CsSearchSchema);
+  if (search.book_ids.length === 0) return [];
+
+  const meta = await request(
+    `/api/cs/ajax/books?ids=${search.book_ids.join(",")}`,
+    CsBooksSchema,
+  );
+
+  // Keep the content server's sort order; ids it didn't recognise come back null.
+  return search.book_ids.map((id) => ({
+    id,
+    title: meta[String(id)]?.title ?? `(book ${id})`,
+    authors: meta[String(id)]?.authors ?? [],
+  }));
 }
