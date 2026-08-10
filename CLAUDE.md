@@ -15,7 +15,9 @@ the same HTTP API**.
   without touching bun-only modules.
 - `packages/api` — `createApi()` returns the Hono app (`/api/...` routes).
   Embedded by both server and desktop; opens the library lazily so it can start
-  unconfigured and return a 503 with a hint.
+  unconfigured and return a 503 with a hint. Also reverse-proxies a running
+  Calibre content server at `/api/cs/*` (target from `CALIBRE_SERVER`, default
+  `http://localhost:8080`) — e.g. `/api/cs/ajax/search`, `/api/cs/ajax/books`.
 - `apps/web` — React 19 + Vite + Tailwind 4 + shadcn/ui. Built with
   `base: "./"` so the same bundle works from `views://` (desktop) and `/`
   (server). API base resolution is in `src/lib/api.ts`: same-origin normally,

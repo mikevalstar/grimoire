@@ -10,9 +10,16 @@ import type { BookList } from "@grimoire/core";
 export interface ApiOptions {
   /** Path to the Calibre library directory. Defaults to $CALIBRE_LIBRARY or ~/Calibre Library. */
   libraryPath?: string;
+  /** Base URL of a running Calibre content server. Defaults to $CALIBRE_SERVER or http://localhost:8080. */
+  calibreServerUrl?: string;
   /** Enable permissive CORS — needed when the UI is served from a views:// origin (desktop). */
   cors?: boolean;
 }
+
+// Hop-by-hop / encoding headers that must not be forwarded verbatim (fetch
+// already decompresses the body, so passing content-encoding through would
+// corrupt the response).
+const STRIP_RESPONSE_HEADERS = ["content-encoding", "content-length", "transfer-encoding", "connection"];
 
 /**
  * The Grimoire API as a Hono app. Embedded by both the desktop app and the
@@ -46,6 +53,40 @@ export function createApi(options: ApiOptions = {}) {
   });
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  // Reverse proxy to the Calibre content server: /api/cs/<path> → <server>/<path>.
+  // e.g. /api/cs/ajax/search?num=50, /api/cs/ajax/books?ids=1,2, /api/cs/get/thumb/1/Calibre_Library
+  const calibreServerUrl =
+    options.calibreServerUrl ?? process.env.CALIBRE_SERVER ?? "http://localhost:8080";
+
+  app.all("/api/cs/*", async (c) => {
+    const url = new URL(c.req.url);
+    const target = new URL(url.pathname.replace(/^\/api\/cs/, "") + url.search, calibreServerUrl);
+
+    const headers = new Headers(c.req.raw.headers);
+    headers.delete("host");
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(target, {
+        method: c.req.method,
+        headers,
+        body: c.req.raw.body,
+      });
+    } catch {
+      return c.json(
+        {
+          error: `Could not reach the Calibre content server at ${calibreServerUrl}`,
+          hint: "Start it with `calibre-server` (or calibre Preferences → Sharing over the net), or set CALIBRE_SERVER to its URL.",
+        },
+        502,
+      );
+    }
+
+    const responseHeaders = new Headers(upstream.headers);
+    for (const h of STRIP_RESPONSE_HEADERS) responseHeaders.delete(h);
+    return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+  });
 
   app.get("/api/library", (c) => c.json(getLibrary().info()));
 
