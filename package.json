@@ -12,6 +12,7 @@
     "build:web": "bun run --cwd apps/web build",
     "build:desktop": "bun run --cwd apps/desktop build",
     "start:server": "bun run --cwd apps/server start",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "docs:check": "okq --bundle docs validate && okq --bundle docs deadlinks && okq --bundle docs lint"
   }
 }

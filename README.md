@@ -19,6 +19,7 @@ apps/
 packages/
   core/      Calibre library access — read-only bun:sqlite over metadata.db
   api/       Hono app defining the HTTP API, embedded by server and desktop
+docs/        OKF 0.2 knowledge bundle: adrs/ · features/ · workflows/ · external/
 ```
 
 Every deployment mode speaks the same HTTP API (`/api/...`), so the UI doesn't
@@ -57,5 +58,6 @@ bun run build:desktop
 
 ```bash
 bun run typecheck                  # typecheck every workspace
+bun run docs:check                 # validate the docs/ OKF bundle (needs okq)
 cd apps/web && bunx shadcn@latest add <component>   # add shadcn/ui components
 ```

@@ -35,6 +35,32 @@ the same HTTP API**.
   to a random port passed via `?apiPort=`), loads Vite dev server when running
   and reachable, else the bundled `views://mainview/index.html`.
 
+## Documentation-first (OKF)
+
+`docs/` is an [Open Knowledge Format 0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+([local copy](docs/external/okf-spec-0.2.md))
+bundle — Markdown + YAML frontmatter, one concept per file — maintained with
+[okq](https://github.com/mikevalstar/okq). **Before implementing a feature or
+making an architectural choice, write (or update) the relevant doc:**
+
+- New tech/library/architecture choice → ADR: `okq --bundle docs new adr "<title>"`
+- New user-visible capability → spec: `okq --bundle docs new feature "<title>"`
+- New end-to-end operator flow → `docs/workflows/` (copy an existing one; no
+  okq template yet)
+
+Rules:
+
+- All docs carry YAML frontmatter (`type`, `title`, `description`, `tags`,
+  `status`) — never omit it. Cross-link related docs so the graph stays
+  connected.
+- ADRs are numbered and immutable: supersede, don't rewrite.
+- `docs/external/` holds verbatim snapshots of specs owned elsewhere — don't
+  edit the bodies; re-snapshot and bump `retrieved`.
+- Read the bundle with okq rather than grep — `okq --bundle docs search
+  "<topic>"`, `okq --bundle docs find --type adr`, `okq --bundle docs stats`.
+- After adding/renaming docs run `okq --bundle docs index`, then verify with
+  `bun run docs:check` (validate + deadlinks + lint) before committing.
+
 ## Notes
 
 ### Designs
@@ -48,6 +74,7 @@ the same HTTP API**.
 - `bun run dev:desktop` — desktop dev with HMR
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
 - `bun run build:web` / `build:desktop` / `start:server`
+- `bun run docs:check` — validate the `docs/` OKF bundle (needs `okq` on PATH)
 - shadcn components: `cd apps/web && bunx shadcn@latest add <name>`
 
 ## Gotchas
