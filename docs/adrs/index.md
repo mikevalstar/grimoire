@@ -20,4 +20,5 @@ Add one with `okq new adr "<title>"`.
 | User data and asset storage location | [0007-user-data-and-asset-storage-location.md](0007-user-data-and-asset-storage-location.md) |
 | Multiple users without authentication | [0008-multiple-users-without-authentication.md](0008-multiple-users-without-authentication.md) |
 | Zod schemas shared between API and client | [0009-zod-schemas-shared-between-api-and-client.md](0009-zod-schemas-shared-between-api-and-client.md) |
+| Biome for linting and formatting | [0010-biome-for-linting-and-formatting.md](0010-biome-for-linting-and-formatting.md) |
 <!-- okq:index:end -->

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Moon, Search, Settings, Sun } from "lucide-react";
-import { UserAvatar } from "@/components/user-avatar";
 import { Kbd } from "@/components/ui/kbd";
+import { UserAvatar } from "@/components/user-avatar";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -29,16 +29,14 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { theme, toggle } = useTheme();
 
-  const searchLabel = bookCount === undefined
-    ? "Search your library or run a command…"
-    : `Search ${bookCount.toLocaleString()} books or run a command…`;
+  const searchLabel =
+    bookCount === undefined
+      ? "Search your library or run a command…"
+      : `Search ${bookCount.toLocaleString()} books or run a command…`;
 
   return (
     <header
-      className={cn(
-        "bg-header border-line sticky top-0 z-30 border-b backdrop-blur-xl",
-        className,
-      )}
+      className={cn("bg-header border-line sticky top-0 z-30 border-b backdrop-blur-xl", className)}
     >
       <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
         <Link
@@ -63,7 +61,12 @@ export function AppHeader({
         </button>
 
         {/* below sm the trigger collapses to an icon and pushes the rest right */}
-        <button type="button" onClick={onOpenSearch} aria-label="Search" className={cn(iconButton, "ml-auto sm:hidden")}>
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          aria-label="Search"
+          className={cn(iconButton, "ml-auto sm:hidden")}
+        >
           <Search size={14} />
         </button>
 

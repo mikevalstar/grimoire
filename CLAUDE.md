@@ -82,6 +82,8 @@ Rules:
 - `bun run dev:desktop` — desktop dev with HMR
 - `bun run storybook` — component workshop on :4748
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
+- `bun run lint` — Biome check (lint + format + import order), no writes;
+  `lint:fix` applies safe fixes, `format` formats only
 - `bun run build:web` / `build:desktop` / `build:storybook` / `start:server`
 - `bun run docs:check` — validate the `docs/` OKF bundle (needs `okq` on PATH)
 - `bun run db:wipe` — delete `grimoire.db` (+ WAL sidecars) so the next launch
@@ -90,6 +92,14 @@ Rules:
 
 ## Gotchas
 
+- Biome 2 is the only linter/formatter, configured in `biome.json`
+  ([ADR 0010](docs/adrs/0010-biome-for-linting-and-formatting.md)). Two-space
+  indent, double quotes, `lineWidth: 100`, recommended preset with
+  `noNonNullAssertion` off. `.gitignore` drives exclusions; generated files
+  (`routeTree.gen.ts`, `apps/desktop/build/`) and `docs/external/` are added in
+  `files.includes`. Suppress a real exception at the line with a one-line
+  `// biome-ignore <rule>: <reason>` above the *element*, not the attribute —
+  unused suppressions are themselves errors.
 - Electrobun 1.18 exports raw `.ts` sources; `apps/desktop/tsconfig.json` needs
   DOM lib + `@types/three` to typecheck them. Imports come from
   `electrobun/bun`, config type is `build.bun.entrypoint` in

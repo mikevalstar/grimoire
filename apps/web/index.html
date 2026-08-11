@@ -7,12 +7,11 @@
     <script>
       // Apply the theme before first paint so there's no flash of the wrong
       // canvas. Dark is the default; see src/lib/theme.ts.
+      var stored = null;
       try {
-        var stored = localStorage.getItem("grimoire.theme");
-        if (stored !== "light") document.documentElement.classList.add("dark");
-      } catch (e) {
-        document.documentElement.classList.add("dark");
-      }
+        stored = localStorage.getItem("grimoire.theme");
+      } catch {}
+      if (stored !== "light") document.documentElement.classList.add("dark");
     </script>
   </head>
   <body>

@@ -6,10 +6,7 @@ import { AppHeader, type AppHeaderProps } from "@/components/app-header";
  * a full-width scrolling content region. No max-width clamp — the library owns
  * the whole window. See docs/features/application-shell.md.
  */
-export function AppShell({
-  children,
-  ...header
-}: AppHeaderProps & { children: ReactNode }) {
+export function AppShell({ children, ...header }: AppHeaderProps & { children: ReactNode }) {
   return (
     <div className="bg-background text-foreground flex h-screen flex-col overflow-hidden font-sans">
       {/* you lighting the room from the top-left, the crowd from the bottom-right */}

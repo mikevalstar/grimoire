@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { USER_NAME_MAX_LENGTH, nextUserColor, type UserColorId } from "@grimoire/core/types";
+import { nextUserColor, USER_NAME_MAX_LENGTH, type UserColorId } from "@grimoire/core/types";
 import {
   ArrowLeft,
   BookOpen,
@@ -12,8 +11,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { UserAvatar } from "@/components/user-avatar";
-import { UserColorPicker } from "@/components/user-color-picker";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,14 +23,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UserAvatar } from "@/components/user-avatar";
+import { UserColorPicker } from "@/components/user-color-picker";
 import {
+  type CalibreServerTest,
+  createUser,
   PREF_KEYS,
   PREFERENCES_VERSION,
-  createUser,
+  type Preferences,
   savePreferences,
   testCalibreServer,
-  type CalibreServerTest,
-  type Preferences,
   type User,
 } from "@/lib/api";
 
@@ -286,11 +286,16 @@ export function SetupWizard({
             {(readers.length > 0 || locked.length > 0) && (
               <div className="border-line bg-fill grid gap-1.5 rounded-lg border p-2">
                 {locked.map((user) => (
-                  <ReaderRow key={`existing-${user.id}`} name={user.name} color={user.color} note="already here" />
+                  <ReaderRow
+                    key={`existing-${user.id}`}
+                    name={user.name}
+                    color={user.color}
+                    note="already here"
+                  />
                 ))}
                 {readers.map((reader, i) => (
                   <ReaderRow
-                    key={`${reader.name}-${i}`}
+                    key={reader.name}
                     name={reader.name}
                     color={reader.color}
                     onRemove={() => removeReader(i)}
@@ -432,7 +437,9 @@ function ReaderRow({
     <div className="flex items-center gap-2.5 rounded-md px-1.5 py-1">
       <UserAvatar name={name} color={color} size="sm" />
       <span className="flex-1 truncate text-[13px]">{name}</span>
-      {note && <span className="text-muted-foreground text-[11px] uppercase tracking-wide">{note}</span>}
+      {note && (
+        <span className="text-muted-foreground text-[11px] uppercase tracking-wide">{note}</span>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -466,7 +473,9 @@ function DoneStep({ bookCount, readers }: { bookCount?: number; readers: User[] 
         {readers.map((reader) => (
           <span key={reader.id} className="flex flex-col items-center gap-1.5">
             <UserAvatar name={reader.name} color={reader.color} size="lg" />
-            <span className="text-muted-foreground max-w-24 truncate text-[11px]">{reader.name}</span>
+            <span className="text-muted-foreground max-w-24 truncate text-[11px]">
+              {reader.name}
+            </span>
           </span>
         ))}
       </div>

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import type { Decorator, Meta, StoryObj } from "@storybook/tanstack-react";
+import { useEffect } from "react";
 import { PREF_KEYS } from "@/lib/api";
 import { SetupWizard } from "./setup-wizard";
 

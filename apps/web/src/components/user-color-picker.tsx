@@ -28,6 +28,7 @@ export function UserColorPicker({
       {USER_COLORS.map((color) => {
         const selected = color.id === value;
         return (
+          // biome-ignore lint/a11y/useSemanticElements: a native radio can't carry the swatch colour + check mark; the ARIA pattern here is complete
           <button
             key={color.id}
             type="button"
@@ -39,7 +40,12 @@ export function UserColorPicker({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(color.id)}
             onKeyDown={(e) => {
-              const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+              const step =
+                e.key === "ArrowRight" || e.key === "ArrowDown"
+                  ? 1
+                  : e.key === "ArrowLeft" || e.key === "ArrowUp"
+                    ? -1
+                    : 0;
               if (step === 0) return;
               e.preventDefault();
               const at = USER_COLORS.findIndex((c) => c.id === value);

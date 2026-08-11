@@ -27,6 +27,7 @@ export const Scrolling: Story = {
     children: (
       <ul className="space-y-1">
         {Array.from({ length: 60 }, (_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed filler rows, never reordered
           <li key={i} className="text-[13px]">
             Book {i + 1}
             <span className="text-muted-foreground"> — An Author</span>

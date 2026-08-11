@@ -1,5 +1,5 @@
-import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
+import { useState } from "react";
 import { UserColorPicker } from "./user-color-picker";
 
 const meta = {

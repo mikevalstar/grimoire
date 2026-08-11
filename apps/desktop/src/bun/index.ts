@@ -1,5 +1,5 @@
-import { BrowserWindow, Updater } from "electrobun/bun";
 import { createApi } from "@grimoire/api";
+import { BrowserWindow, Updater } from "electrobun/bun";
 
 const VITE_DEV_URL = "http://localhost:4746";
 // Matches the Vite proxy target so HMR dev and the packaged app agree.
@@ -26,7 +26,9 @@ async function getMainViewUrl(): Promise<string> {
       console.log(`HMR enabled: using Vite dev server at ${VITE_DEV_URL}`);
       return VITE_DEV_URL;
     } catch {
-      console.log("Vite dev server not running; loading bundled UI. Use `bun run dev:hmr` for HMR.");
+      console.log(
+        "Vite dev server not running; loading bundled UI. Use `bun run dev:hmr` for HMR.",
+      );
     }
   }
   return `views://mainview/index.html?apiPort=${server.port}`;

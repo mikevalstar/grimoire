@@ -1,15 +1,15 @@
 import {
   ApiErrorSchema,
+  type CalibreServerTest,
   CalibreServerTestSchema,
   CsBooksSchema,
   CsSearchSchema,
-  PreferencesSchema,
-  UserSchema,
-  UsersSchema,
-  type CalibreServerTest,
   type Preferences,
+  PreferencesSchema,
   type User,
   type UserCreate,
+  UserSchema,
+  UsersSchema,
 } from "@grimoire/core/schemas";
 import { PREF_KEYS, PREFERENCES_VERSION } from "@grimoire/core/types";
 import type { z } from "zod";
@@ -132,10 +132,7 @@ export async function fetchBooks(): Promise<LibraryBook[]> {
   const search = await request("/api/cs/ajax/search?num=9999&sort=title", CsSearchSchema);
   if (search.book_ids.length === 0) return [];
 
-  const meta = await request(
-    `/api/cs/ajax/books?ids=${search.book_ids.join(",")}`,
-    CsBooksSchema,
-  );
+  const meta = await request(`/api/cs/ajax/books?ids=${search.book_ids.join(",")}`, CsBooksSchema);
 
   // Keep the content server's sort order; ids it didn't recognise come back null.
   return search.book_ids.map((id) => ({

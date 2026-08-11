@@ -3,8 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createApi } from "@grimoire/api";
 
 const PORT = Number(process.env.PORT ?? 4747);
-const WEB_DIST =
-  process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
+const WEB_DIST = process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
 
 const app = createApi();
 

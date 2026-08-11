@@ -15,7 +15,9 @@ function BookList() {
 
   return (
     <div>
-      <p className="text-muted-foreground text-[11px] tracking-wide uppercase">{books.length} books</p>
+      <p className="text-muted-foreground text-[11px] tracking-wide uppercase">
+        {books.length} books
+      </p>
       <ul className="mt-3 space-y-1">
         {books.map((book) => (
           <li key={book.id} className="text-[13px]">

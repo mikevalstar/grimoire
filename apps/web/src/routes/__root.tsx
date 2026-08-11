@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { SetupWizard } from "@/components/setup-wizard";
 import { needsSetup } from "@/lib/api";

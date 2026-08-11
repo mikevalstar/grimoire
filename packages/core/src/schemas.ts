@@ -7,7 +7,7 @@
 // client, and Calibre's extras don't break us.
 
 import { z } from "zod";
-import { USER_NAME_MAX_LENGTH, isUserColorId } from "./types.ts";
+import { isUserColorId, USER_NAME_MAX_LENGTH } from "./types.ts";
 
 /** Every preference is stored as text; callers coerce as needed. */
 export const PreferencesSchema = z.record(z.string(), z.string());

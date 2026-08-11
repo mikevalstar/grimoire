@@ -1,18 +1,18 @@
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { HTTPException } from "hono/http-exception";
+import type { CalibreServerTest } from "@grimoire/core";
 import {
   CalibreTestRequestSchema,
   DuplicateUserError,
+  openDatabase,
   PREF_KEYS,
   PreferencesUpdateSchema,
   SettingsStore,
   UserCreateSchema,
   UsersStore,
-  openDatabase,
 } from "@grimoire/core";
-import type { CalibreServerTest } from "@grimoire/core";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 
 export interface ApiOptions {
   /**
@@ -80,7 +80,12 @@ async function probeCalibreServer(baseUrl: string): Promise<CalibreServerTest> {
 // Hop-by-hop / encoding headers that must not be forwarded verbatim (fetch
 // already decompresses the body, so passing content-encoding through would
 // corrupt the response).
-const STRIP_RESPONSE_HEADERS = ["content-encoding", "content-length", "transfer-encoding", "connection"];
+const STRIP_RESPONSE_HEADERS = [
+  "content-encoding",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+];
 
 /**
  * The Grimoire API as a Hono app. Embedded by both the desktop app and the
@@ -142,11 +147,15 @@ export function createApi(options: ApiOptions = {}) {
 
   // Probe a candidate content server (from the setup wizard's Test button)
   // before the user commits to it. Runs server-side, so no CORS involved.
-  app.post("/api/calibre/test", zValidator("json", CalibreTestRequestSchema, invalid), async (c) => {
-    const { url } = c.req.valid("json");
-    const target = url?.trim() ? url.trim() : resolveCalibreServerUrl();
-    return c.json(await probeCalibreServer(target));
-  });
+  app.post(
+    "/api/calibre/test",
+    zValidator("json", CalibreTestRequestSchema, invalid),
+    async (c) => {
+      const { url } = c.req.valid("json");
+      const target = url?.trim() ? url.trim() : resolveCalibreServerUrl();
+      return c.json(await probeCalibreServer(target));
+    },
+  );
 
   // Reverse proxy to the Calibre content server: /api/cs/<path> → <server>/<path>.
   // e.g. /api/cs/ajax/search?num=50, /api/cs/ajax/books?ids=1,2, /api/cs/get/thumb/1/Calibre_Library

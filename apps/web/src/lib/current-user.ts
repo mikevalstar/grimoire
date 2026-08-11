@@ -1,5 +1,5 @@
-import { useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useSyncExternalStore } from "react";
 import type { User } from "@/lib/api";
 import { usersQuery } from "@/lib/queries";
 
