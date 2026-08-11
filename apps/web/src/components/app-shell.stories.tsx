@@ -5,7 +5,7 @@ const meta = {
   title: "Shell/AppShell",
   component: AppShell,
   parameters: { layout: "fullscreen" },
-  args: { bookCount: 1284, userInitials: "MV" },
+  args: { bookCount: 1284, user: { name: "Mike Valstar", color: "indigo" } },
 } satisfies Meta<typeof AppShell>;
 
 export default meta;

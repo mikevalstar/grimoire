@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Moon, Search, Settings, Sun } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { Kbd } from "@/components/ui/kbd";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,8 @@ export interface AppHeaderProps {
   onOpenSettings?: () => void;
   /** Shown in the search placeholder once we know the library size. */
   bookCount?: number;
-  /** Initials for the current-user chip. */
-  userInitials?: string;
+  /** The reader this device is using — their initials on their own colour. */
+  user?: { name: string; color: string };
   className?: string;
 }
 
@@ -24,7 +24,7 @@ export function AppHeader({
   onOpenSearch,
   onOpenSettings,
   bookCount,
-  userInitials = "G",
+  user,
   className,
 }: AppHeaderProps) {
   const { theme, toggle } = useTheme();
@@ -86,11 +86,11 @@ export function AppHeader({
             <Settings size={14} />
           </button>
 
-          <Avatar className="ring-line-strong ring-1">
-            <AvatarFallback className="from-you bg-gradient-to-br to-[#2c3352] text-[11px] font-bold text-white">
-              {userInitials}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            name={user?.name ?? "Grimoire"}
+            color={user?.color ?? "indigo"}
+            title={user?.name}
+          />
         </div>
       </div>
     </header>

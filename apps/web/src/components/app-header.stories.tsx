@@ -5,7 +5,7 @@ const meta = {
   title: "Shell/AppHeader",
   component: AppHeader,
   parameters: { layout: "fullscreen" },
-  args: { bookCount: 1284, userInitials: "MV" },
+  args: { bookCount: 1284, user: { name: "Mike Valstar", color: "indigo" } },
 } satisfies Meta<typeof AppHeader>;
 
 export default meta;

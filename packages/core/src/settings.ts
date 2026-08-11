@@ -1,59 +1,17 @@
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import type { Database } from "bun:sqlite";
+import { resolveDatabase } from "./db.ts";
 import type { Preferences } from "./schemas.ts";
 import { PREF_KEYS } from "./types.ts";
 
 /**
- * Where Grimoire keeps its own state — grimoire.db plus cached assets. One
- * path on Linux and macOS so it stays easy to document; Windows gets a folder
- * users actually browse. Override with $GRIMOIRE_DATA_DIR.
- */
-export function defaultDataDir(): string {
-  const override = process.env.GRIMOIRE_DATA_DIR;
-  if (override) return override;
-
-  if (process.platform === "win32") {
-    return join(homedir(), "Documents", "Grimoire");
-  }
-  return join(homedir(), ".config", "grimoire");
-}
-
-export function defaultDatabasePath(): string {
-  return join(defaultDataDir(), "grimoire.db");
-}
-
-/**
- * Grimoire's own SQLite database. For now it holds nothing but a flat
- * key/value `preferences` table; every value is stored as text.
+ * The flat key/value `preferences` table in grimoire.db; every value is stored
+ * as text. Schema and file location live in `db.ts`.
  */
 export class SettingsStore {
-  readonly path: string;
   private db: Database;
 
-  constructor(path: string = defaultDatabasePath()) {
-    this.path = path;
-    if (path !== ":memory:") {
-      mkdirSync(dirname(path), { recursive: true });
-    }
-    this.db = new Database(path, { create: true });
-    this.db.run("PRAGMA journal_mode = WAL");
-    this.migrate();
-  }
-
-  private migrate(): void {
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS preferences (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    `);
-    // Version 0 means "never configured" — the UI takes that as its cue to run
-    // first-time setup.
-    this.db
-      .query("INSERT OR IGNORE INTO preferences (key, value) VALUES ($key, $value)")
-      .run({ $key: PREF_KEYS.version, $value: "0" });
+  constructor(source?: Database | string) {
+    this.db = resolveDatabase(source);
   }
 
   get(key: string): string | null {

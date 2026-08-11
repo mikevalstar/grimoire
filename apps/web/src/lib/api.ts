@@ -4,13 +4,17 @@ import {
   CsBooksSchema,
   CsSearchSchema,
   PreferencesSchema,
+  UserSchema,
+  UsersSchema,
   type CalibreServerTest,
   type Preferences,
+  type User,
+  type UserCreate,
 } from "@grimoire/core/schemas";
 import { PREF_KEYS, PREFERENCES_VERSION } from "@grimoire/core/types";
 import type { z } from "zod";
 
-export type { CalibreServerTest, Preferences };
+export type { CalibreServerTest, Preferences, User, UserCreate };
 export { PREF_KEYS, PREFERENCES_VERSION };
 
 /**
@@ -90,6 +94,15 @@ export function fetchPreferences() {
 /** Merge-update: only the given keys change. Returns the full new set. */
 export function savePreferences(preferences: Preferences) {
   return request("/api/preferences", PreferencesSchema, { method: "PUT", body: preferences });
+}
+
+export function fetchUsers() {
+  return request("/api/users", UsersSchema);
+}
+
+/** Create a reader. Omit the colour to be given the first unused one. */
+export function createUser(user: UserCreate) {
+  return request("/api/users", UserSchema, { method: "POST", body: user });
 }
 
 /** Ask the API to probe a candidate Calibre content server URL. */

@@ -2,9 +2,10 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
-import { SetupDialog } from "@/components/setup-dialog";
+import { SetupWizard } from "@/components/setup-wizard";
 import { needsSetup } from "@/lib/api";
-import { preferencesQuery } from "@/lib/queries";
+import { setCurrentUserId, useCurrentUser } from "@/lib/current-user";
+import { preferencesQuery, usersQuery } from "@/lib/queries";
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -21,23 +22,32 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   const queryClient = useQueryClient();
   const { data: preferences, error, isPending } = useQuery(preferencesQuery);
+  const { data: users } = useQuery(usersQuery);
+  const currentUser = useCurrentUser();
 
   if (isPending) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
 
   if (needsSetup(preferences)) {
     return (
-      <SetupDialog
+      <SetupWizard
         preferences={preferences}
-        // The PUT response is the full new set, so seed the cache with it
-        // instead of refetching.
-        onSaved={(saved) => queryClient.setQueryData(preferencesQuery.queryKey, saved)}
+        existingUsers={users}
+        onFinished={({ preferences: saved, users: created }) => {
+          // Both responses are authoritative, so seed the cache rather than
+          // refetching straight into a render.
+          queryClient.setQueryData(preferencesQuery.queryKey, saved);
+          queryClient.setQueryData(usersQuery.queryKey, [...(users ?? []), ...created]);
+          // Whoever set the app up is using it.
+          const first = users?.[0] ?? created[0];
+          if (first) setCurrentUserId(first.id);
+        }}
       />
     );
   }
 
   return (
-    <AppShell>
+    <AppShell user={currentUser}>
       <Outlet />
     </AppShell>
   );

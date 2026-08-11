@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "grimoire-books",
+      "devDependencies": {
+        "@grimoire/core": "workspace:*",
+      },
     },
     "apps/desktop": {
       "name": "@grimoire/desktop",

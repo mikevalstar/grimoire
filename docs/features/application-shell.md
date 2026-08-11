@@ -78,8 +78,9 @@ of the wrong canvas.
 runs full width with no max-width clamp, and applies its own padding — screens
 render their own content into it without re-establishing a layout.
 
-**Setup gate.** First-run setup still renders above the shell, not inside it:
-until preferences are configured there is no library to frame.
+**Setup gate.** The [first-run setup wizard](first-run-setup-wizard.md) still
+renders above the shell, not inside it: until preferences are configured there
+is no library to frame. It also names the reader the header avatar shows.
 
 ## Acceptance criteria
 
@@ -98,14 +99,16 @@ until preferences are configured there is no library to frame.
       theme toolbar so components are reviewable in both.
 - [ ] The search trigger opens a command palette.
 - [ ] Settings opens a settings surface.
-- [ ] The avatar reflects a real current user.
+- [x] The avatar reflects a real current user — their initials on the colour
+      they picked during setup.
 
 ## Open questions
 
-- The header currently shows a placeholder user; multiple users without
-  authentication is settled in
-  [ADR 0008](../adrs/0008-multiple-users-without-authentication.md), but how the
-  shell picks and displays one is not.
+- The header shows the reader stored in `localStorage` (or the first one, if
+  that is empty), created by the
+  [setup wizard](first-run-setup-wizard.md) under
+  [ADR 0008](../adrs/0008-multiple-users-without-authentication.md). Clicking
+  the avatar does nothing yet — there is no picker to switch reader with.
 - There is no wordmark. The header is plain type until one exists.
 - The theme toggle is a straight two-way flip with dark as the default; there is
   no "follow the system" third state, and no decision yet on whether there

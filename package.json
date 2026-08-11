@@ -15,6 +15,10 @@
     "storybook": "bun run --cwd apps/web storybook",
     "build:storybook": "bun run --cwd apps/web build-storybook",
     "typecheck": "bun run --filter '*' typecheck",
+    "db:wipe": "bun run scripts/wipe-db.ts",
     "docs:check": "okq --bundle docs validate && okq --bundle docs deadlinks && okq --bundle docs lint"
+  },
+  "devDependencies": {
+    "@grimoire/core": "workspace:*"
   }
 }

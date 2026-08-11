@@ -4,9 +4,13 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import {
   CalibreTestRequestSchema,
+  DuplicateUserError,
   PREF_KEYS,
   PreferencesUpdateSchema,
   SettingsStore,
+  UserCreateSchema,
+  UsersStore,
+  openDatabase,
 } from "@grimoire/core";
 import type { CalibreServerTest } from "@grimoire/core";
 
@@ -92,12 +96,14 @@ export function createApi(options: ApiOptions = {}) {
     app.use("/api/*", cors());
   }
 
-  // Opened lazily so the server can start before anything is configured.
+  // Opened lazily so the server can start before anything is configured, and
+  // shared by every store so they see one connection and one migration pass.
+  let db: ReturnType<typeof openDatabase> | null = null;
   let settings: SettingsStore | null = null;
-  const getSettings = (): SettingsStore => {
-    settings ??= new SettingsStore(options.databasePath);
-    return settings;
-  };
+  let users: UsersStore | null = null;
+  const getDb = () => (db ??= openDatabase(options.databasePath));
+  const getSettings = (): SettingsStore => (settings ??= new SettingsStore(getDb()));
+  const getUsers = (): UsersStore => (users ??= new UsersStore(getDb()));
 
   app.onError((err, c) => {
     // Hono raises these for client-side faults it catches before us — a body
@@ -121,7 +127,20 @@ export function createApi(options: ApiOptions = {}) {
     return c.json(store.all());
   });
 
-  // Probe a candidate content server (from the setup dialog's Test button)
+  // The people sharing this library (ADR 0008). Created by the setup wizard;
+  // editing and deleting wait for a settings surface.
+  app.get("/api/users", (c) => c.json(getUsers().list()));
+
+  app.post("/api/users", zValidator("json", UserCreateSchema, invalid), (c) => {
+    try {
+      return c.json(getUsers().create(c.req.valid("json")), 201);
+    } catch (err) {
+      if (err instanceof DuplicateUserError) return c.json({ error: err.message }, 409);
+      throw err;
+    }
+  });
+
+  // Probe a candidate content server (from the setup wizard's Test button)
   // before the user commits to it. Runs server-side, so no CORS involved.
   app.post("/api/calibre/test", zValidator("json", CalibreTestRequestSchema, invalid), async (c) => {
     const { url } = c.req.valid("json");

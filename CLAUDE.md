@@ -14,11 +14,14 @@ Library data comes from a **running Calibre content server**, over HTTP, via
 the `/api/cs` proxy. Grimoire does not open `metadata.db` — see
 [ADR 0005](docs/adrs/0005-calibre-content-server-as-the-data-source.md).
 
-- `packages/core` — `SettingsStore`, Grimoire's *own* writable SQLite db
-  (`grimoire.db` in the data dir — see Gotchas). Two browser-safe modules that
-  must never import bun-only code: `src/schemas.ts` (Zod schemas for every API
-  payload, `@grimoire/core/schemas`) and `src/types.ts` (constants,
-  `@grimoire/core/types`).
+- `packages/core` — Grimoire's *own* writable SQLite db (`grimoire.db` in the
+  data dir — see Gotchas): `src/db.ts` owns the schema and every migration,
+  `SettingsStore` the key/value preferences, `UsersStore` the readers. Stores
+  share one connection — pass the `Database` from `openDatabase()`, don't open
+  a second. Two browser-safe modules that must never import bun-only code:
+  `src/schemas.ts` (Zod schemas for every API payload,
+  `@grimoire/core/schemas`) and `src/types.ts` (constants incl. the 24
+  `USER_COLORS`, `@grimoire/core/types`).
 - `packages/api` — `createApi()` returns the Hono app (`/api/...` routes).
   Embedded by both server and desktop. Reverse-proxies the running
   Calibre content server at `/api/cs/*` — e.g. `/api/cs/ajax/search`,
@@ -27,7 +30,8 @@ the `/api/cs` proxy. Grimoire does not open `metadata.db` — see
   `http://localhost:8080`), so saving it in the UI takes effect without a
   restart. `GET|PUT /api/preferences` read/merge-write the key/value store;
   `POST /api/calibre/test` probes a candidate content server URL server-side
-  (no CORS involved) and reports its book count.
+  (no CORS involved) and reports its book count; `GET|POST /api/users` list and
+  create readers (409 on a duplicate name).
 - `apps/web` — React 19 + Vite + Tailwind 4 + shadcn/ui, TanStack Router and
   Query, Storybook. Built with `base: "./"` so the same bundle works from
   `views://` (desktop) and `/` (server). API base resolution is in
@@ -80,6 +84,8 @@ Rules:
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
 - `bun run build:web` / `build:desktop` / `build:storybook` / `start:server`
 - `bun run docs:check` — validate the `docs/` OKF bundle (needs `okq` on PATH)
+- `bun run db:wipe` — delete `grimoire.db` (+ WAL sidecars) so the next launch
+  runs first-time setup again. Honours `GRIMOIRE_DATA_DIR`; never touches Calibre
 - shadcn components: `cd apps/web && bunx shadcn@latest add <name>`
 
 ## Gotchas
@@ -106,8 +112,10 @@ Rules:
 - Stories live next to their component (`button.stories.tsx`), not in a
   `stories/` folder.
 - First-run setup is driven by the `preferences.version` row: it seeds to `"0"`,
-  and the web app shows the setup modal while it's below `PREFERENCES_VERSION`
+  and the web app shows the setup wizard while it's below `PREFERENCES_VERSION`
   (`packages/core/src/types.ts`). Bump that constant to force users through a
-  new round of setup; keep new prompts in `apps/web/src/components/setup-dialog.tsx`.
+  new round of setup; keep new prompts in `apps/web/src/components/setup-wizard.tsx`
+  and update [the spec](docs/features/first-run-setup-wizard.md) in the same
+  commit. `bun run db:wipe` gets you back to a genuine first run.
 - TypeScript 7 (tsgo): no `baseUrl`, and `types` must be listed explicitly per
   workspace tsconfig.
