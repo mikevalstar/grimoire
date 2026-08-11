@@ -150,6 +150,26 @@ export function bookCoverUrl(id: number, width: number, height: number): string 
 }
 
 /**
+ * The book's file itself, also through the proxy. Calibre answers with the
+ * right MIME type and a Content-Disposition filename, so nothing here has to
+ * name the download.
+ */
+export function bookDownloadUrl(id: number, format: string): string {
+  return `${API_BASE}/api/cs/get/${format.toLowerCase()}/${id}`;
+}
+
+/** Most portable first — what to hand over when the reader didn't pick a format. */
+const FORMAT_PREFERENCE = ["EPUB", "AZW3", "MOBI", "PDF"];
+
+/** The one format to offer on a shelf. Null when Calibre has no file for the book. */
+export function preferredFormat(formats: string[]): string | null {
+  for (const candidate of FORMAT_PREFERENCE) {
+    if (formats.includes(candidate)) return candidate;
+  }
+  return formats[0] ?? null;
+}
+
+/**
  * The book list, from the Calibre content server through our proxy: one call
  * for the ids in sort order, a second for their metadata.
  */

@@ -55,16 +55,47 @@ A single row above the library, sticky under the header:
 An auto-filling grid with no max width — cards reflow from two columns on a
 phone to as many as the window allows
 ([requirement 21](application-shell.md)). Each card is a cover image, then the
-title, then the author, then the series line when there is one. Cards lift on
-hover using the shell's spring curve. A book with a rating shows it as stars
-under the author.
+title, then the author, then the series line when there is one. A book with a
+rating shows it as stars under the author.
 
 ### List view
 
 A table that scrolls horizontally below its minimum width rather than squeezing
-columns: a thumbnail, title, author, series, rating, formats, and date added.
-The header row is sticky within the scroll region. Columns are fixed for now —
-the columns picker is a later feature.
+columns: a thumbnail, title, author, series, rating, formats, date added, and a
+trailing actions column. The header row is sticky within the scroll region.
+Columns are fixed for now — the columns picker is a later feature.
+
+### Hover
+
+Pointing at a book is how it offers to do something, in both views:
+
+- **A card** lifts on the shell's spring curve, its cover's shadow deepens and
+  gains a `--you-*` ring, and its title comes up to full contrast. A download
+  button fades in over the bottom of the cover.
+- **A row** takes a raised fill, and the same download button fades into the
+  actions column — which keeps its width whether or not anything is showing in
+  it, so rows never shift sideways as the pointer moves down the table.
+
+Two rules hold this together. **Nothing appears on hover that a keyboard can't
+reach**: the download button is a real link in the tab order, and shows itself
+on focus exactly as it does on hover, so the affordance is not pointer-only.
+And **hover never moves anything a click is aimed at** — the button occupies its
+space from the start and only fades, the lift is the card's own, and reduced-
+motion users get the state change without the movement.
+
+### Downloading
+
+The download button hands over the book's file straight from Calibre —
+`/api/cs/get/<format>/<id>` through the proxy, which already answers with the
+right MIME type and a `Content-Disposition` filename, so the browser saves
+"Abaddon's Gate - James S.A. Corey_152.epub" without Grimoire naming anything
+itself.
+
+A book usually has more than one format. Rather than open a menu on a hover
+affordance, the button picks one — EPUB, then AZW3, MOBI, PDF, then whatever is
+first — and says which in its tooltip and its accessible name. Books with no
+format at all show no button. Choosing a different format is the detail panel's
+job, not the shelf's.
 
 ### Covers
 
@@ -102,6 +133,13 @@ is not a preference in Grimoire's database.
 - [x] Both views are full-width with no max-width clamp; the grid reflows and
       the table scrolls horizontally instead of crushing columns.
 - [x] Loading, empty and error states are handled in both views.
+- [x] Both views answer hover with a state change, and every hover affordance is
+      reachable — and visible — from the keyboard.
+- [x] Hovering never reflows the library: the actions column holds its width and
+      revealed controls fade rather than appear.
+- [x] The lift and fade are `motion-safe` only.
+- [x] The download button fetches a real file through the proxy, named by
+      Calibre, and is absent for a book with no formats.
 - [x] Every new component has a Storybook story, in both themes.
 - [x] The book model carries what the views show — title, authors, series,
       rating, tags, formats, dates — parsed from Calibre at the boundary by a
@@ -118,8 +156,14 @@ is not a preference in Grimoire's database.
   for a hundred thousand; paging or windowing is a separate decision, and it is
   the same decision as whether filtering happens on the server.
 - **Selection and detail.** Clicking a book does nothing yet — the detail panel
-  is its own feature. Keyboard roving (arrow keys through the grid) waits for
-  the same work.
+  is its own feature, and download is the only action the shelf offers until it
+  exists. Keyboard roving (arrow keys through the grid) waits for the same work,
+  and would also fix the tab order: today every download link is its own tab
+  stop, which is a lot of stops in a 255-book library.
+- **Reading.** Latitude's hover row has a "Read now" beside download. Calibre's
+  own web viewer can't be reached through the `/api/cs` proxy (its assets are
+  served from paths we answer with the SPA), so there is nothing to point it at
+  until Grimoire has a reader of its own.
 - **Spines.** Latitude's third view is not built. Nothing here blocks it; it is
   another entry in the switcher.
 - **Read status.** Calibre exposes it as a custom column in this library

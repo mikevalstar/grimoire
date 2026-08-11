@@ -1,4 +1,5 @@
 import { BookCover } from "@/components/book-cover";
+import { BookDownloadButton } from "@/components/book-download-button";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LibraryBook } from "@/lib/api";
@@ -36,6 +37,9 @@ export function BookTable({ books, onOpen, className }: BookTableProps) {
           <th className={TH}>Rating</th>
           <th className={TH}>Formats</th>
           <th className={TH}>Added</th>
+          <th className={cn(TH, "w-12")}>
+            <span className="sr-only">Actions</span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -44,8 +48,8 @@ export function BookTable({ books, onOpen, className }: BookTableProps) {
             key={book.id}
             onClick={onOpen ? () => onOpen(book) : undefined}
             className={cn(
-              "border-line/60 border-b transition-colors",
-              onOpen && "hover:bg-fill cursor-pointer",
+              "group/book border-line/60 hover:bg-fill border-b transition-colors",
+              onOpen && "cursor-pointer",
             )}
           >
             <td className="py-1.5 pr-3 pl-3">
@@ -91,6 +95,10 @@ export function BookTable({ books, onOpen, className }: BookTableProps) {
             </td>
             <td className="text-muted-foreground px-3 py-1.5 text-xs whitespace-nowrap tabular-nums">
               {formatDate(book.added)}
+            </td>
+            {/* Always this wide, empty or not, so rows don't shift as the pointer moves down. */}
+            <td className="w-12 px-3 py-1.5">
+              <BookDownloadButton book={book} className="size-6 rounded-md" />
             </td>
           </tr>
         ))}
