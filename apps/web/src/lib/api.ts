@@ -118,10 +118,35 @@ export function needsSetup(preferences: Preferences): boolean {
   return Number(preferences[PREF_KEYS.version] ?? 0) < PREFERENCES_VERSION;
 }
 
+/**
+ * A book as the library screens use it: Calibre's snake_case metadata narrowed
+ * to the fields we render, with its nulls resolved once here rather than in
+ * every view. See docs/features/book-list.md.
+ */
 export interface LibraryBook {
   id: number;
   title: string;
   authors: string[];
+  series: string | null;
+  /** Position within `series`, null when the book is standalone. */
+  seriesIndex: number | null;
+  /** Stars out of 5; 0 means unrated. */
+  rating: number;
+  tags: string[];
+  /** Uppercased, e.g. ["EPUB", "PDF"]. */
+  formats: string[];
+  /** When Calibre took the book in — ISO 8601, or null. */
+  added: string | null;
+  /** Publication date — ISO 8601, or null. */
+  published: string | null;
+}
+
+/**
+ * A cover thumbnail, through the proxy so the browser never talks to Calibre
+ * directly. Calibre does the scaling, so ask for roughly the size you'll draw.
+ */
+export function bookCoverUrl(id: number, width: number, height: number): string {
+  return `${API_BASE}/api/cs/get/thumb/${id}?sz=${width}x${height}`;
 }
 
 /**
@@ -135,9 +160,19 @@ export async function fetchBooks(): Promise<LibraryBook[]> {
   const meta = await request(`/api/cs/ajax/books?ids=${search.book_ids.join(",")}`, CsBooksSchema);
 
   // Keep the content server's sort order; ids it didn't recognise come back null.
-  return search.book_ids.map((id) => ({
-    id,
-    title: meta[String(id)]?.title ?? `(book ${id})`,
-    authors: meta[String(id)]?.authors ?? [],
-  }));
+  return search.book_ids.map((id) => {
+    const book = meta[String(id)];
+    return {
+      id,
+      title: book?.title ?? `(book ${id})`,
+      authors: book?.authors ?? [],
+      series: book?.series ?? null,
+      seriesIndex: book?.series_index ?? null,
+      rating: book?.rating ?? 0,
+      tags: book?.tags ?? [],
+      formats: (book?.formats ?? []).map((format) => format.toUpperCase()),
+      added: book?.timestamp ?? null,
+      published: book?.pubdate ?? null,
+    };
+  });
 }

@@ -76,7 +76,8 @@ of the wrong canvas.
 
 **Content region.** Everything else. It scrolls independently of the header,
 runs full width with no max-width clamp, and applies its own padding — screens
-render their own content into it without re-establishing a layout.
+render their own content into it without re-establishing a layout. The
+[book list](book-list.md) is the first screen to fill it.
 
 **Setup gate.** The [first-run setup wizard](first-run-setup-wizard.md) still
 renders above the shell, not inside it: until preferences are configured there
