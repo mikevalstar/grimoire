@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
-import { SAMPLE_BOOKS } from "@/lib/sample-books";
+import { useState } from "react";
+import type { Ratings } from "@/lib/api";
+import { SAMPLE_BOOKS, SAMPLE_RATINGS } from "@/lib/sample-books";
 import { BookTable, BookTableSkeleton } from "./book-table";
 
 const meta = {
@@ -25,6 +27,31 @@ export const Light: Story = { globals: { theme: "light" } };
 
 export const Clickable: Story = {
   args: { onOpen: (book) => console.log("open", book.title) },
+};
+
+/**
+ * The rating column becomes a control. Clicking a star rates the book without
+ * also firing the row's own click — try it with Clickable's `onOpen` on.
+ */
+export const Ratable: Story = {
+  args: { onOpen: (book) => console.log("open", book.title) },
+  render: (args) => {
+    const [ratings, setRatings] = useState<Ratings>(SAMPLE_RATINGS);
+    return (
+      <BookTable
+        {...args}
+        ratings={ratings}
+        onRate={(book, rating) =>
+          setRatings((current) => {
+            const next = { ...current };
+            if (rating <= 0) delete next[String(book.id)];
+            else next[String(book.id)] = rating;
+            return next;
+          })
+        }
+      />
+    );
+  },
 };
 
 export const Loading: Story = { render: () => <BookTableSkeleton count={10} /> };

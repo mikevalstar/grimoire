@@ -1,4 +1,4 @@
-import type { LibraryBook } from "@/lib/api";
+import type { LibraryBook, Ratings } from "@/lib/api";
 
 /**
  * Storybook fixtures — a slice of a library with the shapes the views have to
@@ -12,7 +12,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["James S.A. Corey"],
     series: "The Expanse",
     seriesIndex: 3,
-    rating: 4,
     tags: ["Science Fiction"],
     formats: ["EPUB", "PDF"],
     added: "2024-06-29T12:25:52+00:00",
@@ -24,7 +23,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Arkady Martine"],
     series: "Teixcalaan",
     seriesIndex: 1,
-    rating: 5,
     tags: ["Science Fiction", "Space Opera"],
     formats: ["EPUB"],
     added: "2025-01-14T09:02:11+00:00",
@@ -36,7 +34,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Becky Chambers"],
     series: "Wayfarers",
     seriesIndex: 1,
-    rating: 4,
     tags: ["Science Fiction"],
     formats: ["EPUB", "MOBI", "PDF"],
     added: "2023-11-02T18:44:00+00:00",
@@ -48,7 +45,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Susanna Clarke"],
     series: null,
     seriesIndex: null,
-    rating: 5,
     tags: ["Fantasy"],
     formats: ["EPUB"],
     added: "2025-07-21T07:15:30+00:00",
@@ -60,7 +56,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Harold Abelson", "Gerald Jay Sussman", "Julie Sussman"],
     series: null,
     seriesIndex: null,
-    rating: 0,
     tags: ["Programming", "Reference"],
     formats: ["PDF"],
     added: "2022-02-08T21:00:00+00:00",
@@ -72,7 +67,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Katherine Addison"],
     series: null,
     seriesIndex: null,
-    rating: 3,
     tags: ["Fantasy"],
     formats: ["EPUB", "AZW3"],
     added: "2024-03-30T11:11:11+00:00",
@@ -84,7 +78,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Adrian Tchaikovsky"],
     series: "Children of Time",
     seriesIndex: 1,
-    rating: 4,
     tags: ["Science Fiction"],
     formats: ["EPUB"],
     added: "2023-05-19T14:20:00+00:00",
@@ -96,7 +89,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Tamsyn Muir"],
     series: "The Locked Tomb",
     seriesIndex: 1,
-    rating: 0,
     tags: ["Fantasy", "Science Fiction"],
     formats: ["EPUB", "PDF"],
     added: "2025-04-02T16:05:45+00:00",
@@ -108,7 +100,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Ursula K. Le Guin"],
     series: "Hainish Cycle",
     seriesIndex: 6,
-    rating: 5,
     tags: ["Science Fiction", "Classics"],
     formats: ["EPUB", "MOBI"],
     added: "2021-09-09T09:09:09+00:00",
@@ -120,7 +111,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Ann Leckie"],
     series: "Imperial Radch",
     seriesIndex: 1,
-    rating: 4,
     tags: ["Science Fiction"],
     formats: ["EPUB"],
     added: "2024-12-25T08:30:00+00:00",
@@ -132,7 +122,6 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Kazuo Ishiguro"],
     series: null,
     seriesIndex: null,
-    rating: 4,
     tags: ["Literary Fiction"],
     formats: ["EPUB", "PDF"],
     added: "2020-10-31T22:00:00+00:00",
@@ -144,10 +133,26 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     authors: ["Vernor Vinge"],
     series: "Zones of Thought",
     seriesIndex: 2,
-    rating: 0,
     tags: ["Science Fiction"],
     formats: ["EPUB"],
     added: "2019-07-04T12:00:00+00:00",
     published: "1999-02-01T00:00:00+00:00",
   },
 ];
+
+/**
+ * The ratings a reader might have set, keyed by book id — separate from the
+ * books because a rating belongs to a person, not to the library
+ * (docs/features/rating-a-book.md). Books absent here are unrated.
+ */
+export const SAMPLE_RATINGS: Ratings = {
+  "1": 4,
+  "2": 5,
+  "3": 4,
+  "4": 5,
+  "6": 3,
+  "7": 4,
+  "9": 5,
+  "10": 4,
+  "11": 4,
+};

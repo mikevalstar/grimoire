@@ -2,13 +2,17 @@ import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LibraryBook } from "@/lib/api";
+import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookTableProps {
   books: LibraryBook[];
   /** Opening a book. Rows are only clickable when this is given — see BookGrid. */
   onOpen?: (book: LibraryBook) => void;
+  /** The reader's own ratings, which stand in front of Calibre's. */
+  ratings?: Ratings;
+  /** Set a rating. Without it the stars stay a read-out. */
+  onRate?: (book: LibraryBook, rating: number) => void;
   className?: string;
 }
 
@@ -23,7 +27,7 @@ const TH =
   "bg-background/95 text-muted-foreground sticky top-0 z-10 border-line border-b px-3 py-2 text-left text-[10px] font-semibold tracking-[0.08em] uppercase backdrop-blur";
 
 /** The dense view: one row per book, columns fixed until a column picker exists. */
-export function BookTable({ books, onOpen, className }: BookTableProps) {
+export function BookTable({ books, onOpen, ratings, onRate, className }: BookTableProps) {
   return (
     <table className={cn("w-full min-w-[720px] border-collapse text-[13px]", className)}>
       <thead>
@@ -73,9 +77,17 @@ export function BookTable({ books, onOpen, className }: BookTableProps) {
                 "—"
               )}
             </td>
+            {/* The stars stop their own clicks reaching the row, so rating a
+                book never also opens it. */}
             <td className="px-3 py-1.5">
-              {book.rating > 0 ? (
-                <StarRating value={book.rating} />
+              {onRate ? (
+                <StarRating
+                  value={bookRating(book, ratings)}
+                  onRate={(rating) => onRate(book, rating)}
+                  label={book.title}
+                />
+              ) : bookRating(book, ratings) > 0 ? (
+                <StarRating value={bookRating(book, ratings)} />
               ) : (
                 <span className="text-muted-foreground/50">—</span>
               )}

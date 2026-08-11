@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
+import { useState } from "react";
 import { StarRating } from "./star-rating";
 
 const meta = {
@@ -27,3 +28,59 @@ export const Scale: Story = {
     </div>
   ),
 };
+
+/**
+ * With `onRate` the stars are a control — but only once you enter them. At
+ * rest it reads as the plain read-out; hovering fades in the empty stars and
+ * the clear button. Hover to preview, click to commit, × (or clicking your own
+ * rating again) to clear. Tab in and use the arrow keys — the preview follows
+ * focus exactly as it follows the pointer.
+ */
+export const Interactive: Story = {
+  render: (args) => {
+    const [rating, setRating] = useState(args.value);
+    return (
+      <div className="space-y-3">
+        <StarRating {...args} value={rating} onRate={setRating} label="Dune" size={16} />
+        <p className="text-muted-foreground text-[11px]">
+          {rating === 0 ? "Unrated" : `${rating} of 5`}
+        </p>
+      </div>
+    );
+  },
+};
+
+/**
+ * Unrated shows nothing at all until you point at it — but the control still
+ * occupies its full width, so the stars it reveals don't shove anything aside.
+ */
+export const InteractiveUnrated: Story = {
+  ...Interactive,
+  args: { value: 0 },
+};
+
+export const InteractiveLight: Story = {
+  ...Interactive,
+  globals: { theme: "light" },
+};
+
+/** At shelf size, alongside the rated/unrated contrast the grid actually shows. */
+export const OnTheShelf: Story = {
+  render: (args) => (
+    <div className="space-y-4">
+      {[4, 0, 2].map((value, i) => (
+        <ShelfRow key={value} {...args} value={value} label={`Book ${i + 1}`} />
+      ))}
+    </div>
+  ),
+};
+
+function ShelfRow({ value, label, ...args }: { value: number; label: string }) {
+  const [rating, setRating] = useState(value);
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-foreground w-20 text-[13px]">{label}</span>
+      <StarRating {...args} value={rating} onRate={setRating} label={label} />
+    </div>
+  );
+}

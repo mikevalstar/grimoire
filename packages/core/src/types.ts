@@ -19,6 +19,13 @@ export const PREF_KEYS = {
 /** Longest reader name we accept; the UI caps the input at the same number. */
 export const USER_NAME_MAX_LENGTH = 40;
 
+/**
+ * Names the reader a request is acting as (ADR 0008). Not a credential — the
+ * API trusts it — but user-scoped routes refuse a request without it rather
+ * than picking someone.
+ */
+export const USER_HEADER = "X-Grimoire-User";
+
 export interface UserColor {
   /** What's stored in `users.color` — never the hex, so the palette can be restyled. */
   id: string;

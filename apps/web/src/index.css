@@ -156,6 +156,33 @@
   --ease-spring: var(--spring);
 }
 
+/* Committing a rating (docs/features/rating-a-book.md). Rays fly out from the
+   star that was clicked and the star itself pops once — the acknowledgement
+   that the click landed, since the write is optimistic and silent otherwise.
+   Both are driven by --angle set per ray; only motion-safe callers apply them. */
+@keyframes star-burst-ray {
+  from {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-0.15rem) scaleY(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-0.62rem) scaleY(1);
+  }
+}
+
+@keyframes star-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

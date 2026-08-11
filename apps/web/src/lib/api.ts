@@ -6,15 +6,19 @@ import {
   CsSearchSchema,
   type Preferences,
   PreferencesSchema,
+  type RatingResult,
+  RatingResultSchema,
+  type Ratings,
+  RatingsSchema,
   type User,
   type UserCreate,
   UserSchema,
   UsersSchema,
 } from "@grimoire/core/schemas";
-import { PREF_KEYS, PREFERENCES_VERSION } from "@grimoire/core/types";
+import { PREF_KEYS, PREFERENCES_VERSION, USER_HEADER } from "@grimoire/core/types";
 import type { z } from "zod";
 
-export type { CalibreServerTest, Preferences, User, UserCreate };
+export type { CalibreServerTest, Preferences, RatingResult, Ratings, User, UserCreate };
 export { PREF_KEYS, PREFERENCES_VERSION };
 
 /**
@@ -62,11 +66,16 @@ export class ApiShapeError extends Error {
 async function request<S extends z.ZodType>(
   path: string,
   schema: S,
-  init?: { method: string; body?: unknown },
+  init?: { method: string; body?: unknown; userId?: number },
 ): Promise<z.infer<S>> {
+  const headers: Record<string, string> = {};
+  if (init?.body !== undefined) headers["Content-Type"] = "application/json";
+  // Who this request is for (ADR 0008). Only user-scoped routes look at it.
+  if (init?.userId !== undefined) headers[USER_HEADER] = String(init.userId);
+
   const res = await fetch(`${API_BASE}${path}`, {
     method: init?.method ?? "GET",
-    headers: init?.body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers,
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
   });
 
@@ -105,6 +114,30 @@ export function createUser(user: UserCreate) {
   return request("/api/users", UserSchema, { method: "POST", body: user });
 }
 
+/** Every rating this reader has set, keyed by Calibre book id. */
+export function fetchRatings(userId: number) {
+  return request("/api/ratings", RatingsSchema, { method: "GET", userId });
+}
+
+/** Set this reader's rating for a book. 0 clears it. */
+export function saveRating(userId: number, bookId: number, rating: number) {
+  return request(`/api/ratings/${bookId}`, RatingResultSchema, {
+    method: "PUT",
+    body: { rating },
+    userId,
+  });
+}
+
+/**
+ * The rating to show — the reader's own, and only ever theirs. Calibre's
+ * rating is deliberately not a fallback: stars in the user accent mean *your*
+ * verdict, and borrowing Calibre's would make an unrated book look rated by
+ * you (docs/features/rating-a-book.md).
+ */
+export function bookRating(book: LibraryBook, ratings: Ratings | undefined): number {
+  return ratings?.[String(book.id)] ?? 0;
+}
+
 /** Ask the API to probe a candidate Calibre content server URL. */
 export function testCalibreServer(url: string) {
   return request("/api/calibre/test", CalibreServerTestSchema, {
@@ -130,8 +163,8 @@ export interface LibraryBook {
   series: string | null;
   /** Position within `series`, null when the book is standalone. */
   seriesIndex: number | null;
-  /** Stars out of 5; 0 means unrated. */
-  rating: number;
+  // No rating here on purpose: a book's stars are per-reader and come from
+  // /api/ratings, never from Calibre. See docs/features/rating-a-book.md.
   tags: string[];
   /** Uppercased, e.g. ["EPUB", "PDF"]. */
   formats: string[];
@@ -188,7 +221,6 @@ export async function fetchBooks(): Promise<LibraryBook[]> {
       authors: book?.authors ?? [],
       series: book?.series ?? null,
       seriesIndex: book?.series_index ?? null,
-      rating: book?.rating ?? 0,
       tags: book?.tags ?? [],
       formats: (book?.formats ?? []).map((format) => format.toUpperCase()),
       added: book?.timestamp ?? null,

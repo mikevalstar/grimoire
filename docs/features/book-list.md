@@ -55,14 +55,21 @@ A single row above the library, sticky under the header:
 An auto-filling grid with no max width — cards reflow from two columns on a
 phone to as many as the window allows
 ([requirement 21](application-shell.md)). Each card is a cover image, then the
-title, then the author, then the series line when there is one. A book with a
-rating shows it as stars under the author.
+title, then the author, then the series line when there is one. Under that,
+the stars — which are a control, not a read-out; see
+[rating a book](rating-a-book.md).
+
+Every card spends the same number of lines on that metadata — two for the
+title, one each for author and series, reserved whether the book has them or
+not — and pins the stars to the bottom. Cards are therefore the same height
+regardless of whether a book is in a series, which is what lets the stars line
+up across a row and be aimed at.
 
 ### List view
 
 A table that scrolls horizontally below its minimum width rather than squeezing
-columns: a thumbnail, title, author, series, rating, formats, date added, and a
-trailing actions column. The header row is sticky within the scroll region.
+columns: a thumbnail, title, author, series, your rating, formats, date added,
+and a trailing actions column. The header row is sticky within the scroll region.
 Columns are fixed for now — the columns picker is a later feature.
 
 ### Hover
@@ -75,6 +82,8 @@ Pointing at a book is how it offers to do something, in both views:
 - **A row** takes a raised fill, and the same download button fades into the
   actions column — which keeps its width whether or not anything is showing in
   it, so rows never shift sideways as the pointer moves down the table.
+- **The stars**, in either view, come up from hollow and follow the pointer, so
+  a book can be rated without leaving the shelf ([rating a book](rating-a-book.md)).
 
 Two rules hold this together. **Nothing appears on hover that a keyboard can't
 reach**: the download button is a real link in the tab order, and shows itself
@@ -142,9 +151,11 @@ is not a preference in Grimoire's database.
       Calibre, and is absent for a book with no formats.
 - [x] Every new component has a Storybook story, in both themes.
 - [x] The book model carries what the views show — title, authors, series,
-      rating, tags, formats, dates — parsed from Calibre at the boundary by a
+      tags, formats, dates — parsed from Calibre at the boundary by a
       shared Zod schema
       ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
+      Ratings are deliberately not among them: they are per-reader and come
+      from Grimoire's own store ([rating a book](rating-a-book.md)).
 
 ## Open questions
 

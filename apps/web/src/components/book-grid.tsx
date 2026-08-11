@@ -2,7 +2,7 @@ import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LibraryBook } from "@/lib/api";
+import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookGridProps {
@@ -12,11 +12,15 @@ export interface BookGridProps {
    * detail panel yet, and a hover affordance that leads nowhere is a lie.
    */
   onOpen?: (book: LibraryBook) => void;
+  /** The reader's own ratings, which stand in front of Calibre's. */
+  ratings?: Ratings;
+  /** Set a rating. Without it the stars stay a read-out. */
+  onRate?: (book: LibraryBook, rating: number) => void;
   className?: string;
 }
 
 /** The shelf: covers first, metadata under them, reflowing to any width. */
-export function BookGrid({ books, onOpen, className }: BookGridProps) {
+export function BookGrid({ books, onOpen, ratings, onRate, className }: BookGridProps) {
   return (
     <ul className={cn(GRID, className)}>
       {books.map((book) => {
@@ -31,7 +35,8 @@ export function BookGrid({ books, onOpen, className }: BookGridProps) {
         return (
           // The lift belongs to the whole card, so the download button rides
           // along with the cover instead of sliding under the pointer.
-          <li key={book.id} className="group/book min-w-0">
+          // A column, so the stars can be pinned to the bottom of every card.
+          <li key={book.id} className="group/book flex min-w-0 flex-col">
             <div className="ease-spring relative transition-transform duration-300 motion-safe:group-hover/book:-translate-y-1">
               {onOpen ? (
                 <button
@@ -53,21 +58,33 @@ export function BookGrid({ books, onOpen, className }: BookGridProps) {
               />
             </div>
 
-            <p className="text-foreground/85 group-hover/book:text-foreground mt-2 line-clamp-2 text-[13px] leading-snug font-medium transition-colors">
+            {/* Every card spends the same number of lines on metadata — two for
+                the title, one each for author and series — so the stars land on
+                one line right across the shelf whether or not a book is in a
+                series. `lh` is "one line box of this text", so the reservation
+                follows the type rather than a magic pixel height. */}
+            <p className="text-foreground/85 group-hover/book:text-foreground mt-2 line-clamp-2 min-h-[2lh] text-[13px] leading-snug font-medium transition-colors">
               {book.title}
             </p>
-            {book.authors.length > 0 && (
-              <p className="text-muted-foreground truncate text-[11px]">
-                {book.authors.join(", ")}
-              </p>
-            )}
-            {book.series && (
-              <p className="text-muted-foreground/70 truncate text-[11px]">
-                {book.series}
-                {book.seriesIndex !== null && ` #${book.seriesIndex}`}
-              </p>
-            )}
-            <StarRating value={book.rating} className="mt-1" />
+            <p className="text-muted-foreground min-h-[1lh] truncate text-[11px]">
+              {book.authors.join(", ")}
+            </p>
+            <p className="text-muted-foreground/70 min-h-[1lh] truncate text-[11px]">
+              {book.series && (
+                <>
+                  {book.series}
+                  {book.seriesIndex !== null && ` #${book.seriesIndex}`}
+                </>
+              )}
+            </p>
+            {/* Pinned to the bottom, so a title that wraps to two lines doesn't
+                push its card's stars out of line with the rest of the row. */}
+            <StarRating
+              value={bookRating(book, ratings)}
+              onRate={onRate && ((rating) => onRate(book, rating))}
+              label={book.title}
+              className="mt-auto pt-1"
+            />
           </li>
         );
       })}

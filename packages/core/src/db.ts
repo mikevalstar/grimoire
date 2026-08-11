@@ -34,6 +34,9 @@ export function openDatabase(path: string = defaultDatabasePath()): Database {
   }
   const db = new Database(path, { create: true });
   db.run("PRAGMA journal_mode = WAL");
+  // Off by default in SQLite, and the ratings table's ON DELETE CASCADE is
+  // inert without it — removing a reader has to take their ratings with them.
+  db.run("PRAGMA foreign_keys = ON");
   migrate(db);
   return db;
 }
@@ -60,6 +63,20 @@ function migrate(db: Database): void {
       name       TEXT NOT NULL COLLATE NOCASE UNIQUE,
       color      TEXT NOT NULL,
       created_at TEXT NOT NULL
+    )
+  `);
+
+  // A reader's own stars, keyed by Calibre book id (ADR 0006 — Grimoire-only
+  // data, never written back to Calibre). Unrated is the absence of a row, not
+  // a zero, so "cleared" and "never rated" stay the same thing.
+  // See docs/features/rating-a-book.md.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ratings (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      book_id    INTEGER NOT NULL,
+      rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, book_id)
     )
   `);
 }

@@ -2,7 +2,7 @@ import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
-import { ApiError, type LibraryBook } from "@/lib/api";
+import { ApiError, type LibraryBook, type Ratings } from "@/lib/api";
 import { useViewMode } from "@/lib/view-mode";
 
 export interface BookLibraryProps {
@@ -11,6 +11,10 @@ export interface BookLibraryProps {
   isPending?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  /** The current reader's ratings, shown in front of Calibre's. */
+  ratings?: Ratings;
+  /** Set a rating. Without it the stars stay a read-out. */
+  onRate?: (book: LibraryBook, rating: number) => void;
 }
 
 /**
@@ -18,7 +22,14 @@ export interface BookLibraryProps {
  * chosen. Owns the scroll region so the table's header can stick to the top of
  * it. See docs/features/book-list.md.
  */
-export function BookLibrary({ books, isPending, error, onRetry }: BookLibraryProps) {
+export function BookLibrary({
+  books,
+  isPending,
+  error,
+  onRetry,
+  ratings,
+  onRate,
+}: BookLibraryProps) {
   const [view, setView] = useViewMode();
 
   return (
@@ -41,9 +52,9 @@ export function BookLibrary({ books, isPending, error, onRetry }: BookLibraryPro
         ) : books.length === 0 ? (
           <LibraryEmpty />
         ) : view === "covers" ? (
-          <BookGrid books={books} />
+          <BookGrid books={books} ratings={ratings} onRate={onRate} />
         ) : (
-          <BookTable books={books} />
+          <BookTable books={books} ratings={ratings} onRate={onRate} />
         )}
       </div>
     </div>

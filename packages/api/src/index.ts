@@ -5,12 +5,15 @@ import {
   openDatabase,
   PREF_KEYS,
   PreferencesUpdateSchema,
+  RatingsStore,
+  RatingUpdateSchema,
   SettingsStore,
+  USER_HEADER,
   UserCreateSchema,
   UsersStore,
 } from "@grimoire/core";
 import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 
@@ -106,9 +109,32 @@ export function createApi(options: ApiOptions = {}) {
   let db: ReturnType<typeof openDatabase> | null = null;
   let settings: SettingsStore | null = null;
   let users: UsersStore | null = null;
+  let ratings: RatingsStore | null = null;
   const getDb = () => (db ??= openDatabase(options.databasePath));
   const getSettings = (): SettingsStore => (settings ??= new SettingsStore(getDb()));
   const getUsers = (): UsersStore => (users ??= new UsersStore(getDb()));
+  const getRatings = (): RatingsStore => (ratings ??= new RatingsStore(getDb()));
+
+  /**
+   * The reader a user-scoped request is acting as (ADR 0008). No header, a
+   * header that isn't a number, or one naming a reader who doesn't exist are
+   * all refusals — never a silent fall back to the first reader, which would
+   * quietly file one person's data under another's.
+   */
+  const requireUser = (c: Context): number => {
+    const header = c.req.header(USER_HEADER);
+    if (!header) {
+      throw new HTTPException(400, {
+        message: `This request has to say who it's for — send the ${USER_HEADER} header.`,
+      });
+    }
+
+    const id = Number(header);
+    if (!Number.isInteger(id) || id <= 0 || !getUsers().get(id)) {
+      throw new HTTPException(400, { message: `No reader with id "${header}".` });
+    }
+    return id;
+  };
 
   app.onError((err, c) => {
     // Hono raises these for client-side faults it catches before us — a body
@@ -143,6 +169,24 @@ export function createApi(options: ApiOptions = {}) {
       if (err instanceof DuplicateUserError) return c.json({ error: err.message }, 409);
       throw err;
     }
+  });
+
+  // The current reader's own stars, kept here rather than pushed back to
+  // Calibre (docs/features/rating-a-book.md). User-scoped, so both routes
+  // insist on the header.
+  app.get("/api/ratings", (c) => c.json(getRatings().forUser(requireUser(c))));
+
+  app.put("/api/ratings/:bookId", zValidator("json", RatingUpdateSchema, invalid), (c) => {
+    const userId = requireUser(c);
+    const bookId = Number(c.req.param("bookId"));
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+      return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+    }
+
+    // Calibre ids aren't checked against the content server: it may be down,
+    // and a rating for a book that has gone away is a stale row, not an error.
+    const rating = getRatings().set(userId, bookId, c.req.valid("json").rating);
+    return c.json({ bookId, rating });
   });
 
   // Probe a candidate content server (from the setup wizard's Test button)

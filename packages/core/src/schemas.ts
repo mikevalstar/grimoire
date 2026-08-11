@@ -56,6 +56,33 @@ export const UserCreateSchema = z.object({
 });
 export type UserCreate = z.infer<typeof UserCreateSchema>;
 
+// --- Ratings ---------------------------------------------------------------
+// A reader's own stars, kept in grimoire.db and never written back to Calibre.
+// See docs/features/rating-a-book.md.
+
+/** Whole stars, 1–5. Zero is not a rating — it's the absence of one. */
+export const RatingSchema = z.number().int().min(1).max(5);
+
+/**
+ * GET /api/ratings — book id to rating, for the reader in X-Grimoire-User.
+ * Keys are stringified ids because that's what JSON objects can hold.
+ */
+export const RatingsSchema = z.record(z.string(), RatingSchema);
+export type Ratings = z.infer<typeof RatingsSchema>;
+
+/** Body of PUT /api/ratings/:bookId. Zero clears the rating. */
+export const RatingUpdateSchema = z.object({
+  rating: z.number().int().min(0).max(5),
+});
+export type RatingUpdate = z.infer<typeof RatingUpdateSchema>;
+
+/** What that PUT answers with: the stored rating, or null once cleared. */
+export const RatingResultSchema = z.object({
+  bookId: z.number(),
+  rating: RatingSchema.nullable(),
+});
+export type RatingResult = z.infer<typeof RatingResultSchema>;
+
 export const ApiErrorSchema = z.object({
   error: z.string(),
   hint: z.string().optional(),
@@ -80,8 +107,10 @@ export const CsBookSchema = z.object({
   authors: z.array(z.string()).nullish(),
   series: z.string().nullish(),
   series_index: z.number().nullish(),
-  /** Calibre's ajax layer reports stars out of 5 here, unlike metadata.db. */
-  rating: z.number().nullish(),
+  // Calibre reports a `rating` here (out of 5, unlike metadata.db). It is not
+  // modelled: ratings in Grimoire are per-reader and ours alone, so reading
+  // Calibre's would only invite it back in as a fallback. Schemas are
+  // non-strict, so it passes through harmlessly.
   tags: z.array(z.string()).nullish(),
   formats: z.array(z.string()).nullish(),
   pubdate: z.string().nullish(),
