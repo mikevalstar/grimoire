@@ -13,4 +13,5 @@ Add one with `okq new feature "<title>"`.
 |-------|------|
 | Application shell | [application-shell.md](application-shell.md) |
 | First-run setup wizard | [first-run-setup-wizard.md](first-run-setup-wizard.md) |
+| Settings | [settings.md](settings.md) |
 <!-- okq:index:end -->

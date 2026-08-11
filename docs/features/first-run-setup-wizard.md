@@ -16,11 +16,10 @@ wizard: a welcome, the Calibre content server connection, and the readers who
 share this library. When it finishes, preferences are saved, the readers exist
 as rows in `grimoire.db`, and the app is usable.
 
-This is **not** the settings page. The wizard runs once (and again after a
-[preferences version bump](#re-running-the-wizard)), asks only for what is
-needed to start, and is written to welcome someone who has just installed the
-app. Settings — a surface that does not exist yet — is where the same values get
-changed later, and where readers are edited or removed.
+This is **not** the [settings dialog](settings.md). The wizard runs once (and
+again after a [preferences version bump](#re-running-the-wizard)), asks only for
+what is needed to start, and is written to welcome someone who has just
+installed the app. Settings is where the same values get changed later.
 
 ## Motivation
 
@@ -134,8 +133,8 @@ CREATE TABLE users (
 ```
 
 The API surface is `GET /api/users` and `POST /api/users`; a duplicate name
-answers `409`. Editing and deleting readers belong to the settings surface and
-are deliberately absent. Payload shapes are Zod schemas shared by API and client
+answers `409`. Adding a reader later happens in [Settings](settings.md);
+renaming and deleting are not built anywhere yet. Payload shapes are Zod schemas shared by API and client
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)); the
 stored `color` is a colour **id** (`"indigo"`), never a hex value, so the
 palette can be restyled without a migration.
@@ -162,10 +161,10 @@ palette can be restyled without a migration.
 
 ## Open questions
 
-- Readers can only be added, never renamed or removed, until a settings surface
-  exists. A typo currently survives until then.
-- Switching the current user has no UI yet — the header avatar shows them but
-  does not open a picker.
+- Readers can be added — here or in [Settings](settings.md) — but never renamed
+  or removed, so a typo made during setup survives.
+- Switching the current reader happens in [Settings](settings.md); the header
+  avatar shows them but is not itself a picker.
 - Colour uniqueness is not enforced; two readers may share a colour, and past 24
   readers they must.
 - Nothing asks whether this instance is shared over a LAN, which is where

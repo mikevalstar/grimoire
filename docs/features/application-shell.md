@@ -62,7 +62,7 @@ to right:
   palette; until that exists the button is inert;
 - a theme toggle — sun in dark mode, moon in light — flipping the two themes
   above;
-- settings, as an icon button;
+- settings, as an icon button, opening the [settings dialog](settings.md);
 - the current user, as an avatar chip.
 
 Below `sm` the wide search trigger collapses to a single search icon and
@@ -98,7 +98,8 @@ is no library to frame. It also names the reader the header avatar shows.
 - [x] The header and shell each have a Storybook story, and Storybook has a
       theme toolbar so components are reviewable in both.
 - [ ] The search trigger opens a command palette.
-- [ ] Settings opens a settings surface.
+- [x] Settings opens a settings surface — the [settings dialog](settings.md),
+      owned by the shell so every screen has it.
 - [x] The avatar reflects a real current user — their initials on the colour
       they picked during setup.
 

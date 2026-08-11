@@ -9,9 +9,9 @@ import {
   Sparkles,
   Users,
   X,
-  XCircle,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { CalibreTestResult } from "@/components/calibre-test-result";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -221,20 +221,7 @@ export function SetupWizard({
                   setTest(null);
                 }}
               />
-              {test && (
-                <p
-                  className={`flex items-start gap-2 text-sm ${
-                    test.ok ? "text-green-600 dark:text-green-500" : "text-destructive"
-                  }`}
-                >
-                  {test.ok ? (
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                  ) : (
-                    <XCircle className="mt-0.5 size-4 shrink-0" />
-                  )}
-                  {test.ok ? `Connected — ${test.bookCount} books found.` : test.error}
-                </p>
-              )}
+              {test && <CalibreTestResult test={test} />}
             </form>
           </>
         )}
