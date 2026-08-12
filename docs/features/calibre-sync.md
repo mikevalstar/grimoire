@@ -221,8 +221,13 @@ A button in the header, between the theme toggle and the gear, in three states:
   it with `calibre-server`…"). The state persists until the next successful
   sync, so a failure at 3am is still visible at 9am.
 
+The tooltip is the shadcn/Radix one, not the browser's `title`: the failure text
+runs to two paragraphs, which a native tooltip renders as a single unwrappable
+line and, on a button disabled mid-sync, does not render at all.
+
 Clicking it at any time starts a sync. Clicking during a sync does nothing
-rather than queueing a second one. The spin is `motion-safe` only; reduced-motion
+rather than queueing a second one — the button carries `aria-disabled` rather
+than `disabled`, so it still takes the hover that shows progress. The spin is `motion-safe` only; reduced-motion
 users get a pulse in opacity instead of rotation, so "something is happening" is
 never carried by movement alone. On a phone the indicator stays visible — unlike
 the gear, which hides below `sm` — because it is also the error surface.

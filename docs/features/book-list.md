@@ -60,9 +60,10 @@ title, then the author, then the series line when there is one. Under that,
 the stars — which are a control, not a read-out; see
 [rating a book](rating-a-book.md).
 
-Every card spends the same number of lines on that metadata — two for the
-title, one each for author and series, reserved whether the book has them or
-not — and pins the stars to the bottom. Cards are therefore the same height
+Every card spends the same number of lines on that metadata — one each for
+title, author and series, reserved whether the book has them or not — and pins
+the stars to the bottom. A title too long for its line truncates with an
+ellipsis, as the author and series lines already do. Cards are therefore the same height
 regardless of whether a book is in a series, which is what lets the stars line
 up across a row and be aimed at.
 
@@ -77,9 +78,11 @@ Columns are fixed for now — the columns picker is a later feature.
 
 Pointing at a book is how it offers to do something, in both views:
 
-- **A card** lifts on the shell's spring curve, its cover's shadow deepens and
-  gains a `--you-*` ring, and its title comes up to full contrast. A download
-  button fades in over the bottom of the cover.
+- **A card** lifts on the shell's spring curve, its cover's shadow deepens into
+  a second, indigo one — `--you-glow` under the card, the same pairing Latitude
+  gives a focused cover, because a deeper grey shadow alone barely registers on
+  a dark canvas — and the `--you-*` ring comes up with it. Its title goes to
+  full contrast, and a download button fades in over the bottom of the cover.
 - **A row** takes a raised fill, and the same download button fades into the
   actions column — which keeps its width whether or not anything is showing in
   it, so rows never shift sideways as the pointer moves down the table.
@@ -87,8 +90,10 @@ Pointing at a book is how it offers to do something, in both views:
   a book can be rated without leaving the shelf ([rating a book](rating-a-book.md)).
 
 Two rules hold this together. **Nothing appears on hover that a keyboard can't
-reach**: the download button is a real link in the tab order, and shows itself
-on focus exactly as it does on hover, so the affordance is not pointer-only.
+reach**: the download button is a real link — or, where it opens the format
+menu, a real button with the menu's own arrow-key navigation — in the tab order,
+and shows itself on focus exactly as it does on hover, so the affordance is not
+pointer-only.
 And **hover never moves anything a click is aimed at** — the button occupies its
 space from the start and only fades, the lift is the card's own, and reduced-
 motion users get the state change without the movement.
@@ -104,11 +109,19 @@ itself. This is the one thing on the shelf still fetched live, and it takes a
 button, and a badge saying why ([Calibre sync](calibre-sync.md)). Grimoire kept
 the record; the file was always Calibre's.
 
-A book usually has more than one format. Rather than open a menu on a hover
-affordance, the button picks one — EPUB, then AZW3, MOBI, PDF, then whatever is
-first — and says which in its tooltip and its accessible name. Books with no
-format at all show no button. Choosing a different format is the detail panel's
-job, not the shelf's.
+A book often has more than one format, and the button answers to how many:
+
+- **One format** — the button *is* the download, a plain link, no menu in the
+  way. This is most of a real library.
+- **Several** — it opens a menu of them, most portable first (EPUB, AZW3, MOBI,
+  PDF, then anything else alphabetically), and each entry is itself a link, so
+  the browser's own save-as, middle-click and right-click all still work.
+- **None** — no button at all.
+
+Guessing silently was the earlier design, and it is the wrong guess for a reader
+who came for the PDF. The cost is a click, and only on the books that actually
+have a choice. The menu keeps the button visible while it is open — the pointer
+has to leave the card to reach it, and the anchor cannot fade out underneath it.
 
 ### Covers
 
@@ -155,6 +168,8 @@ is not a preference in Grimoire's database.
 - [x] The lift and fade are `motion-safe` only.
 - [x] The download button fetches a real file through the proxy, named by
       Calibre, and is absent for a book with no formats.
+- [x] A book with several formats offers all of them in a menu, in portability
+      order, in both views; a book with one downloads it directly.
 - [x] Every new component has a Storybook story, in both themes.
 - [x] The book model carries what the views show — title, authors, series,
       tags, formats, dates — served from `books` and validated by a

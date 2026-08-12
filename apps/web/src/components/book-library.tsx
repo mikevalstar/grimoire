@@ -40,7 +40,13 @@ export function BookLibrary({
         onViewChange={setView}
       />
 
-      <div className="min-h-0 flex-1 overflow-auto pt-4">
+      {/* A hovered card spills outside its own box — a 2px ring and the indigo
+          glow — and the scroll box clips anything past its edge, which shaved
+          the outermost column. So the region takes the shell's horizontal
+          padding itself and gives it back with a matching negative margin:
+          books sit exactly where they did, but now with room inside the
+          scroller for the hover to bleed into. */}
+      <div className="-mx-3 min-h-0 flex-1 overflow-auto px-3 pt-4 sm:-mx-5 sm:px-5">
         {error ? (
           <LibraryError error={error} onRetry={onRetry} />
         ) : isPending || !books ? (

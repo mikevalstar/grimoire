@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
 import { UserColorPicker } from "@/components/user-color-picker";
 import {
@@ -236,19 +243,26 @@ function SyncSettings() {
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid flex-1 gap-2">
           <Label htmlFor="sync-interval">Sync automatically</Label>
-          <select
-            id="sync-interval"
-            value={status.intervalMinutes}
-            onChange={(e) => saveInterval.mutate(Number(e.target.value))}
+          {/* Radix speaks strings; the interval is stored and saved as minutes. */}
+          <Select
+            value={String(status.intervalMinutes)}
+            onValueChange={(value) => saveInterval.mutate(Number(value))}
             disabled={saveInterval.isPending}
-            className="border-line bg-fill focus-visible:ring-ring/50 h-9 rounded-lg border px-2.5 text-[13px] focus-visible:ring-[3px] focus-visible:outline-none"
           >
-            {SYNC_INTERVAL_CHOICES.map((minutes) => (
-              <option key={minutes} value={minutes}>
-                {intervalLabel(minutes)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="sync-interval" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            {/* Popper rather than the item-aligned default: this lives in a
+                dialog that scrolls, where laying the list over the trigger
+                puts it in the wrong place. */}
+            <SelectContent position="popper">
+              {SYNC_INTERVAL_CHOICES.map((minutes) => (
+                <SelectItem key={minutes} value={String(minutes)}>
+                  {intervalLabel(minutes)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Button

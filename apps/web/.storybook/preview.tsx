@@ -1,6 +1,7 @@
 import type { Preview } from "@storybook/tanstack-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { TooltipProvider } from "../src/components/ui/tooltip";
 // The app's Tailwind entry, so components render with the real theme tokens.
 import "../src/index.css";
 
@@ -52,6 +53,13 @@ const preview: Preview = {
         </QueryClientProvider>
       );
     },
+    // Tooltips need a provider the same way the app does. No delay here, so a
+    // hover in a story shows the box straight away.
+    (Story) => (
+      <TooltipProvider delayDuration={0}>
+        <Story />
+      </TooltipProvider>
+    ),
   ],
 };
 

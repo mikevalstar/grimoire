@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SyncStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -75,33 +76,42 @@ export function SyncIndicator({ status, onSync, className }: SyncIndicatorProps)
   const tooltip = syncTooltip(status);
 
   return (
-    <button
-      type="button"
-      onClick={onSync}
-      // Clicking during a sync would only join the run already in flight, so the
-      // control goes quiet rather than pretending a second one starts.
-      disabled={running}
-      title={tooltip}
-      aria-label={tooltip}
-      aria-live="polite"
-      className={cn(
-        "flex size-8 items-center justify-center rounded-lg border transition-colors",
-        failed
-          ? "border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive/70"
-          : "border-line bg-fill text-muted-foreground hover:border-line-strong hover:text-foreground",
-        running && "cursor-default",
-        className,
-      )}
-    >
-      <RefreshCw
-        size={14}
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        // Clicking during a sync would only join the run already in flight, so
+        // the control goes quiet rather than pretending a second one starts.
+        // `aria-disabled` rather than `disabled`, because a disabled button
+        // takes no pointer events — and mid-sync is exactly when the tooltip's
+        // progress is worth reading.
+        onClick={running ? undefined : onSync}
+        aria-disabled={running}
+        aria-label={tooltip}
+        aria-live="polite"
         className={cn(
-          // Rotation is motion-safe only; reduced-motion users get the pulse
-          // instead, so "something is happening" is never carried by movement
-          // alone.
-          running && "motion-safe:animate-spin motion-reduce:animate-pulse",
+          "flex size-8 items-center justify-center rounded-lg border transition-colors",
+          failed
+            ? "border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive/70"
+            : "border-line bg-fill text-muted-foreground hover:border-line-strong hover:text-foreground",
+          running && "cursor-default",
+          className,
         )}
-      />
-    </button>
+      >
+        <RefreshCw
+          size={14}
+          className={cn(
+            // Rotation is motion-safe only; reduced-motion users get the pulse
+            // instead, so "something is happening" is never carried by movement
+            // alone.
+            running && "motion-safe:animate-spin motion-reduce:animate-pulse",
+          )}
+        />
+      </TooltipTrigger>
+      {/* The failure text is two paragraphs — error, then hint — so the blank
+          line in it has to survive, and the box needs room to wrap. */}
+      <TooltipContent side="bottom" sideOffset={6} className="max-w-72 whitespace-pre-line">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }

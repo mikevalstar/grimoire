@@ -191,6 +191,14 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "tnum";
   }
+  /* Tailwind 4's reset drops the pointer cursor browsers used to give buttons.
+     Put it back once here rather than hanging `cursor-pointer` off every
+     control. Anything disabled keeps the arrow, and a `cursor-*` utility on the
+     element still wins, since utilities are layered after base. */
+  button:not(:disabled, [aria-disabled="true"]),
+  [role="button"]:not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+  }
   /* thin, unobtrusive scrollbars — the canvas should be the loudest thing */
   * {
     scrollbar-width: thin;

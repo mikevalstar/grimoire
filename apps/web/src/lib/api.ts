@@ -219,15 +219,20 @@ export function isInLibrary(book: Pick<LibraryBook, "calibreId">): boolean {
   return book.calibreId !== null;
 }
 
-/** Most portable first — what to hand over when the reader didn't pick a format. */
+/** Most portable first — the order a book's formats are offered in. */
 const FORMAT_PREFERENCE = ["EPUB", "AZW3", "MOBI", "PDF"];
 
-/** The one format to offer on a shelf. Null when Calibre has no file for the book. */
-export function preferredFormat(formats: string[]): string | null {
-  for (const candidate of FORMAT_PREFERENCE) {
-    if (formats.includes(candidate)) return candidate;
-  }
-  return formats[0] ?? null;
+/**
+ * The book's formats, most portable first, with anything unranked after them in
+ * alphabetical order — the order the download picker lists them in, and, for a
+ * book with a single format, the one thing it hands over.
+ */
+export function orderedFormats(formats: string[]): string[] {
+  const rank = (format: string) => {
+    const index = FORMAT_PREFERENCE.indexOf(format.toUpperCase());
+    return index === -1 ? FORMAT_PREFERENCE.length : index;
+  };
+  return [...formats].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
 /**
