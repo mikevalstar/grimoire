@@ -7,7 +7,7 @@
 // client, and Calibre's extras don't break us.
 
 import { z } from "zod";
-import { isUserColorId, USER_NAME_MAX_LENGTH } from "./types.ts";
+import { isUserColorId, SYNC_INTERVAL_CHOICES, USER_NAME_MAX_LENGTH } from "./types.ts";
 
 /** Every preference is stored as text; callers coerce as needed. */
 export const PreferencesSchema = z.record(z.string(), z.string());
@@ -88,6 +88,93 @@ export const ApiErrorSchema = z.object({
   hint: z.string().optional(),
 });
 
+// --- Books -----------------------------------------------------------------
+// Grimoire's own book record, served from grimoire.db rather than fetched from
+// Calibre per page load (ADR 0011). This is the shape every library screen
+// renders; ratings are deliberately not on it, being per-reader.
+
+export const BookSchema = z.object({
+  /** Grimoire's id — what every Grimoire-owned row points at, and what names a cover file. */
+  id: z.number(),
+  /** Where the record was ingested from: "calibre" today. */
+  source: z.string(),
+  /**
+   * Calibre's book id, or null once the book is no longer in the connected
+   * library. This is the *only* "is it still there?" test — and the only thing
+   * that can build a download URL, which is why a null means no download button.
+   */
+  calibreId: z.number().nullable(),
+  title: z.string(),
+  authors: z.array(z.string()),
+  series: z.string().nullable(),
+  seriesIndex: z.number().nullable(),
+  tags: z.array(z.string()),
+  /** Uppercased, e.g. ["EPUB", "PDF"]. */
+  formats: z.array(z.string()),
+  publisher: z.string().nullable(),
+  languages: z.array(z.string()),
+  /** e.g. { isbn: "…", google: "…" }. */
+  identifiers: z.record(z.string(), z.string()),
+  description: z.string().nullable(),
+  pages: z.number().nullable(),
+  /** Publication date — ISO 8601, or null. */
+  published: z.string().nullable(),
+  /** When Calibre took the book in — ISO 8601. */
+  added: z.string(),
+  /** Whether a cached cover exists: "cached" is the only one worth requesting. */
+  coverState: z.enum(["none", "cached", "missing"]),
+});
+export type Book = z.infer<typeof BookSchema>;
+
+export const BooksSchema = z.array(BookSchema);
+
+// --- Sync ------------------------------------------------------------------
+// docs/features/calibre-sync.md
+
+/** Which phase a running sync is in; `idle` when nothing is running. */
+export const SyncPhaseSchema = z.enum(["idle", "mirror", "reconcile", "covers"]);
+export type SyncPhase = z.infer<typeof SyncPhaseSchema>;
+
+export const SyncProgressSchema = z.object({
+  phase: SyncPhaseSchema,
+  done: z.number(),
+  /** Null while a phase doesn't yet know its own size. */
+  total: z.number().nullable(),
+});
+export type SyncProgress = z.infer<typeof SyncProgressSchema>;
+
+export const SyncStatusSchema = z.object({
+  running: z.boolean(),
+  /** Present only while running. */
+  progress: SyncProgressSchema.nullable(),
+  lastCompletedAt: z.string().nullable(),
+  lastAttemptedAt: z.string().nullable(),
+  lastStatus: z.enum(["ok", "error"]).nullable(),
+  /** The failure message, cleared by the next success. Drives the red indicator. */
+  lastError: z.string().nullable(),
+  /** Hint for a failure the proxy can explain, e.g. a content server that isn't running. */
+  lastErrorHint: z.string().nullable(),
+  /** Rows in `books` — everything Grimoire knows about, including books that have left Calibre. */
+  bookCount: z.number(),
+  /** Of those, how many are still in the connected library. */
+  inLibraryCount: z.number(),
+  intervalMinutes: z.number(),
+  /** False until a Calibre server URL is configured; the scheduler stays idle. */
+  configured: z.boolean(),
+});
+export type SyncStatus = z.infer<typeof SyncStatusSchema>;
+
+/** Body of PUT /api/sync/settings. */
+export const SyncSettingsUpdateSchema = z.object({
+  intervalMinutes: z
+    .number()
+    .refine(
+      (m) => (SYNC_INTERVAL_CHOICES as readonly number[]).includes(m),
+      `Pick one of ${SYNC_INTERVAL_CHOICES.join(", ")} minutes`,
+    ),
+});
+export type SyncSettingsUpdate = z.infer<typeof SyncSettingsUpdateSchema>;
+
 // --- Calibre content server ------------------------------------------------
 // Responses from /api/cs/*. These belong to Calibre, not us: parsing them at
 // the boundary is where a Calibre upgrade should break, loudly (ADR 0005).
@@ -98,13 +185,28 @@ export const CsSearchSchema = z.object({
   total_num: z.number(),
   num: z.number(),
   offset: z.number(),
+  /**
+   * Which library answered — a slug of its *folder name*, so two unrelated
+   * libraries both in a "Calibre Library" folder report the same string. Stored
+   * as a diagnostic label; never as identity (ADR 0011).
+   */
+  library_id: z.string().nullish(),
 });
 export type CsSearch = z.infer<typeof CsSearchSchema>;
 
 /** One entry of GET /api/cs/ajax/books?ids=… */
 export const CsBookSchema = z.object({
+  /**
+   * Calibre's per-book uuid, and the identity the sync matches on — book *ids*
+   * are sequential and scoped to one library, so id 42 names a different book
+   * in every library (ADR 0011). Required: a book without one cannot be
+   * mirrored safely, and every book in a stock library has one.
+   */
+  uuid: z.string(),
   title: z.string(),
+  title_sort: z.string().nullish(),
   authors: z.array(z.string()).nullish(),
+  author_sort: z.string().nullish(),
   series: z.string().nullish(),
   series_index: z.number().nullish(),
   // Calibre reports a `rating` here (out of 5, unlike metadata.db). It is not
@@ -113,8 +215,16 @@ export const CsBookSchema = z.object({
   // non-strict, so it passes through harmlessly.
   tags: z.array(z.string()).nullish(),
   formats: z.array(z.string()).nullish(),
+  publisher: z.string().nullish(),
+  languages: z.array(z.string()).nullish(),
+  identifiers: z.record(z.string(), z.string()).nullish(),
+  comments: z.string().nullish(),
+  pages: z.number().nullish(),
+  /** Calibre sends the literal string "None" for an unset date, not null. */
   pubdate: z.string().nullish(),
   timestamp: z.string().nullish(),
+  /** Calibre's own mtime. Drives change detection and cover invalidation. */
+  last_modified: z.string().nullish(),
   cover: z.string().nullish(),
   thumbnail: z.string().nullish(),
 });

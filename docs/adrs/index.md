@@ -21,4 +21,5 @@ Add one with `okq new adr "<title>"`.
 | Multiple users without authentication | [0008-multiple-users-without-authentication.md](0008-multiple-users-without-authentication.md) |
 | Zod schemas shared between API and client | [0009-zod-schemas-shared-between-api-and-client.md](0009-zod-schemas-shared-between-api-and-client.md) |
 | Biome for linting and formatting | [0010-biome-for-linting-and-formatting.md](0010-biome-for-linting-and-formatting.md) |
+| Sync Calibre into grimoire.db and read the library from there | [0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md](0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md) |
 <!-- okq:index:end -->

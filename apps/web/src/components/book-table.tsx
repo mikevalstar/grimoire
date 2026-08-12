@@ -1,8 +1,9 @@
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
+import { BookMissingBadge } from "@/components/book-missing-badge";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
+import { bookRating, isInLibrary, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookTableProps {
@@ -59,8 +60,11 @@ export function BookTable({ books, onOpen, ratings, onRate, className }: BookTab
             <td className="py-1.5 pr-3 pl-3">
               <BookCover book={book} width={28} className="w-7 rounded-[3px]" />
             </td>
-            <td className="text-foreground max-w-[420px] truncate px-3 py-1.5 font-medium">
-              {book.title}
+            <td className="text-foreground max-w-[420px] px-3 py-1.5 font-medium">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate">{book.title}</span>
+                {!isInLibrary(book) && <BookMissingBadge className="shrink-0" />}
+              </span>
             </td>
             <td className="text-muted-foreground max-w-[220px] truncate px-3 py-1.5">
               {book.authors.length > 0 ? book.authors.join(", ") : "—"}

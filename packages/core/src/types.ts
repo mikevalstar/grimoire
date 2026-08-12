@@ -14,7 +14,66 @@ export const PREFERENCES_VERSION = 2;
 export const PREF_KEYS = {
   version: "preferences.version",
   calibreServerUrl: "calibre.serverUrl",
+
+  // Calibre sync (ADR 0011). Live progress is deliberately absent — it changes
+  // several times a second and is worthless after a restart, so it stays as
+  // in-process state on the scheduler.
+  syncLastCompletedAt: "sync.lastCompletedAt",
+  syncLastAttemptedAt: "sync.lastAttemptedAt",
+  syncLastStatus: "sync.lastStatus",
+  syncLastError: "sync.lastError",
+  /** The actionable half of a failure — e.g. "start it with `calibre-server`". */
+  syncLastErrorHint: "sync.lastErrorHint",
+  /** Newest Calibre `last_modified` ingested; where an incremental sweep stops. */
+  syncWatermark: "sync.watermark",
+  syncIntervalMinutes: "sync.intervalMinutes",
 } as const;
+
+/** What a book record was ingested from. `books.source` holds one of these. */
+export const BOOK_SOURCE = {
+  calibre: "calibre",
+  /** Entered in Grimoire itself. Nothing creates these yet. */
+  grimoire: "grimoire",
+} as const;
+
+/**
+ * Cover sizes cached on disk, keyed by *Grimoire* book id so a book keeps its
+ * cover after leaving Calibre. All 2:3, all fetched from Calibre's own scaler.
+ * Drawn sizes come from the book views, at 2× (docs/features/book-list.md).
+ */
+export const COVER_SIZES = {
+  /** The list view's row thumbnail, drawn at 28px. */
+  thumb: { width: 80, height: 120 },
+  /** The cover grid's card, drawn at ~180px. */
+  card: { width: 360, height: 540 },
+  /** The detail panel, which does not exist yet. */
+  full: { width: 720, height: 1080 },
+} as const;
+
+export type CoverSize = keyof typeof COVER_SIZES;
+
+export const COVER_SIZE_NAMES = Object.keys(COVER_SIZES) as CoverSize[];
+
+export function isCoverSize(value: string): value is CoverSize {
+  return value in COVER_SIZES;
+}
+
+/** Minutes between automatic syncs. 0 means never; the UI offers exactly these. */
+export const SYNC_INTERVAL_CHOICES = [0, 1, 5, 15, 30, 60] as const;
+
+export const DEFAULT_SYNC_INTERVAL_MINUTES = 5;
+
+/**
+ * The stored interval, falling back rather than refusing to sync. Anything
+ * unparseable or off the list is treated as "never configured".
+ */
+export function syncIntervalMinutes(stored: string | null | undefined): number {
+  const minutes = Number(stored);
+  if (!Number.isFinite(minutes)) return DEFAULT_SYNC_INTERVAL_MINUTES;
+  return (SYNC_INTERVAL_CHOICES as readonly number[]).includes(minutes)
+    ? minutes
+    : DEFAULT_SYNC_INTERVAL_MINUTES;
+}
 
 /** Longest reader name we accept; the UI caps the input at the same number. */
 export const USER_NAME_MAX_LENGTH = 40;

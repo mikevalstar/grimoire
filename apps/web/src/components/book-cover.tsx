@@ -1,27 +1,29 @@
 import { useState } from "react";
-import { bookCoverUrl, type LibraryBook } from "@/lib/api";
+import { bookCoverUrl, coverSizeFor, type LibraryBook } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookCoverProps {
   book: Pick<LibraryBook, "id" | "title" | "authors">;
   /**
-   * Roughly how wide the cover will be drawn, in CSS pixels. Calibre does the
-   * scaling, so this is what gets asked for (at 2× for sharp covers).
+   * Roughly how wide the cover will be drawn, in CSS pixels. Sync cached a
+   * fixed set of sizes, so this picks the nearest one rather than asking for
+   * arbitrary pixels.
    */
   width?: number;
-  /** Override the image URL. Defaults to this book's proxied thumbnail. */
+  /** Override the image URL. Defaults to this book's cached cover. */
   src?: string;
   className?: string;
 }
 
 /**
- * A book's cover at the standard 2:3 ratio, from the Calibre content server
- * through the /api/cs proxy. A book with no cover — or one whose image fails to
- * load — falls back to its title on a tinted panel, so a coverless library
- * still reads as a shelf. See docs/features/book-list.md.
+ * A book's cover at the standard 2:3 ratio, from Grimoire's own cover cache —
+ * so it draws with the content server stopped (ADR 0011). A book with no cover
+ * — or one whose image fails to load, or that sync hasn't reached yet — falls
+ * back to its title on a tinted panel, so a coverless library still reads as a
+ * shelf. See docs/features/book-list.md.
  */
 export function BookCover({ book, width = 180, src, className }: BookCoverProps) {
-  const url = src ?? bookCoverUrl(book.id, width * 2, Math.round(width * 3));
+  const url = src ?? bookCoverUrl(book.id, coverSizeFor(width));
 
   // Remember *which* image failed, not just that one did: a new book in the
   // same slot (the grid reuses DOM as the list changes) then gets a fresh

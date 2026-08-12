@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { SetupWizard } from "@/components/setup-wizard";
 import { needsSetup } from "@/lib/api";
 import { setCurrentUserId, useCurrentUser } from "@/lib/current-user";
-import { preferencesQuery, usersQuery } from "@/lib/queries";
+import { preferencesQuery, usersQuery, useStartSync, useSyncStatus } from "@/lib/queries";
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -24,6 +24,11 @@ function RootLayout() {
   const { data: preferences, error, isPending } = useQuery(preferencesQuery);
   const { data: users } = useQuery(usersQuery);
   const currentUser = useCurrentUser();
+
+  // Polled here rather than in the header, so one poll serves the indicator and
+  // the settings dialog, and so a finished sync invalidates the library once.
+  const { data: syncStatus } = useSyncStatus();
+  const startSync = useStartSync();
 
   if (isPending) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
@@ -47,7 +52,12 @@ function RootLayout() {
   }
 
   return (
-    <AppShell user={currentUser}>
+    <AppShell
+      user={currentUser}
+      syncStatus={syncStatus}
+      onSync={() => startSync.mutate()}
+      bookCount={syncStatus?.bookCount}
+    >
       <Outlet />
     </AppShell>
   );

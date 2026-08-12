@@ -1,25 +1,51 @@
 import {
   ApiErrorSchema,
+  type Book,
+  BooksSchema,
   type CalibreServerTest,
   CalibreServerTestSchema,
-  CsBooksSchema,
-  CsSearchSchema,
   type Preferences,
   PreferencesSchema,
   type RatingResult,
   RatingResultSchema,
   type Ratings,
   RatingsSchema,
+  type SyncStatus,
+  SyncStatusSchema,
   type User,
   type UserCreate,
   UserSchema,
   UsersSchema,
 } from "@grimoire/core/schemas";
-import { PREF_KEYS, PREFERENCES_VERSION, USER_HEADER } from "@grimoire/core/types";
+import {
+  COVER_SIZES,
+  type CoverSize,
+  DEFAULT_SYNC_INTERVAL_MINUTES,
+  PREF_KEYS,
+  PREFERENCES_VERSION,
+  SYNC_INTERVAL_CHOICES,
+  USER_HEADER,
+} from "@grimoire/core/types";
 import type { z } from "zod";
 
-export type { CalibreServerTest, Preferences, RatingResult, Ratings, User, UserCreate };
-export { PREF_KEYS, PREFERENCES_VERSION };
+export type {
+  Book,
+  CalibreServerTest,
+  CoverSize,
+  Preferences,
+  RatingResult,
+  Ratings,
+  SyncStatus,
+  User,
+  UserCreate,
+};
+export {
+  COVER_SIZES,
+  DEFAULT_SYNC_INTERVAL_MINUTES,
+  PREF_KEYS,
+  PREFERENCES_VERSION,
+  SYNC_INTERVAL_CHOICES,
+};
 
 /**
  * Where the API lives depends on how the UI is being served:
@@ -152,43 +178,45 @@ export function needsSetup(preferences: Preferences): boolean {
 }
 
 /**
- * A book as the library screens use it: Calibre's snake_case metadata narrowed
- * to the fields we render, with its nulls resolved once here rather than in
- * every view. See docs/features/book-list.md.
+ * A book as the library screens use it — Grimoire's own record, served from
+ * grimoire.db rather than assembled from Calibre per page load (ADR 0011). The
+ * shape is `BookSchema`; this alias is what the components spell.
+ *
+ * See docs/features/book-list.md and docs/features/calibre-sync.md.
  */
-export interface LibraryBook {
-  id: number;
-  title: string;
-  authors: string[];
-  series: string | null;
-  /** Position within `series`, null when the book is standalone. */
-  seriesIndex: number | null;
-  // No rating here on purpose: a book's stars are per-reader and come from
-  // /api/ratings, never from Calibre. See docs/features/rating-a-book.md.
-  tags: string[];
-  /** Uppercased, e.g. ["EPUB", "PDF"]. */
-  formats: string[];
-  /** When Calibre took the book in — ISO 8601, or null. */
-  added: string | null;
-  /** Publication date — ISO 8601, or null. */
-  published: string | null;
+export type LibraryBook = Book;
+
+/**
+ * A cached cover, by Grimoire book id. Sync fetched these at fixed sizes, so
+ * callers pick the nearest name rather than asking for arbitrary pixels —
+ * there is no scaler on this path any more, just a file.
+ */
+export function bookCoverUrl(id: number, size: CoverSize): string {
+  return `${API_BASE}/api/books/${id}/cover/${size}`;
+}
+
+/** The cached size to ask for when a cover will be drawn about `width` CSS px wide. */
+export function coverSizeFor(width: number): CoverSize {
+  if (width <= 60) return "thumb";
+  if (width <= 260) return "card";
+  return "full";
 }
 
 /**
- * A cover thumbnail, through the proxy so the browser never talks to Calibre
- * directly. Calibre does the scaling, so ask for roughly the size you'll draw.
+ * The book's file itself, through the proxy — the one thing still fetched from
+ * Calibre on demand. Calibre answers with the right MIME type and a
+ * Content-Disposition filename, so nothing here has to name the download.
+ *
+ * Takes a *Calibre* id, which is why it is null for a book that has left the
+ * library: there is no file to point at any more.
  */
-export function bookCoverUrl(id: number, width: number, height: number): string {
-  return `${API_BASE}/api/cs/get/thumb/${id}?sz=${width}x${height}`;
+export function bookDownloadUrl(calibreId: number, format: string): string {
+  return `${API_BASE}/api/cs/get/${format.toLowerCase()}/${calibreId}`;
 }
 
-/**
- * The book's file itself, also through the proxy. Calibre answers with the
- * right MIME type and a Content-Disposition filename, so nothing here has to
- * name the download.
- */
-export function bookDownloadUrl(id: number, format: string): string {
-  return `${API_BASE}/api/cs/get/${format.toLowerCase()}/${id}`;
+/** Whether the book is still in the connected Calibre library. */
+export function isInLibrary(book: Pick<LibraryBook, "calibreId">): boolean {
+  return book.calibreId !== null;
 }
 
 /** Most portable first — what to hand over when the reader didn't pick a format. */
@@ -203,28 +231,28 @@ export function preferredFormat(formats: string[]): string | null {
 }
 
 /**
- * The book list, from the Calibre content server through our proxy: one call
- * for the ids in sort order, a second for their metadata.
+ * The library, in one call, from Grimoire's own database — so it renders with
+ * the Calibre content server stopped, and sorting it is ours to decide rather
+ * than Calibre's (ADR 0011). The server sorts by title.
  */
-export async function fetchBooks(): Promise<LibraryBook[]> {
-  const search = await request("/api/cs/ajax/search?num=9999&sort=title", CsSearchSchema);
-  if (search.book_ids.length === 0) return [];
+export function fetchBooks(): Promise<LibraryBook[]> {
+  return request("/api/books", BooksSchema);
+}
 
-  const meta = await request(`/api/cs/ajax/books?ids=${search.book_ids.join(",")}`, CsBooksSchema);
+/** Where the sync is up to, and what went wrong last time if anything did. */
+export function fetchSyncStatus(): Promise<SyncStatus> {
+  return request("/api/sync", SyncStatusSchema);
+}
 
-  // Keep the content server's sort order; ids it didn't recognise come back null.
-  return search.book_ids.map((id) => {
-    const book = meta[String(id)];
-    return {
-      id,
-      title: book?.title ?? `(book ${id})`,
-      authors: book?.authors ?? [],
-      series: book?.series ?? null,
-      seriesIndex: book?.series_index ?? null,
-      tags: book?.tags ?? [],
-      formats: (book?.formats ?? []).map((format) => format.toUpperCase()),
-      added: book?.timestamp ?? null,
-      published: book?.pubdate ?? null,
-    };
+/** Kick off a full sync. Returns immediately; watch `fetchSyncStatus` for progress. */
+export function startSync(): Promise<SyncStatus> {
+  return request("/api/sync", SyncStatusSchema, { method: "POST" });
+}
+
+/** How often to sync automatically. 0 means never. */
+export function saveSyncInterval(intervalMinutes: number): Promise<SyncStatus> {
+  return request("/api/sync/settings", SyncStatusSchema, {
+    method: "PUT",
+    body: { intervalMinutes },
   });
 }

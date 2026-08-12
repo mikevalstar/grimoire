@@ -40,8 +40,18 @@ The Calibre content server URL, with the same server-side **Test** probe the
 wizard uses ([ADR 0005](../adrs/0005-calibre-content-server-as-the-data-source.md)),
 reporting the book count on success. **Save** writes the URL to preferences and
 closes; because the API resolves the proxy target per request, the new server is
-live immediately with no restart. Saving also drops the cached book list, so the
-library reloads from wherever it now points.
+live immediately with no restart. Saving also kicks a full
+[sync](calibre-sync.md), so the library repopulates from wherever it now points
+without waiting out an interval.
+
+### Library sync
+
+Below Library: when Grimoire last synced (absolute, with the relative form
+beside it), how many books it holds — and how many of those Calibre no longer
+lists, when the two differ — the last error in full if there was one, a **Sync
+now** button, and how often to sync automatically, defaulting to every five
+minutes. The interval applies immediately; like the reader controls, it does not
+wait behind Save.
 
 ### Readers
 
@@ -62,17 +72,19 @@ answer for what happens to that reader's data, and inventing one before there
 ### What saves when
 
 Deliberately mixed, and worth stating: **Save** commits the content server URL
-only. Choosing the current reader and adding a reader both apply the moment you
-do them — there is nothing to review and no half-typed state to protect, and
-making them wait behind Save would only invite closing the dialog and losing
-them.
+only. Choosing the current reader, adding a reader, changing the sync interval
+and pressing Sync now all apply the moment you do them — there is nothing to
+review and no half-typed state to protect, and making them wait behind Save
+would only invite closing the dialog and losing them.
 
 ## Acceptance criteria
 
 - [x] The header gear opens the dialog; Escape, the close button and an outside
       click all close it.
-- [x] The Calibre URL can be tested and saved, and the library reloads against
+- [x] The Calibre URL can be tested and saved, and the library re-syncs against
       the new server without a restart.
+- [x] Library sync shows the last sync, the book count, any error, a working
+      interval select and a Sync now button.
 - [x] Every reader is listed; picking one changes the header avatar immediately
       and survives a reload.
 - [x] A reader can be added, with a colour, and appears in the list at once.

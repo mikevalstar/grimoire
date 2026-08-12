@@ -61,19 +61,24 @@ export function BookLibrary({
   );
 }
 
-/** The content server answered, with nothing in it. */
+/**
+ * Nothing in `books` yet — either Calibre's library really is empty, or the
+ * first sync hasn't finished. Both are worth naming, since the second is the
+ * common one on a fresh install and resolves itself.
+ */
 function LibraryEmpty() {
   return (
     <div className="py-24 text-center">
-      <p className="text-foreground text-sm">This library has no books in it.</p>
+      <p className="text-foreground text-sm">No books here yet.</p>
       <p className="text-muted-foreground mt-1 text-[13px]">
-        Add them in Calibre — Grimoire reads whatever the content server is serving.
+        If you've just connected Calibre, the first sync is probably still running. Otherwise, add
+        books in Calibre — Grimoire syncs whatever the content server is serving.
       </p>
     </div>
   );
 }
 
-/** Usually the content server being down, which the proxy explains in its hint. */
+/** Grimoire's own database failing, now — a content server that's down is the sync's problem. */
 function LibraryError({ error, onRetry }: { error: Error; onRetry?: () => void }) {
   return (
     <div className="mx-auto max-w-lg py-24 text-center">

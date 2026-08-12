@@ -36,7 +36,10 @@ they meant.
 
 Per reader, in `grimoire.db`
 ([ADR 0006](../adrs/0006-grimoire-owned-sqlite-for-supplemental-data.md)), keyed
-by `(user_id, calibre book id)` and scoped by the `X-Grimoire-User` header
+by `(user_id, books.id)` — Grimoire's own book id, not Calibre's, so a rating
+cannot outlive its book as an orphan
+([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md))
+— and scoped by the `X-Grimoire-User` header
 ([ADR 0008](../adrs/0008-multiple-users-without-authentication.md), which names
 rating as per-reader data in as many words). **This is the first route in
 Grimoire that is user-scoped**, and so the first real use of that header: a
@@ -202,7 +205,9 @@ API and the client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-c
   ratings are now exactly the per-reader data whose fate that question was
   waiting on. The rows are `ON DELETE CASCADE`, so the answer is available when
   the UI wants it.
-- **Books that leave Calibre.** A rating row outlives the book id it points at
-  if a book is removed and re-added — the orphan risk
-  [ADR 0006](../adrs/0006-grimoire-owned-sqlite-for-supplemental-data.md)
-  already names. Nothing reaps them yet.
+- ~~**Books that leave Calibre.**~~ Closed by
+  [Calibre sync](calibre-sync.md): ratings hang off a `books` row that sync never
+  deletes, with a foreign key that cascades, so the orphan risk
+  [ADR 0006](../adrs/0006-grimoire-owned-sqlite-for-supplemental-data.md) named
+  no longer applies. Removing a *reader* still takes their ratings with them,
+  which is the intended behaviour.

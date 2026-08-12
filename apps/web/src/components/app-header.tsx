@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Moon, Search, Settings, Sun } from "lucide-react";
+import { SyncIndicator } from "@/components/sync-indicator";
 import { Kbd } from "@/components/ui/kbd";
 import { UserAvatar } from "@/components/user-avatar";
+import type { SyncStatus } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +19,9 @@ export interface AppHeaderProps {
   bookCount?: number;
   /** The reader this device is using — their initials on their own colour. */
   user?: { name: string; color: string };
+  /** Drives the sync indicator. Absent in Storybook and before the first poll. */
+  syncStatus?: SyncStatus;
+  onSync?: () => void;
   className?: string;
 }
 
@@ -25,6 +30,8 @@ export function AppHeader({
   onOpenSettings,
   bookCount,
   user,
+  syncStatus,
+  onSync,
   className,
 }: AppHeaderProps) {
   const { theme, toggle } = useTheme();
@@ -71,6 +78,10 @@ export function AppHeader({
         </button>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Stays visible on a phone, unlike the gear below it: this is also
+              where a failed sync shows up, and hiding an error is not an option. */}
+          <SyncIndicator status={syncStatus} onSync={onSync} />
+
           <button
             type="button"
             onClick={toggle}

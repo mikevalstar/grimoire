@@ -1,3 +1,6 @@
+export * from "./books.ts";
+export * from "./calibre-books.ts";
+export * from "./covers.ts";
 export * from "./db.ts";
 export * from "./ratings.ts";
 export * from "./schemas.ts";

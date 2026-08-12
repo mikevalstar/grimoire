@@ -11,9 +11,10 @@ generated: { by: okq/0.8.0, at: 2026-08-11 }
 
 ## Summary
 
-The app's home screen: every book the [Calibre content
-server](../adrs/0005-calibre-content-server-as-the-data-source.md) reports,
-rendered either as a grid of covers or as a dense table, with a toolbar above
+The app's home screen: every book Grimoire knows about — synced from the
+[Calibre content server](../adrs/0005-calibre-content-server-as-the-data-source.md)
+into its own database ([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md))
+— rendered either as a grid of covers or as a dense table, with a toolbar above
 that switches between the two views and reserves the space filters will
 eventually occupy.
 
@@ -98,7 +99,10 @@ The download button hands over the book's file straight from Calibre —
 `/api/cs/get/<format>/<id>` through the proxy, which already answers with the
 right MIME type and a `Content-Disposition` filename, so the browser saves
 "Abaddon's Gate - James S.A. Corey_152.epub" without Grimoire naming anything
-itself.
+itself. This is the one thing on the shelf still fetched live, and it takes a
+*Calibre* id — which is why a book that has left the library shows no download
+button, and a badge saying why ([Calibre sync](calibre-sync.md)). Grimoire kept
+the record; the file was always Calibre's.
 
 A book usually has more than one format. Rather than open a menu on a hover
 affordance, the button picks one — EPUB, then AZW3, MOBI, PDF, then whatever is
@@ -108,12 +112,14 @@ job, not the shelf's.
 
 ### Covers
 
-Covers come from the content server through the `/api/cs` proxy —
-`/api/cs/get/thumb/<id>?sz=<w>x<h>` — so the browser never needs to reach
-Calibre directly and no CORS or second origin is involved. The grid asks for a
-larger thumbnail than the table does. Books with no cover (and covers that fail
-to load) fall back to a drawn placeholder: the title set on a tinted panel, so a
-coverless library still reads as a shelf rather than as broken images.
+Covers come from Grimoire's own cache — `GET /api/books/<id>/cover/<size>`,
+files that [Calibre sync](calibre-sync.md) fetched and scaled ahead of time — so
+the shelf draws with the content server stopped. Three fixed sizes exist, and a
+view asks for the nearest rather than for arbitrary pixels: the grid takes
+`card`, the table takes `thumb`. Books with no cover (and covers that fail to
+load, or that sync hasn't reached yet) fall back to a drawn placeholder: the
+title set on a tinted panel, so a coverless library still reads as a shelf
+rather than as broken images.
 
 ### View persistence
 
@@ -137,8 +143,8 @@ is not a preference in Grimoire's database.
       switches between them without refetching.
 - [x] The chosen view survives a reload and is per-device.
 - [x] The toolbar reserves a labelled, empty region for filters.
-- [x] Covers load through `/api/cs`, and a missing or broken cover falls back to
-      a readable placeholder rather than a broken image.
+- [x] Covers load from Grimoire's own cache, and a missing or broken cover falls
+      back to a readable placeholder rather than a broken image.
 - [x] Both views are full-width with no max-width clamp; the grid reflows and
       the table scrolls horizontally instead of crushing columns.
 - [x] Loading, empty and error states are handled in both views.
@@ -151,7 +157,7 @@ is not a preference in Grimoire's database.
       Calibre, and is absent for a book with no formats.
 - [x] Every new component has a Storybook story, in both themes.
 - [x] The book model carries what the views show — title, authors, series,
-      tags, formats, dates — parsed from Calibre at the boundary by a
+      tags, formats, dates — served from `books` and validated by a
       shared Zod schema
       ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
       Ratings are deliberately not among them: they are per-reader and come
@@ -162,10 +168,12 @@ is not a preference in Grimoire's database.
 - **Filters and sorting.** The toolbar's empty region and the fixed
   `sort=title` query are placeholders. Sorting probably belongs to the same
   feature as filtering, with the table's column headers as a second entry point.
-- **Scale.** The whole library is fetched in one pass (`num=9999`) and rendered
-  without virtualization. That is fine for a few thousand books and will not be
-  for a hundred thousand; paging or windowing is a separate decision, and it is
-  the same decision as whether filtering happens on the server.
+- **Scale.** `GET /api/books` returns the whole library in one pass and it
+  renders without virtualization. That is fine for a few thousand books and will
+  not be for a hundred thousand; paging or windowing is a separate decision, and
+  it is the same decision as whether filtering happens on the server. It is now
+  a decision Grimoire gets to make for itself, in SQL, rather than one inherited
+  from Calibre's query vocabulary.
 - **Selection and detail.** Clicking a book does nothing yet — the detail panel
   is its own feature, and download is the only action the shelf offers until it
   exists. Keyboard roving (arrow keys through the grid) waits for the same work,

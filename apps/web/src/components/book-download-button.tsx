@@ -3,7 +3,7 @@ import { bookDownloadUrl, type LibraryBook, preferredFormat } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookDownloadButtonProps {
-  book: Pick<LibraryBook, "id" | "title" | "formats">;
+  book: Pick<LibraryBook, "calibreId" | "title" | "formats">;
   /**
    * Where it sits. `quiet` is on the canvas and flips with the theme; `overlay`
    * lies on top of a cover, which is an image in both themes, so it stays dark
@@ -20,9 +20,14 @@ const VARIANTS = {
 } as const;
 
 /**
- * Hands over the book's file, straight from Calibre through the proxy. One
- * format — the most portable one it has — because a shelf affordance shouldn't
- * open a menu; picking a different one is the detail panel's job.
+ * Hands over the book's file, straight from Calibre through the proxy — the one
+ * thing still fetched live (ADR 0011). One format — the most portable one it
+ * has — because a shelf affordance shouldn't open a menu; picking a different
+ * one is the detail panel's job.
+ *
+ * Absent for a book with no formats, and for one that has left the Calibre
+ * library: Grimoire keeps that book's record and cover, but the *file* was
+ * always Calibre's, and there is nothing left to point at.
  *
  * Hidden until the book it belongs to is hovered, so callers must mark that
  * card or row `group/book`. Focus reveals it too — a pointer-only affordance
@@ -34,11 +39,11 @@ export function BookDownloadButton({
   className,
 }: BookDownloadButtonProps) {
   const format = preferredFormat(book.formats);
-  if (!format) return null;
+  if (!format || book.calibreId === null) return null;
 
   return (
     <a
-      href={bookDownloadUrl(book.id, format)}
+      href={bookDownloadUrl(book.calibreId, format)}
       download
       title={`Download ${format}`}
       aria-label={`Download ${book.title} as ${format}`}

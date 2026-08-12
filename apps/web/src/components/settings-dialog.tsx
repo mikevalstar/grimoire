@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { CalibreTestResult } from "@/components/calibre-test-result";
+import { relativeTime, syncTooltip } from "@/components/sync-indicator";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,12 +21,20 @@ import {
   type CalibreServerTest,
   createUser,
   PREF_KEYS,
+  SYNC_INTERVAL_CHOICES,
   savePreferences,
   testCalibreServer,
   type User,
 } from "@/lib/api";
 import { setCurrentUserId, useCurrentUser } from "@/lib/current-user";
-import { booksQuery, preferencesQuery, usersQuery } from "@/lib/queries";
+import {
+  booksQuery,
+  preferencesQuery,
+  usersQuery,
+  useSaveSyncInterval,
+  useStartSync,
+  useSyncStatus,
+} from "@/lib/queries";
 
 /**
  * Everything configurable after first run, on one page — see
@@ -127,6 +136,11 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
       </section>
 
       <section className="grid gap-2">
+        <SectionTitle>Library sync</SectionTitle>
+        <SyncSettings />
+      </section>
+
+      <section className="grid gap-2">
         <SectionTitle>Readers</SectionTitle>
         <ReaderList
           users={users ?? []}
@@ -155,6 +169,101 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h3 className="text-muted-foreground text-[11px] tracking-wide uppercase">{children}</h3>;
+}
+
+/** How a stored interval reads in the select. 0 is "never", which is a real choice. */
+function intervalLabel(minutes: number): string {
+  if (minutes <= 0) return "Never — only when I ask";
+  if (minutes === 1) return "Every minute";
+  if (minutes === 60) return "Every hour";
+  return `Every ${minutes} minutes`;
+}
+
+/**
+ * The state of Grimoire's copy of the library, and the two things you can do
+ * about it: sync now, or change how often it happens.
+ * See docs/features/calibre-sync.md.
+ */
+function SyncSettings() {
+  const { data: status } = useSyncStatus();
+  const startSync = useStartSync();
+  const saveInterval = useSaveSyncInterval();
+
+  if (!status) return <p className="text-muted-foreground text-[13px]">Checking…</p>;
+
+  const orphaned = status.bookCount - status.inLibraryCount;
+
+  return (
+    <div className="grid gap-3">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+        <dt className="text-muted-foreground">Last synced</dt>
+        <dd className="tabular-nums">
+          {status.lastCompletedAt ? (
+            <>
+              {new Date(status.lastCompletedAt).toLocaleString()}{" "}
+              <span className="text-muted-foreground">
+                ({relativeTime(status.lastCompletedAt)})
+              </span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Never</span>
+          )}
+        </dd>
+
+        <dt className="text-muted-foreground">Books</dt>
+        <dd className="tabular-nums">
+          {status.bookCount.toLocaleString()}
+          {/* Only worth explaining when the two numbers differ — otherwise it
+              reads as a discrepancy where there isn't one. */}
+          {orphaned > 0 && (
+            <span className="text-muted-foreground">
+              {" "}
+              — {orphaned.toLocaleString()} no longer in Calibre
+            </span>
+          )}
+        </dd>
+      </dl>
+
+      {status.lastStatus === "error" && status.lastError && (
+        <div className="border-destructive/40 bg-destructive/10 grid gap-1 rounded-lg border p-2.5">
+          <p className="text-destructive text-[13px]">{status.lastError}</p>
+          {status.lastErrorHint && (
+            <p className="text-muted-foreground text-[12px]">{status.lastErrorHint}</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="grid flex-1 gap-2">
+          <Label htmlFor="sync-interval">Sync automatically</Label>
+          <select
+            id="sync-interval"
+            value={status.intervalMinutes}
+            onChange={(e) => saveInterval.mutate(Number(e.target.value))}
+            disabled={saveInterval.isPending}
+            className="border-line bg-fill focus-visible:ring-ring/50 h-9 rounded-lg border px-2.5 text-[13px] focus-visible:ring-[3px] focus-visible:outline-none"
+          >
+            {SYNC_INTERVAL_CHOICES.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {intervalLabel(minutes)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={() => startSync.mutate()}
+          disabled={status.running || !status.configured}
+        >
+          {status.running && <Loader2 className="animate-spin" />}
+          {/* Mid-sync the button reports progress rather than offering an action
+              it would ignore — the same phase wording the indicator's tooltip uses. */}
+          {status.running ? syncTooltip(status) : "Sync now"}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 /**

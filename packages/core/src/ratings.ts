@@ -8,9 +8,11 @@ interface RatingRow {
 }
 
 /**
- * A reader's own stars, keyed by Calibre book id. Per-reader by construction —
- * every method takes a user id, because there is no such thing as "the"
- * rating of a book here (ADR 0008). Nothing in this store touches Calibre.
+ * A reader's own stars, keyed by Grimoire's own `books.id` (ADR 0011 — it used
+ * to be a Calibre id, which meant a rating could outlive its book as an orphan
+ * pointing at a number nothing owned). Per-reader by construction — every
+ * method takes a user id, because there is no such thing as "the" rating of a
+ * book here (ADR 0008). Nothing in this store touches Calibre.
  *
  * See docs/features/rating-a-book.md.
  */

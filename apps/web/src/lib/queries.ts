@@ -1,11 +1,15 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import {
   fetchBooks,
   fetchPreferences,
   fetchRatings,
+  fetchSyncStatus,
   fetchUsers,
   type Ratings,
   saveRating,
+  saveSyncInterval,
+  startSync,
 } from "@/lib/api";
 
 /**
@@ -31,8 +35,16 @@ export const usersQuery = queryOptions({
 export const booksQuery = queryOptions({
   queryKey: ["books"],
   queryFn: fetchBooks,
-  // Calibre is edited outside Grimoire, so don't cache the library for long.
-  staleTime: 30_000,
+  // This is our own database now, and only sync writes it — so rather than
+  // expiring on a timer, the list is invalidated when a sync finishes
+  // (useSyncStatus below). Calibre being edited elsewhere is the sync's problem.
+  staleTime: Infinity,
+});
+
+export const syncQuery = queryOptions({
+  queryKey: ["sync"],
+  queryFn: fetchSyncStatus,
+  staleTime: 0,
 });
 
 /**
@@ -48,6 +60,65 @@ export function ratingsQuery(userId: number | null | undefined) {
     enabled: userId != null,
     // Only this app writes them, and every write updates the cache in place.
     staleTime: Infinity,
+  });
+}
+
+/**
+ * The sync's state, polled — fast while something is running so the progress
+ * readout moves, slowly otherwise so an idle app is not chatty. Syncs are
+ * started by a scheduler in the API process, not by this tab, so polling is how
+ * a browser finds out one happened at all.
+ *
+ * Drops the cached library whenever a sync completes, which is what keeps the
+ * shelf honest without putting an expiry on `booksQuery`.
+ */
+export function useSyncStatus() {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    ...syncQuery,
+    refetchInterval: (q) => (q.state.data?.running ? 1_000 : 10_000),
+    // A sync finishing while the tab is hidden should still be picked up.
+    refetchIntervalInBackground: false,
+  });
+
+  const lastCompletedAt = query.data?.lastCompletedAt ?? null;
+  const seen = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lastCompletedAt) return;
+    // Skip the first observation: the library was fetched after that sync
+    // already, so invalidating here would refetch it for nothing.
+    if (seen.current === null) {
+      seen.current = lastCompletedAt;
+      return;
+    }
+    if (seen.current !== lastCompletedAt) {
+      seen.current = lastCompletedAt;
+      void queryClient.invalidateQueries({ queryKey: ["books"] });
+    }
+  }, [lastCompletedAt, queryClient]);
+
+  return query;
+}
+
+/** Start a sync now — the indicator's click, and settings' Sync now button. */
+export function useStartSync() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: startSync,
+    onSuccess: (status) => queryClient.setQueryData(syncQuery.queryKey, status),
+  });
+}
+
+/** Change how often Grimoire syncs. Applies immediately, no restart. */
+export function useSaveSyncInterval() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: saveSyncInterval,
+    onSuccess: (status) => {
+      queryClient.setQueryData(syncQuery.queryKey, status);
+      void queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
   });
 }
 

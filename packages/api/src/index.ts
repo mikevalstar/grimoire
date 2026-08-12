@@ -1,13 +1,19 @@
 import type { CalibreServerTest } from "@grimoire/core";
 import {
+  BooksStore,
   CalibreTestRequestSchema,
+  type CoverSize,
+  CoverStore,
   DuplicateUserError,
+  defaultDataDir,
+  isCoverSize,
   openDatabase,
   PREF_KEYS,
   PreferencesUpdateSchema,
   RatingsStore,
   RatingUpdateSchema,
   SettingsStore,
+  SyncSettingsUpdateSchema,
   USER_HEADER,
   UserCreateSchema,
   UsersStore,
@@ -16,6 +22,9 @@ import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { CalibreSync } from "./sync.ts";
+
+export { CalibreSync } from "./sync.ts";
 
 export interface ApiOptions {
   /**
@@ -25,8 +34,15 @@ export interface ApiOptions {
   calibreServerUrl?: string;
   /** Path to Grimoire's own SQLite database. Defaults to the per-platform data dir. */
   databasePath?: string;
+  /** Where cached covers live. Defaults to the per-platform data dir (ADR 0007). */
+  dataDir?: string;
   /** Enable permissive CORS — needed when the UI is served from a views:// origin (desktop). */
   cors?: boolean;
+  /**
+   * Start the Calibre sync scheduler (ADR 0011). On by default; turn it off for
+   * tests, or anywhere a second process is already syncing the same database.
+   */
+  sync?: boolean;
 }
 
 const CALIBRE_PROBE_TIMEOUT_MS = 5_000;
@@ -110,10 +126,23 @@ export function createApi(options: ApiOptions = {}) {
   let settings: SettingsStore | null = null;
   let users: UsersStore | null = null;
   let ratings: RatingsStore | null = null;
+  let books: BooksStore | null = null;
+  let sync: CalibreSync | null = null;
   const getDb = () => (db ??= openDatabase(options.databasePath));
   const getSettings = (): SettingsStore => (settings ??= new SettingsStore(getDb()));
   const getUsers = (): UsersStore => (users ??= new UsersStore(getDb()));
   const getRatings = (): RatingsStore => (ratings ??= new RatingsStore(getDb()));
+  const getBooks = (): BooksStore => (books ??= new BooksStore(getDb()));
+
+  const dataDir = options.dataDir ?? defaultDataDir();
+  const covers = new CoverStore(dataDir);
+
+  const getSync = (): CalibreSync =>
+    (sync ??= new CalibreSync({
+      db: getDb(),
+      calibreServerUrl: () => resolveCalibreServerUrl(),
+      dataDir,
+    }));
 
   /**
    * The reader a user-scoped request is acting as (ADR 0008). No header, a
@@ -154,8 +183,76 @@ export function createApi(options: ApiOptions = {}) {
   // Merge-update: only the keys sent are touched. Values must be strings.
   app.put("/api/preferences", zValidator("json", PreferencesUpdateSchema, invalid), (c) => {
     const store = getSettings();
+    const before = store.get(PREF_KEYS.calibreServerUrl);
     store.setMany(c.req.valid("json"));
+
+    // A new content server is a new library to mirror; don't make the user wait
+    // out an interval to see it.
+    if (store.get(PREF_KEYS.calibreServerUrl) !== before) {
+      void getSync()
+        .syncNow(true)
+        .catch(() => {});
+    }
     return c.json(store.all());
+  });
+
+  // The library, from Grimoire's own tables rather than Calibre (ADR 0011).
+  // Answers with a stopped content server, which is most of the point.
+  app.get("/api/books", (c) => c.json(getBooks().list()));
+
+  /**
+   * A cached cover, by *Grimoire* book id — so a book keeps its cover after
+   * leaving Calibre, and the browser never learns a Calibre id exists. Served
+   * from disk with a long max-age: the URL's content only changes when sync
+   * rewrites the file, and the ETag catches that.
+   */
+  app.get("/api/books/:id/cover/:size", async (c) => {
+    const id = Number(c.req.param("id"));
+    const size = c.req.param("size");
+    if (!Number.isInteger(id) || id <= 0) {
+      return c.json({ error: `"${c.req.param("id")}" is not a book id.` }, 400);
+    }
+    if (!isCoverSize(size)) {
+      return c.json({ error: `"${size}" is not a cover size.` }, 400);
+    }
+
+    const file = Bun.file(covers.path(id, size as CoverSize));
+    if (!(await file.exists())) {
+      // Not an error: a book with no cover, or one sync hasn't reached yet. The
+      // views already draw a placeholder for it.
+      return c.json({ error: "No cached cover for that book." }, 404);
+    }
+
+    const etag = `W/"${id}-${size}-${file.lastModified}"`;
+    if (c.req.header("if-none-match") === etag) return c.body(null, 304);
+
+    return new Response(file, {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "public, max-age=31536000, must-revalidate",
+        ETag: etag,
+      },
+    });
+  });
+
+  // Sync status and control (docs/features/calibre-sync.md). The indicator polls
+  // the GET; the POST is the indicator's click and settings' Sync now.
+  app.get("/api/sync", (c) => c.json(getSync().status()));
+
+  app.post("/api/sync", (c) => {
+    const syncer = getSync();
+    // Fire and forget: a full library can take minutes, and the client is
+    // already polling for progress. Single-flight, so a second click joins the
+    // run in flight rather than starting another.
+    void syncer.syncNow(true).catch(() => {});
+    return c.json(syncer.status(), 202);
+  });
+
+  app.put("/api/sync/settings", zValidator("json", SyncSettingsUpdateSchema, invalid), (c) => {
+    getSettings().set(PREF_KEYS.syncIntervalMinutes, String(c.req.valid("json").intervalMinutes));
+    // Re-arm now rather than letting the old interval fire once more first.
+    getSync().reschedule();
+    return c.json(getSync().status());
   });
 
   // The people sharing this library (ADR 0008). Created by the setup wizard;
@@ -183,8 +280,13 @@ export function createApi(options: ApiOptions = {}) {
       return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
     }
 
-    // Calibre ids aren't checked against the content server: it may be down,
-    // and a rating for a book that has gone away is a stale row, not an error.
+    // book_id is Grimoire's own id now (ADR 0011), so this *is* checkable —
+    // and has to be, since the row carries a foreign key. Checking here turns
+    // what would be a constraint violation into a plain 404.
+    if (!getBooks().get(bookId)) {
+      return c.json({ error: `No book with id ${bookId}.` }, 404);
+    }
+
     const rating = getRatings().set(userId, bookId, c.req.valid("json").rating);
     return c.json({ bookId, rating });
   });
@@ -243,7 +345,17 @@ export function createApi(options: ApiOptions = {}) {
   // Unknown /api paths answer JSON, not the hosted server's SPA fallback.
   app.all("/api/*", (c) => c.json({ error: `No such endpoint: ${c.req.path}` }, 404));
 
-  return app;
+  // One scheduler per process, started here rather than by each delivery target,
+  // so desktop / server / `bun dev` all behave the same (ADR 0002). Syncs once
+  // immediately: "start the app by syncing the data".
+  if (options.sync !== false) {
+    getSync().start();
+  }
+
+  return Object.assign(app, {
+    /** The sync scheduler, so a host can stop it on shutdown. */
+    sync: getSync(),
+  });
 }
 
 export type GrimoireApi = ReturnType<typeof createApi>;
