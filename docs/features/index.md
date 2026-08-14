@@ -20,5 +20,6 @@ Add one with `okq new feature "<title>"`.
 | Hardcover connection | [hardcover-connection.md](hardcover-connection.md) |
 | Hardcover sync | [hardcover-sync.md](hardcover-sync.md) |
 | Rating a book | [rating-a-book.md](rating-a-book.md) |
+| Resolving duplicates | [resolving-duplicates.md](resolving-duplicates.md) |
 | Settings | [settings.md](settings.md) |
 <!-- okq:index:end -->

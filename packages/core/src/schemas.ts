@@ -275,6 +275,12 @@ export const BookSchema = z.object({
    */
   coverBookId: z.number().nullable().default(null),
   /**
+   * How many book rows this work is made of — 1 for nearly every book. Not the
+   * same as `sources.length`: two Calibre rows a reader joined by hand are two
+   * entries from one source (docs/features/resolving-duplicates.md).
+   */
+  entries: z.number().default(1),
+  /**
    * A cover Grimoire holds no file for, served from the source's own CDN —
    * Hardcover books, today. Null for anything with a cached cover, and the
    * reason a Hardcover book's cover needs the network (docs/features/hardcover-sync.md).
@@ -290,6 +296,74 @@ export const CoverChoiceSchema = z.object({
   bookId: z.number().int().positive(),
 });
 export type CoverChoice = z.infer<typeof CoverChoiceSchema>;
+
+// --- Duplicates ------------------------------------------------------------
+// The entries a work is made of, and the ones that look like they belong in it
+// (docs/features/resolving-duplicates.md).
+
+/** One of the rows a work is made of — what the panel lists under "Same book". */
+export const WorkMemberSchema = z.object({
+  /** A member row id. The other place one crosses to the browser is `covers`. */
+  bookId: z.number(),
+  source: z.string(),
+  /** This row's own title, not the work's merged one — the point is the difference. */
+  title: z.string(),
+  authors: z.array(z.string()).default([]),
+});
+export type WorkMember = z.infer<typeof WorkMemberSchema>;
+
+/**
+ * Why a candidate is being suggested, worst-first in confidence: the matcher
+ * would have grouped an `exact` pair had they come from different sources,
+ * where the other two are relaxations it refuses on purpose.
+ */
+export const DuplicateReasonSchema = z.enum(["exact", "subtitle", "title"]);
+export type DuplicateReason = z.infer<typeof DuplicateReasonSchema>;
+
+/**
+ * Another work that looks like the same book. It carries no metadata: the
+ * client already holds every work from `GET /api/books`, so naming one is
+ * enough and keeps the two from drifting apart.
+ */
+export const DuplicateCandidateSchema = z.object({
+  /** The other work — what the client looks up, and what a merge names. */
+  workId: z.number(),
+  /** The member of *this* work the pair was found from. */
+  bookId: z.number(),
+  /** The member of the other work it matched. Both are needed to rule the pair out. */
+  otherBookId: z.number(),
+  reason: DuplicateReasonSchema,
+});
+export type DuplicateCandidate = z.infer<typeof DuplicateCandidateSchema>;
+
+/** What GET /api/books/:id/duplicates answers with. */
+export const DuplicatesSchema = z.object({
+  members: z.array(WorkMemberSchema).default([]),
+  candidates: z.array(DuplicateCandidateSchema).default([]),
+});
+export type Duplicates = z.infer<typeof DuplicatesSchema>;
+
+/** Body of POST /api/books/:id/duplicates — the work that is the same book. */
+export const DuplicateLinkSchema = z.object({
+  workId: z.number().int().positive(),
+});
+export type DuplicateLink = z.infer<typeof DuplicateLinkSchema>;
+
+/**
+ * Body of POST /api/books/:id/duplicates/dismiss — the pair of rows that are
+ * not the same book. Rows rather than works, because a row is the stable thing.
+ */
+export const DuplicateDismissSchema = z.object({
+  bookId: z.number().int().positive(),
+  otherBookId: z.number().int().positive(),
+});
+export type DuplicateDismiss = z.infer<typeof DuplicateDismissSchema>;
+
+/** Body of POST /api/books/:id/separate — the member to move back out on its own. */
+export const WorkSeparateSchema = z.object({
+  bookId: z.number().int().positive(),
+});
+export type WorkSeparate = z.infer<typeof WorkSeparateSchema>;
 
 // --- Sync ------------------------------------------------------------------
 // docs/features/calibre-sync.md

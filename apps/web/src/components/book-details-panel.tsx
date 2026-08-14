@@ -1,8 +1,16 @@
+import { Link2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { BookCoverStack } from "@/components/book-cover-stack";
 import { BookDownloadButton } from "@/components/book-download-button";
+import {
+  BookDuplicates,
+  type BookDuplicatesProps,
+  hasDuplicates,
+} from "@/components/book-duplicates";
+import { BookLinkPicker } from "@/components/book-link-picker";
 import { BookMarks } from "@/components/book-marks";
 import { StarRating } from "@/components/star-rating";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -10,7 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { bookImageUrl, isInLibrary, type LibraryBook } from "@/lib/api";
+import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
 
 export interface BookDetailsPanelProps {
   /** The book to show. Null closes the panel. */
@@ -25,6 +33,30 @@ export interface BookDetailsPanelProps {
    * cover is a picture rather than a stack that can be turned over.
    */
   onChooseCover?: (bookId: number) => void;
+  /**
+   * The entries this book is made of and the ones that look like they belong
+   * with it, with the answers to either (docs/features/resolving-duplicates.md).
+   * Omitted — or with nothing to say — the section isn't drawn at all.
+   */
+  sameBook?: SameBookProps;
+}
+
+/**
+ * What the panel needs to resolve duplicates: the suggestions and their
+ * answers, plus the two things the manual picker takes — a search over the
+ * shelf, and a way to join whatever it turns up
+ * (docs/features/resolving-duplicates.md).
+ */
+export interface SameBookProps extends Omit<BookDuplicatesProps, "duplicates"> {
+  /**
+   * Undefined until the suggestions arrive — or for good, if that request
+   * failed. The manual picker below doesn't wait on them either way.
+   */
+  duplicates?: Duplicates;
+  /** The shelf, filtered in the browser. See `searchBooks`. */
+  search?: (query: string) => LibraryBook[];
+  /** Join that work to this one. Resolves when the merge lands. */
+  onLinkWork?: (workId: number) => Promise<void>;
 }
 
 /**
@@ -42,13 +74,25 @@ export function BookDetailsPanel({
   rating = 0,
   onRate,
   onChooseCover,
+  sameBook,
 }: BookDetailsPanelProps) {
   // The sheet slides out over a few hundred milliseconds, by which time the
   // caller has already cleared its selection — so keep the last book around to
   // draw during the exit, rather than blanking the panel as it leaves.
   const [lastBook, setLastBook] = useState(book);
-  if (book && book !== lastBook) setLastBook(book);
+  // Searching for a duplicate replaces the body of the panel rather than
+  // opening a dialog over it (docs/features/resolving-duplicates.md).
+  const [linking, setLinking] = useState(false);
+
+  if (book && book !== lastBook) {
+    // A different book, rather than the same one refetched: the search was
+    // about the book that has just left.
+    if (book.id !== lastBook?.id) setLinking(false);
+    setLastBook(book);
+  }
   const shown = book ?? lastBook;
+  const search = sameBook?.search;
+  const onLinkWork = sameBook?.onLinkWork;
 
   const paragraphs = useMemo(
     () => (shown?.description ? descriptionParagraphs(shown.description) : []),
@@ -113,91 +157,135 @@ export function BookDetailsPanel({
                 </div>
               </SheetHeader>
 
-              {/* Larger than on the shelf, and always visible — see StarRating.
+              {linking && search && onLinkWork ? (
+                <div className="mt-5">
+                  <BookLinkPicker
+                    book={shown}
+                    search={search}
+                    onPick={async (workId) => {
+                      await onLinkWork(workId);
+                      setLinking(false);
+                    }}
+                    onCancel={() => setLinking(false)}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Larger than on the shelf, and always visible — see StarRating.
                   The label still names the book, since the panel's own heading
                   is elsewhere in the reading order. */}
-              {(onRate || rating > 0) && (
-                <div className="mt-5 flex items-center gap-2">
-                  <StarRating
-                    value={rating}
-                    onRate={onRate}
-                    label={shown.title}
-                    revealed
-                    size={17}
-                  />
-                  <span className="text-muted-foreground text-[11px]">your rating</span>
-                </div>
-              )}
+                  {(onRate || rating > 0) && (
+                    <div className="mt-5 flex items-center gap-2">
+                      <StarRating
+                        value={rating}
+                        onRate={onRate}
+                        label={shown.title}
+                        revealed
+                        size={17}
+                      />
+                      <span className="text-muted-foreground text-[11px]">your rating</span>
+                    </div>
+                  )}
 
-              <div className="mt-4">
-                {shown.formats.length === 0 ? (
-                  <p className="text-muted-foreground text-[12px]">
-                    No files — Grimoire has this book's details but nothing to hand over.
-                  </p>
-                ) : isInLibrary(shown) ? (
-                  <BookDownloadButton book={shown} variant="panel" />
-                ) : (
-                  <p className="text-muted-foreground text-[12px]">
-                    Calibre no longer lists this book, so there is no file to download. Its details,
-                    cover and your rating are Grimoire's own.
-                  </p>
-                )}
-              </div>
+                  <div className="mt-4">
+                    {shown.formats.length === 0 ? (
+                      <p className="text-muted-foreground text-[12px]">
+                        No files — Grimoire has this book's details but nothing to hand over.
+                      </p>
+                    ) : isInLibrary(shown) ? (
+                      <BookDownloadButton book={shown} variant="panel" />
+                    ) : (
+                      <p className="text-muted-foreground text-[12px]">
+                        Calibre no longer lists this book, so there is no file to download. Its
+                        details, cover and your rating are Grimoire's own.
+                      </p>
+                    )}
+                  </div>
 
-              <Section title="Details">
-                <dl className="grid grid-cols-[92px_1fr] items-baseline gap-y-1.5 text-[12.5px]">
-                  <Field label="Publisher" value={shown.publisher} />
-                  <Field label="Published" value={publicationYear(shown.published)} />
-                  <Field label="Added" value={formatDate(shown.added)} />
-                  <Field label="Languages" value={formatLanguages(shown.languages)} />
-                  <Field label="Pages" value={shown.pages?.toLocaleString()} />
-                  {shown.formats.length > 0 && (
-                    <>
-                      <dt className="text-muted-foreground">Formats</dt>
-                      <dd className="flex flex-wrap gap-1">
-                        {shown.formats.map((format) => (
+                  {/* Only for a book that is made of more than one entry, or has
+                  something that looks like it belongs with it — which is nearly
+                  no books (docs/features/resolving-duplicates.md). No skeleton:
+                  a suggestion arriving a moment late is better than a
+                  placeholder on every book. */}
+                  {sameBook && hasDuplicates(sameBook.duplicates) && (
+                    <Section title="Same book">
+                      <BookDuplicates {...sameBook} duplicates={sameBook.duplicates} />
+                    </Section>
+                  )}
+
+                  <Section title="Details">
+                    <dl className="grid grid-cols-[92px_1fr] items-baseline gap-y-1.5 text-[12.5px]">
+                      <Field label="Publisher" value={shown.publisher} />
+                      <Field label="Published" value={publicationYear(shown.published)} />
+                      <Field label="Added" value={formatDate(shown.added)} />
+                      <Field label="Languages" value={formatLanguages(shown.languages)} />
+                      <Field label="Pages" value={shown.pages?.toLocaleString()} />
+                      {shown.formats.length > 0 && (
+                        <>
+                          <dt className="text-muted-foreground">Formats</dt>
+                          <dd className="flex flex-wrap gap-1">
+                            {shown.formats.map((format) => (
+                              <span
+                                key={format}
+                                className="border-line bg-fill text-muted-foreground rounded border px-1.5 py-px text-[10px] font-semibold tracking-wide"
+                              >
+                                {format}
+                              </span>
+                            ))}
+                          </dd>
+                        </>
+                      )}
+                      {Object.entries(shown.identifiers).map(([scheme, value]) => (
+                        <Field key={scheme} label={identifierLabel(scheme)} value={value} />
+                      ))}
+                    </dl>
+                  </Section>
+
+                  {shown.tags.length > 0 && (
+                    <Section title="Tags">
+                      <div className="flex flex-wrap gap-1.5">
+                        {shown.tags.map((tag) => (
                           <span
-                            key={format}
-                            className="border-line bg-fill text-muted-foreground rounded border px-1.5 py-px text-[10px] font-semibold tracking-wide"
+                            key={tag}
+                            className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
                           >
-                            {format}
+                            {tag}
                           </span>
                         ))}
-                      </dd>
-                    </>
+                      </div>
+                    </Section>
                   )}
-                  {Object.entries(shown.identifiers).map(([scheme, value]) => (
-                    <Field key={scheme} label={identifierLabel(scheme)} value={value} />
-                  ))}
-                </dl>
-              </Section>
 
-              {shown.tags.length > 0 && (
-                <Section title="Tags">
-                  <div className="flex flex-wrap gap-1.5">
-                    {shown.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {paragraphs.length > 0 && (
-                <Section title="About">
-                  {/* Capped to a readable measure rather than the panel's full
+                  {paragraphs.length > 0 && (
+                    <Section title="About">
+                      {/* Capped to a readable measure rather than the panel's full
                       width, which at this size would be a 100-character line. */}
-                  <div className="text-muted-foreground max-w-[68ch] space-y-2 text-[12.5px] leading-relaxed">
-                    {paragraphs.map((paragraph, index) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs of one book's description, in order and never reordered — and two identical ones would collide on any content key
-                      <p key={index}>{paragraph}</p>
-                    ))}
-                  </div>
-                </Section>
+                      <div className="text-muted-foreground max-w-[68ch] space-y-2 text-[12.5px] leading-relaxed">
+                        {paragraphs.map((paragraph, index) => (
+                          // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs of one book's description, in order and never reordered — and two identical ones would collide on any content key
+                          <p key={index}>{paragraph}</p>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  {/* Last, and quiet. Suggestions are information and sit high;
+                  going looking for a duplicate yourself is deliberate, and this
+                  is where you look (docs/features/resolving-duplicates.md). */}
+                  {search && onLinkWork && (
+                    <div className="border-line mt-6 border-t pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLinking(true)}
+                        className="text-muted-foreground w-full justify-start"
+                      >
+                        <Link2 size={14} aria-hidden="true" />
+                        Link a duplicate
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>

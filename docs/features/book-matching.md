@@ -72,11 +72,14 @@ by Robert Cialdini.
   the collision is a conflict for the manual pass.
 - **Never touches a pinned book.** `books.work_pinned` marks a grouping a human
   decided; the matcher skips those rows entirely, so a manual fix survives every
-  later sync. Nothing sets it yet — the manual UI is the next step, and this is
-  the hook it needs to exist against.
+  later sync. [Resolving duplicates](resolving-duplicates.md) is what sets it.
+- **Never groups a pair somebody has ruled out.** A "not the same book" answer
+  is a row in `book_not_duplicates`, and this pass honours it — otherwise the
+  answer would last until the next sync.
 - **Never splits a work.** Un-grouping is a decision to reverse a decision, and
   doing that automatically means a re-sync that changes a title quietly tears a
-  book in half. Splitting is manual, when manual exists.
+  book in half. Splitting is manual —
+  [resolving duplicates](resolving-duplicates.md).
 - **Never matches a book with no authors on either side.** That is a candidate,
   not a match.
 
@@ -159,12 +162,10 @@ and client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md
 
 ## Open questions
 
-- **No manual resolution yet**, which is the next step: splitting a wrong group,
-  merging a missed one, and a queue of the candidates this pass deliberately
-  refuses. `work_pinned` exists for it; nothing writes it.
-- **No candidate queue.** Near misses are discarded rather than recorded, so the
-  manual pass will have to find them again. A `book_match_candidates` table is
-  the obvious shape, and is only worth building next to the UI that consumes it.
+- **No candidate queue.** Near misses are still discarded rather than recorded.
+  [Resolving duplicates](resolving-duplicates.md) recomputes them per book when
+  a panel asks, which is enough for one book at a time and not enough for a
+  library-wide review screen.
 - **No record of why.** A work does not say which rule grouped it. That belongs
   in the decision log that manual resolution needs anyway.
 - **Fuzzy matching is absent.** Title distance, year and page proximity would

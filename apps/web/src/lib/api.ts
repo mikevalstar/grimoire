@@ -5,6 +5,10 @@ import {
   BooksSchema,
   type CalibreServerTest,
   CalibreServerTestSchema,
+  type DuplicateCandidate,
+  type DuplicateReason,
+  type Duplicates,
+  DuplicatesSchema,
   type HardcoverTest,
   HardcoverTestSchema,
   type MatchOutcome,
@@ -21,6 +25,7 @@ import {
   type UserCreate,
   UserSchema,
   UsersSchema,
+  type WorkMember,
 } from "@grimoire/core/schemas";
 import {
   BOOK_SOURCE,
@@ -39,6 +44,9 @@ export type {
   Book,
   CalibreServerTest,
   CoverSize,
+  DuplicateCandidate,
+  DuplicateReason,
+  Duplicates,
   HardcoverTest,
   MatchOutcome,
   Preferences,
@@ -47,6 +55,7 @@ export type {
   SyncStatus,
   User,
   UserCreate,
+  WorkMember,
 };
 export {
   BOOK_SOURCE,
@@ -327,6 +336,50 @@ export function fetchBooks(): Promise<LibraryBook[]> {
 export function chooseBookCover(workId: number, bookId: number): Promise<LibraryBook> {
   return request(`/api/books/${workId}/cover`, BookSchema, {
     method: "PUT",
+    body: { bookId },
+  });
+}
+
+/**
+ * The entries this work is made of, and the ones that look like they belong in
+ * it (docs/features/resolving-duplicates.md).
+ *
+ * A candidate names another work and nothing else — its metadata is already in
+ * hand from `fetchBooks`, and looking it up there keeps the panel and the shelf
+ * showing the same book.
+ */
+export function fetchDuplicates(workId: number): Promise<Duplicates> {
+  return request(`/api/books/${workId}/duplicates`, DuplicatesSchema);
+}
+
+/**
+ * These two works are the same book: one work from now on, pinned so a later
+ * sync doesn't undo it. Answers with the work that survived — the older of the
+ * two, so not necessarily the one asked about.
+ */
+export function linkDuplicate(workId: number, otherWorkId: number): Promise<LibraryBook> {
+  return request(`/api/books/${workId}/duplicates`, BookSchema, {
+    method: "POST",
+    body: { workId: otherWorkId },
+  });
+}
+
+/** Not the same book. Remembered, so neither the panel nor the matcher asks again. */
+export function dismissDuplicate(
+  workId: number,
+  bookId: number,
+  otherBookId: number,
+): Promise<Duplicates> {
+  return request(`/api/books/${workId}/duplicates/dismiss`, DuplicatesSchema, {
+    method: "POST",
+    body: { bookId, otherBookId },
+  });
+}
+
+/** Move one entry back out into a book of its own — the undo for a merge. */
+export function separateMember(workId: number, bookId: number): Promise<LibraryBook> {
+  return request(`/api/books/${workId}/separate`, BookSchema, {
+    method: "POST",
     body: { bookId },
   });
 }

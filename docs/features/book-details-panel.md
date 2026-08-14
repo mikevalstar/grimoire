@@ -67,6 +67,10 @@ Its contents, in order:
 - **Download** — the same button, labelled here, offering every format when
   there is a choice. Absent, with a line saying why, for a book that has left
   the Calibre library or that has no files.
+- **Same book** — the entries this work is made of, and the ones that look like
+  they belong in it, with a click to say either way. Absent for a book with one
+  entry and no candidates, which is nearly all of them. See
+  [resolving duplicates](resolving-duplicates.md).
 - **Details** — publisher, published, added, languages, pages, formats, and any
   identifiers (ISBN and friends). A field Grimoire has no value for is left out
   rather than shown as a dash; the panel is not a form.

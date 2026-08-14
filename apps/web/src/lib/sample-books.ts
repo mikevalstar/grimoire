@@ -21,6 +21,8 @@ function book(fixture: Fixture): LibraryBook {
     coverState,
     covers,
     coverBookId: covers[0]?.bookId ?? null,
+    // One row behind the work, unless a fixture is one of the matched ones.
+    entries: sources.length,
     // Same as the Grimoire id unless a fixture says otherwise. Null is the
     // interesting case: a book Grimoire kept after Calibre dropped it.
     calibreId: fixture.id,

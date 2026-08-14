@@ -5,6 +5,8 @@ import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
 import { ApiError, bookRating, type LibraryBook, type Ratings } from "@/lib/api";
+import { searchBooks } from "@/lib/book-search";
+import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
 
 export interface BookLibraryProps {
@@ -46,6 +48,12 @@ export function BookLibrary({
   // so a book that leaves the library takes its panel with it.
   const [openId, setOpenId] = useState<number | null>(null);
   const openBook = books?.find((book) => book.id === openId) ?? null;
+
+  // Duplicate resolution is about the book that is open, so it is fetched here
+  // rather than by the route — and follows the reader through a merge, since
+  // the surviving work is the older of the two
+  // (docs/features/resolving-duplicates.md).
+  const { duplicates, ...sameBook } = useDuplicates(openId, (book) => setOpenId(book.id));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -97,6 +105,15 @@ export function BookLibrary({
         onChooseCover={
           onChooseCover && openBook ? (bookId) => onChooseCover(openBook, bookId) : undefined
         }
+        sameBook={{
+          duplicates,
+          // A candidate names a work; the shelf already holds every one — which
+          // is also what the manual picker searches, in the browser
+          // (docs/features/resolving-duplicates.md).
+          bookFor: (workId) => books?.find((book) => book.id === workId),
+          search: (query) => searchBooks(books ?? [], query, { exclude: openId ?? undefined }),
+          ...sameBook,
+        }}
       />
     </div>
   );

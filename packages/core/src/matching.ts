@@ -4,6 +4,13 @@
  * — so it can be reasoned about and tested on its own, and so both reconcile
  * paths normalise identically. If Calibre and Hardcover ever disagree about how
  * a title normalises, nothing matches.
+ *
+ * Also the third browser-safe module (`@grimoire/core/matching`, alongside
+ * `/schemas` and `/types`): the duplicate picker searches the shelf with the
+ * same normalisation the matcher groups by, so
+ * `Blade Itself, The` finds `The Blade Itself` there too
+ * (docs/features/resolving-duplicates.md). Nothing bun-only may be imported
+ * here.
  */
 
 /**
@@ -28,8 +35,15 @@ const BRACKETED = /[([{][^)\]}]*[)\]}]/g;
 /** Everything that isn't a letter, a number or a space. */
 const PUNCTUATION = /[^\p{L}\p{N}]+/gu;
 
-/** Lowercase, unaccented, and free of the characters people disagree about. */
-function fold(value: string): string {
+/**
+ * Lowercase, unaccented, and free of the characters people disagree about.
+ *
+ * Exported for the duplicate picker's search, which has to fold a half-typed
+ * query the same way the keys it is searching were folded — a search box that
+ * normalises differently from the index behind it is a search box that misses
+ * things for reasons nobody can see.
+ */
+export function fold(value: string): string {
   return (
     value
       .normalize("NFKD")
@@ -62,6 +76,39 @@ export function matchKey(title: string | null | undefined): string | null {
     .replace(TRAILING_ARTICLE, "");
 
   return key || null;
+}
+
+/**
+ * The shortest a match key can be and still be worth treating as the start of
+ * another one. `It` and `Us` are books; they are also the beginning of most
+ * sentences, and suggesting every title starting with "it" helps nobody.
+ */
+const MIN_PREFIX_KEY = 4;
+
+/**
+ * Every match key this one *extends*, at a word boundary — `dune the graphic
+ * novel` yields `dune` and `dune the`. Used to find the book a subtitled
+ * edition is a subtitled edition *of*
+ * (docs/features/resolving-duplicates.md), which exact key equality cannot see.
+ *
+ * Word boundaries only: a prefix that stops mid-word is a coincidence, not a
+ * title. The key itself is not included — that is the exact match, found
+ * separately.
+ */
+export function keyPrefixes(key: string): string[] {
+  const words = key.split(" ").filter(Boolean);
+  const prefixes: string[] = [];
+
+  for (let count = 1; count < words.length; count++) {
+    const prefix = words.slice(0, count).join(" ");
+    if (prefix.length >= MIN_PREFIX_KEY) prefixes.push(prefix);
+  }
+  return prefixes;
+}
+
+/** Whether a key is long enough to be worth matching another one's start against. */
+export function isPrefixable(key: string): boolean {
+  return key.length >= MIN_PREFIX_KEY;
 }
 
 /**

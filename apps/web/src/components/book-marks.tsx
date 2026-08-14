@@ -47,17 +47,29 @@ const HARDCOVER: BookMark = {
 };
 
 /**
+ * The mark for a source on its own, saying nothing about what has happened to
+ * the book since — what one *entry* of a work is labelled with when the entries
+ * are being listed rather than the book (docs/features/resolving-duplicates.md).
+ *
+ * Null for a source Grimoire has no copy for, which is skipped rather than
+ * guessed at.
+ */
+export function sourceMark(source: string): BookMark | null {
+  if (source === BOOK_SOURCE.calibre) return CALIBRE;
+  if (source === BOOK_SOURCE.hardcover) return HARDCOVER;
+  return null;
+}
+
+/**
  * What to say about this book. One mark per source it came from — and for
  * Calibre, the mark itself carries whether the book is still there, rather than
  * a second mark contradicting the first.
- *
- * Sources Grimoire doesn't have copy for are skipped rather than guessed at.
  */
 export function bookMarks(book: Pick<LibraryBook, "sources" | "calibreId">): BookMark[] {
   return book.sources.flatMap((source) => {
-    if (source === BOOK_SOURCE.calibre) return [book.calibreId === null ? CALIBRE_GONE : CALIBRE];
-    if (source === BOOK_SOURCE.hardcover) return [HARDCOVER];
-    return [];
+    if (source === BOOK_SOURCE.calibre && book.calibreId === null) return [CALIBRE_GONE];
+    const mark = sourceMark(source);
+    return mark ? [mark] : [];
   });
 }
 

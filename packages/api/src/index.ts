@@ -5,6 +5,8 @@ import {
   CoverChoiceSchema,
   type CoverSize,
   CoverStore,
+  DuplicateDismissSchema,
+  DuplicateLinkSchema,
   DuplicateUserError,
   defaultDataDir,
   HardcoverLinkSchema,
@@ -20,6 +22,7 @@ import {
   USER_HEADER,
   UserCreateSchema,
   UsersStore,
+  WorkSeparateSchema,
   WorksStore,
 } from "@grimoire/core";
 import { zValidator } from "@hono/zod-validator";
@@ -191,6 +194,19 @@ export function createApi(options: ApiOptions = {}) {
     return user;
   };
 
+  /**
+   * The work a `:id` path segment names. Every book route speaks work ids
+   * (ADR 0013); this only proves it is one, not that it exists.
+   */
+  const workIdFromPath = (c: Context): number => {
+    const raw = c.req.param("id");
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new HTTPException(400, { message: `"${raw}" is not a book id.` });
+    }
+    return id;
+  };
+
   app.onError((err, c) => {
     // Hono raises these for client-side faults it catches before us — a body
     // that isn't JSON at all, for one. Keep the status and our { error } shape
@@ -297,6 +313,64 @@ export function createApi(options: ApiOptions = {}) {
     if (!book) {
       return c.json({ error: "That book has no cover to show for this work." }, 404);
     }
+    return c.json(book);
+  });
+
+  /**
+   * Duplicate resolution, from the details panel
+   * (docs/features/resolving-duplicates.md). The GET suggests, the two POSTs
+   * are the reader's answer either way, and `separate` is the undo.
+   *
+   * A candidate carries no metadata — just the work it names — because the
+   * client already holds every work from `GET /api/books`.
+   */
+  app.get("/api/books/:id/duplicates", (c) => {
+    const duplicates = getWorks().duplicatesFor(workIdFromPath(c));
+    if (!duplicates) return c.json({ error: "No book with that id." }, 404);
+    return c.json(duplicates);
+  });
+
+  // These two are the same book: one work from now on, pinned so the matcher
+  // never reconsiders it. Answers with the work that survived — which is the
+  // older of the two, so it may not be the one in the path.
+  app.post("/api/books/:id/duplicates", zValidator("json", DuplicateLinkSchema, invalid), (c) => {
+    const merged = getWorks().link(workIdFromPath(c), c.req.valid("json").workId);
+    if (merged === null) {
+      return c.json({ error: "Those aren't two different books to join." }, 404);
+    }
+    const book = getBooks().get(merged);
+    if (!book) return c.json({ error: "No book with that id." }, 404);
+    return c.json(book);
+  });
+
+  // Not the same book. Remembered against the pair of *rows*, and honoured by
+  // the matcher too — otherwise the answer would last until the next sync.
+  app.post(
+    "/api/books/:id/duplicates/dismiss",
+    zValidator("json", DuplicateDismissSchema, invalid),
+    (c) => {
+      const workId = workIdFromPath(c);
+      const { bookId, otherBookId } = c.req.valid("json");
+      const works = getWorks();
+
+      if (!works.ruleOut(bookId, otherBookId, new Date().toISOString())) {
+        return c.json({ error: "Those aren't two books in different works." }, 404);
+      }
+      const duplicates = works.duplicatesFor(workId);
+      if (!duplicates) return c.json({ error: "No book with that id." }, 404);
+      return c.json(duplicates);
+    },
+  );
+
+  // Move one entry back out on its own — the undo for a merge. The reader stays
+  // on the work they were looking at, so that is what this answers with.
+  app.post("/api/books/:id/separate", zValidator("json", WorkSeparateSchema, invalid), (c) => {
+    const workId = workIdFromPath(c);
+    if (!getWorks().separate(workId, c.req.valid("json").bookId, new Date().toISOString())) {
+      return c.json({ error: "That book isn't one of this book's entries." }, 404);
+    }
+    const book = getBooks().get(workId);
+    if (!book) return c.json({ error: "No book with that id." }, 404);
     return c.json(book);
   });
 

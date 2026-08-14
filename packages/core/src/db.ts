@@ -268,6 +268,24 @@ function migrate(db: Database): void {
   db.run("CREATE INDEX IF NOT EXISTS books_work_id ON books(work_id)");
   db.run("CREATE INDEX IF NOT EXISTS books_match_key ON books(match_key)");
 
+  // "These two rows are not the same book" — a person's answer to a suggestion
+  // (docs/features/resolving-duplicates.md). The negative edge ADR 0013
+  // anticipated: without it the answer would last until the next sync, since
+  // the matcher would re-group the pair on the same evidence that raised it.
+  //
+  // Between *rows* rather than works, because a row is the stable thing — a
+  // work is exactly the grouping being argued about. Stored with the lower id
+  // first so the fact is one row and no lookup has to try it both ways.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS book_not_duplicates (
+      book_id       INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+      other_book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+      created_at    TEXT NOT NULL,
+      PRIMARY KEY (book_id, other_book_id),
+      CHECK (book_id < other_book_id)
+    )
+  `);
+
   backfillWorks(db);
   backfillMatchKeys(db);
 

@@ -139,6 +139,9 @@ function toBook(members: BookRow[]): Book {
   return {
     id: first.work_id,
     sources: [...new Set(rows.map((row) => row.source))],
+    // The rows behind the work, not the sources: two Calibre rows joined by
+    // hand are two entries and one source (docs/features/resolving-duplicates.md).
+    entries: rows.length,
     // From whichever member is the Calibre one; null when no member is in the
     // library, which is still the exact test for "is there a file to download".
     calibreId: pick((row) => row.calibre_id),

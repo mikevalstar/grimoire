@@ -2,15 +2,21 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import { useEffect, useRef } from "react";
 import {
   chooseBookCover,
+  type DuplicateCandidate,
+  type Duplicates,
+  dismissDuplicate,
   fetchBooks,
+  fetchDuplicates,
   fetchPreferences,
   fetchRatings,
   fetchSyncStatus,
   fetchUsers,
   type LibraryBook,
+  linkDuplicate,
   type Ratings,
   saveRating,
   saveSyncInterval,
+  separateMember,
   startSync,
 } from "@/lib/api";
 
@@ -150,6 +156,121 @@ export function useChooseCover() {
 
     onError(_error, _variables, context) {
       if (context?.previous) queryClient.setQueryData(booksQuery.queryKey, context.previous);
+    },
+  });
+}
+
+/**
+ * What the open book might be a duplicate of, and the entries it is already
+ * made of (docs/features/resolving-duplicates.md). Fetched per book, when a
+ * panel opens — a suggestion is derived from data the server already holds, so
+ * there is nothing to keep warm.
+ */
+export function duplicatesQuery(workId: number | null) {
+  return queryOptions({
+    queryKey: ["duplicates", workId],
+    queryFn: () => fetchDuplicates(workId as number),
+    enabled: workId != null,
+    // Only this app changes the answer, and every mutation below writes it back.
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * These two are the same book. The library reloads because a merge changes what
+ * is on the shelf — one card where there were two — and the ratings with it,
+ * since the surviving work may not be the one the reader was looking at.
+ */
+export function useLinkDuplicate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workId, otherWorkId }: { workId: number; otherWorkId: number }) =>
+      linkDuplicate(workId, otherWorkId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: booksQuery.queryKey });
+      void queryClient.invalidateQueries({ queryKey: ["duplicates"] });
+      void queryClient.invalidateQueries({ queryKey: ["ratings"] });
+    },
+  });
+}
+
+/**
+ * Not the same book. Nothing on the shelf changes, and the server answers with
+ * the list as it now stands — so this writes that back rather than refetching.
+ */
+export function useDismissDuplicate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      workId,
+      bookId,
+      otherBookId,
+    }: {
+      workId: number;
+      bookId: number;
+      otherBookId: number;
+    }) => dismissDuplicate(workId, bookId, otherBookId),
+    onSuccess: (duplicates, { workId }) => {
+      queryClient.setQueryData<Duplicates>(["duplicates", workId], duplicates);
+    },
+  });
+}
+
+/**
+ * Everything the details panel's **Same book** section needs for one book: the
+ * suggestions, the three answers, and whether one is in flight.
+ *
+ * Bundled because which book is open is screen state
+ * (docs/features/book-details-panel.md) — the component that knows it is not
+ * the one that owns the queries, and this is the seam between them.
+ *
+ * `onMerged` is how the panel follows a merge: the surviving work is the older
+ * of the two, so it is not always the one the reader had open.
+ */
+export function useDuplicates(workId: number | null, onMerged?: (book: LibraryBook) => void) {
+  const { data } = useQuery(duplicatesQuery(workId));
+  const link = useLinkDuplicate();
+  const dismiss = useDismissDuplicate();
+  const separate = useSeparateMember();
+
+  /**
+   * Join another work to this one. Awaited rather than fired off, because the
+   * manual picker stays open until it lands — a search that closed on a failed
+   * write would look like it worked (docs/features/resolving-duplicates.md).
+   */
+  const onLinkWork = async (otherWorkId: number) => {
+    if (workId === null) return;
+    onMerged?.(await link.mutateAsync({ workId, otherWorkId }));
+  };
+
+  return {
+    duplicates: data,
+    busy: link.isPending || dismiss.isPending || separate.isPending,
+    onLinkWork,
+    onLink: ({ workId: otherWorkId }: DuplicateCandidate) => {
+      if (workId === null) return;
+      link.mutate({ workId, otherWorkId }, { onSuccess: onMerged });
+    },
+    onDismiss: ({ bookId, otherBookId }: DuplicateCandidate) => {
+      if (workId === null) return;
+      dismiss.mutate({ workId, bookId, otherBookId });
+    },
+    onSeparate: (bookId: number) => {
+      if (workId === null) return;
+      separate.mutate({ workId, bookId });
+    },
+  };
+}
+
+/** Move one entry back out on its own — the undo for a merge. */
+export function useSeparateMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workId, bookId }: { workId: number; bookId: number }) =>
+      separateMember(workId, bookId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: booksQuery.queryKey });
+      void queryClient.invalidateQueries({ queryKey: ["duplicates"] });
     },
   });
 }
