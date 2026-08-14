@@ -32,7 +32,21 @@ interface BookRow {
   cover_url: string | null;
   work_id: number;
   match_key: string | null;
+  /**
+   * From the work, not the book: which member a reader chose to show the cover
+   * of, or null when nobody has. Joined onto every member row, so `toBook` can
+   * resolve it without a second query.
+   */
+  work_cover_book_id: number | null;
 }
+
+/**
+ * Every member row of a work, with its work's cover choice alongside. One join
+ * rather than a query per work: the shelf reads the whole library in one pass.
+ */
+const MEMBER_ROWS = `SELECT b.*, w.cover_book_id AS work_cover_book_id
+                       FROM books b
+                       JOIN works w ON w.id = b.work_id`;
 
 /**
  * Which source wins a field when a work has members from several (ADR 0013).
@@ -112,6 +126,16 @@ function toBook(members: BookRow[]): Book {
   const cached = rows.some((row) => row.cover_state === "cached");
   const missing = rows.some((row) => row.cover_state === "missing");
 
+  // Every member that actually has a file, in source-precedence order — so the
+  // one a reader is offered first is Calibre's, the edition they own.
+  const covers = rows
+    .filter((row) => row.cover_state === "cached")
+    .map((row) => ({ bookId: row.id, source: row.source }));
+
+  // A choice only counts while the member it names still has a cover; a work
+  // whose chosen member lost one falls back to the rule rather than to nothing.
+  const chosen = covers.find((cover) => cover.bookId === first.work_cover_book_id);
+
   return {
     id: first.work_id,
     sources: [...new Set(rows.map((row) => row.source))],
@@ -140,6 +164,8 @@ function toBook(members: BookRow[]): Book {
     // shelf has something to draw during a first sync. A cover already proven
     // unfetchable is not worth sending the browser after.
     coverUrl: cached || missing ? null : pick((row) => row.cover_url),
+    covers,
+    coverBookId: chosen?.bookId ?? covers[0]?.bookId ?? null,
   };
 }
 
@@ -187,13 +213,13 @@ export class BooksStore {
 
   /** The shelf: one entry per work, not per row (ADR 0013). */
   list(): Book[] {
-    return toBooks(this.db.query("SELECT * FROM books ORDER BY work_id").all() as BookRow[]);
+    return toBooks(this.db.query(`${MEMBER_ROWS} ORDER BY b.work_id`).all() as BookRow[]);
   }
 
   /** By *work* id — the id every payload speaks. */
   get(workId: number): Book | null {
     const rows = this.db
-      .query("SELECT * FROM books WHERE work_id = $workId")
+      .query(`${MEMBER_ROWS} WHERE b.work_id = $workId`)
       .all({ $workId: workId }) as BookRow[];
     return rows.length > 0 ? toBook(rows) : null;
   }
@@ -201,18 +227,38 @@ export class BooksStore {
   /**
    * Which member's file to serve as this work's cover. Cover files are named by
    * the member's own id, so a work has to be resolved to whichever member
-   * actually has one — preferring Calibre's, which is cached at all three sizes.
+   * actually has one — the reader's choice if they made one, and otherwise
+   * Calibre's, the edition they own.
+   *
+   * Read off the assembled work rather than from its own query, so the order
+   * the panel offers covers in and the one the shelf draws can never disagree.
    */
   coverBookId(workId: number): number | null {
-    const row = this.db
-      .query(
-        `SELECT id FROM books
-          WHERE work_id = $workId AND cover_state = 'cached'
-          ORDER BY source = 'calibre' DESC, id
-          LIMIT 1`,
-      )
-      .get({ $workId: workId }) as { id: number } | null;
-    return row?.id ?? null;
+    return this.get(workId)?.coverBookId ?? null;
+  }
+
+  /**
+   * That work's cover held by *this* member, for drawing the ones a reader
+   * hasn't chosen. Null unless the book really is in the work and really has a
+   * file — a cover URL is not a way to enumerate the library.
+   */
+  memberCoverBookId(workId: number, bookId: number): number | null {
+    const covers = this.get(workId)?.covers ?? [];
+    return covers.some((cover) => cover.bookId === bookId) ? bookId : null;
+  }
+
+  /**
+   * Show this member's cover for the work from now on
+   * (docs/features/book-details-panel.md). Returns the work as it now is, or
+   * null if the book is not a member of it or has no cover to show — a choice
+   * that could not be honoured is not worth storing.
+   */
+  chooseCover(workId: number, bookId: number): Book | null {
+    if (this.memberCoverBookId(workId, bookId) === null) return null;
+    this.db
+      .query("UPDATE works SET cover_book_id = $bookId WHERE id = $workId")
+      .run({ $workId: workId, $bookId: bookId });
+    return this.get(workId);
   }
 
   /** Books on the shelf — works, since that is what a reader counts. */
@@ -418,8 +464,15 @@ export class BooksStore {
    * Comparing against `last_modified` is coarse — editing a title refetches
    * three images — but a stale cover is worse than a wasted request, and
    * Calibre exposes no cover-specific mtime.
+   *
+   * `retryMissing` also re-queues the books a previous run failed on. A failure
+   * stamps `cover_synced_at` with the book's own `last_modified`, so nothing
+   * above would ever pick it up again — one unreachable minute would cost those
+   * books their covers until Calibre next edited them. A full sync is the
+   * remedy, and only a full sync: retrying every failure every tick is how a
+   * library with a genuinely coverless book hammers the content server forever.
    */
-  coversToFetch(): CoverTarget[] {
+  coversToFetch(retryMissing = false): CoverTarget[] {
     const rows = this.db
       .query(
         `SELECT b.id AS id, b.calibre_id AS calibreId, c.last_modified AS lastModified
@@ -427,10 +480,12 @@ export class BooksStore {
            JOIN calibre_books c ON c.calibre_id = b.calibre_id
           WHERE b.calibre_id IS NOT NULL
             AND c.has_cover = 1
-            AND (b.cover_synced_at IS NULL OR b.cover_synced_at < c.last_modified)
+            AND (b.cover_synced_at IS NULL
+                 OR b.cover_synced_at < c.last_modified
+                 OR ($retryMissing = 1 AND b.cover_state = 'missing'))
           ORDER BY c.last_modified DESC`,
       )
-      .all() as CoverTarget[];
+      .all({ $retryMissing: retryMissing ? 1 : 0 }) as CoverTarget[];
     return rows;
   }
 
@@ -438,16 +493,39 @@ export class BooksStore {
    * Books whose cover is a URL we haven't cached yet — Hardcover's, today
    * (docs/features/hardcover-sync.md).
    *
-   * `cover_state = 'none'` and not merely "not cached", so a book whose image
-   * failed to download is marked `missing` and left alone rather than retried
-   * every sync. Reconcile resets it to `none` when the URL changes, which is
-   * the one thing that should make us try again.
+   * Normally `cover_state = 'none'` and not merely "not cached", so a book
+   * whose image failed to download is marked `missing` and left alone rather
+   * than retried every sync. Reconcile resets it to `none` when the URL
+   * changes, which is one thing that should make us try again.
+   *
+   * `retryMissing` is the other: a full sync tries the failures again, because
+   * "it looks wrong, re-sync" has to be a real remedy. Without it a single
+   * minute without a network — someone else's CDN, so this is not rare — marks
+   * a whole shelf `missing` permanently, and nothing short of editing the book
+   * on Hardcover ever asks again.
    */
-  remoteCoversToFetch(): { id: number; url: string }[] {
+  remoteCoversToFetch(retryMissing = false): { id: number; url: string }[] {
     return this.db
       .query(
         `SELECT id, cover_url AS url FROM books
-          WHERE cover_url IS NOT NULL AND cover_state = 'none'
+          WHERE cover_url IS NOT NULL
+            AND (cover_state = 'none' OR ($retryMissing = 1 AND cover_state = 'missing'))
+          ORDER BY id`,
+      )
+      .all({ $retryMissing: retryMissing ? 1 : 0 }) as { id: number; url: string }[];
+  }
+
+  /**
+   * Books with a remote cover the database calls cached, for checking that
+   * claim against the filesystem — the `covers/` tree is disposable (ADR 0007),
+   * and these are the ones the Calibre pass can't rebuild because they have no
+   * Calibre id to re-fetch from.
+   */
+  cachedRemoteCoverTargets(): { id: number; url: string }[] {
+    return this.db
+      .query(
+        `SELECT id, cover_url AS url FROM books
+          WHERE cover_url IS NOT NULL AND cover_state = 'cached'
           ORDER BY id`,
       )
       .all() as { id: number; url: string }[];

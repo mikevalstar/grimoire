@@ -1,6 +1,7 @@
 import {
   ApiErrorSchema,
   type Book,
+  BookSchema,
   BooksSchema,
   type CalibreServerTest,
   CalibreServerTestSchema,
@@ -237,9 +238,15 @@ export type LibraryBook = Book;
  * A cached cover, by Grimoire book id. Sync fetched these at fixed sizes, so
  * callers pick the nearest name rather than asking for arbitrary pixels —
  * there is no scaler on this path any more, just a file.
+ *
+ * `member` names one of the work's covers rather than taking its chosen one.
+ * Passing the chosen member is what makes the URL change when a reader swaps
+ * covers — the file is served with a year-long max-age, so an unchanged URL
+ * would go on showing the old cover (docs/features/book-details-panel.md).
  */
-export function bookCoverUrl(id: number, size: CoverSize): string {
-  return `${API_BASE}/api/books/${id}/cover/${size}`;
+export function bookCoverUrl(id: number, size: CoverSize, member?: number | null): string {
+  const url = `${API_BASE}/api/books/${id}/cover/${size}`;
+  return member == null ? url : `${url}?member=${member}`;
 }
 
 /** The cached size to ask for when a cover will be drawn about `width` CSS px wide. */
@@ -279,11 +286,12 @@ export function isInLibrary(book: Pick<LibraryBook, "calibreId">): boolean {
  * gives us no scaler, so those load over the network rather than from disk.
  */
 export function bookImageUrl(
-  book: Pick<LibraryBook, "id" | "coverState"> & Partial<Pick<LibraryBook, "coverUrl">>,
+  book: Pick<LibraryBook, "id" | "coverState"> &
+    Partial<Pick<LibraryBook, "coverUrl" | "coverBookId">>,
   width: number,
 ): string {
   if (book.coverState !== "cached" && book.coverUrl) return book.coverUrl;
-  return bookCoverUrl(book.id, coverSizeFor(width));
+  return bookCoverUrl(book.id, coverSizeFor(width), book.coverBookId);
 }
 
 /** Most portable first — the order a book's formats are offered in. */
@@ -309,6 +317,18 @@ export function orderedFormats(formats: string[]): string[] {
  */
 export function fetchBooks(): Promise<LibraryBook[]> {
   return request("/api/books", BooksSchema);
+}
+
+/**
+ * Show this member's cover for the work from now on, for every reader — a
+ * cover is what a book looks like, not an opinion about it. Answers with the
+ * book as it now is (docs/features/book-details-panel.md).
+ */
+export function chooseBookCover(workId: number, bookId: number): Promise<LibraryBook> {
+  return request(`/api/books/${workId}/cover`, BookSchema, {
+    method: "PUT",
+    body: { bookId },
+  });
 }
 
 /** Where the sync is up to, and what went wrong last time if anything did. */

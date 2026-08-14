@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,15 +15,31 @@ export interface BookDownloadButtonProps {
    * Where it sits. `quiet` is on the canvas and flips with the theme; `overlay`
    * lies on top of a cover, which is an image in both themes, so it stays dark
    * glass regardless — the one place a fixed light-on-dark chip is correct.
+   * `panel` is the labelled, always-visible one in the
+   * [details panel](../../../../docs/features/book-details-panel.md), where
+   * downloading is the screen's own action rather than a card's.
    */
-  variant?: "quiet" | "overlay";
+  variant?: "quiet" | "overlay" | "panel";
   className?: string;
 }
 
 const VARIANTS = {
-  quiet:
-    "border-line-strong bg-fill text-muted-foreground hover:border-you hover:bg-you hover:text-primary-foreground",
-  overlay: "border-white/20 bg-black/65 text-white hover:border-you hover:bg-you",
+  quiet: {
+    chrome:
+      "size-7 rounded-full border-line-strong bg-fill text-muted-foreground backdrop-blur-md hover:border-you hover:bg-you hover:text-primary-foreground",
+    /** Hidden until the card or row around it is hovered. */
+    onHover: true,
+  },
+  overlay: {
+    chrome:
+      "size-7 rounded-full border-white/20 bg-black/65 text-white backdrop-blur-md hover:border-you hover:bg-you",
+    onHover: true,
+  },
+  panel: {
+    chrome:
+      "h-9 gap-2 rounded-lg border-transparent bg-you px-4 text-[13px] font-semibold text-primary-foreground shadow-[0_4px_20px_-4px_var(--you-glow)] hover:brightness-110",
+    onHover: false,
+  },
 } as const;
 
 /**
@@ -39,10 +55,12 @@ const VARIANTS = {
  * library: Grimoire keeps that book's record and cover, but the *file* was
  * always Calibre's, and there is nothing left to point at.
  *
- * Hidden until the book it belongs to is hovered, so callers must mark that
- * card or row `group/book`. Focus reveals it too — a pointer-only affordance
- * would be unreachable — and so does an open menu, which outlives the hover
- * that opened it. See docs/features/book-list.md.
+ * On a card or a row it is hidden until that book is hovered, so callers must
+ * mark the card or row `group/book`. Focus reveals it too — a pointer-only
+ * affordance would be unreachable — and so does an open menu, which outlives
+ * the hover that opened it. The `panel` variant is always visible: the details
+ * panel is already about one book, so there is nothing to reveal it against.
+ * See docs/features/book-list.md and docs/features/book-details-panel.md.
  */
 export function BookDownloadButton({
   book,
@@ -54,12 +72,18 @@ export function BookDownloadButton({
   if (formats.length === 0 || calibreId === null) return null;
 
   const chrome = cn(
-    "flex size-7 items-center justify-center rounded-full border backdrop-blur-md",
-    VARIANTS[variant],
+    "flex items-center justify-center border motion-safe:transition-[opacity,color,background-color,border-color]",
+    VARIANTS[variant].chrome,
     // `data-[state=open]` because the pointer leaves the card to reach the menu:
     // without it the button — and the menu's anchor — fades out underneath it.
-    "opacity-0 group-hover/book:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-safe:transition-[opacity,color,background-color,border-color]",
+    VARIANTS[variant].onHover &&
+      "opacity-0 group-hover/book:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
     className,
+  );
+
+  // The panel has room to say what the button does, and only one format to name.
+  const label = variant === "panel" && (
+    <span>{formats.length === 1 ? `Download ${formats[0]}` : "Download"}</span>
   );
 
   // The card or row around this may itself be a target; downloading, or opening
@@ -78,6 +102,7 @@ export function BookDownloadButton({
         className={chrome}
       >
         <Download size={13} />
+        {label}
       </a>
     );
   }
@@ -91,12 +116,15 @@ export function BookDownloadButton({
         className={chrome}
       >
         <Download size={13} />
+        {label}
+        {label && <ChevronDown size={12} className="opacity-70" />}
       </DropdownMenuTrigger>
       {/* Follows the button it hangs off: centred under the cover in the grid,
-          and pulled back from the right edge in the table, where the actions
-          column is the last thing in the row. */}
+          pulled back from the right edge in the table, where the actions column
+          is the last thing in the row, and left-aligned under the wide button
+          in the panel. */}
       <DropdownMenuContent
-        align={variant === "overlay" ? "center" : "end"}
+        align={variant === "overlay" ? "center" : variant === "panel" ? "start" : "end"}
         className="min-w-36"
         onClick={stopPropagation}
       >

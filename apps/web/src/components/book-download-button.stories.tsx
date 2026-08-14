@@ -65,6 +65,17 @@ export const Overlay: Story = {
 /** The table's variant: smaller, square-ish, sitting in the actions column. */
 export const InTable: Story = { args: { className: "size-6 rounded-md opacity-100" } };
 
+/**
+ * The details panel's variant: labelled, always visible, and the screen's own
+ * action rather than a card's (docs/features/book-details-panel.md).
+ */
+export const Panel: Story = { args: { variant: "panel" } };
+
+/** The same, with only one format to offer — so it names it. */
+export const PanelSingleFormat: Story = {
+  args: { variant: "panel", book: { ...SAMPLE_BOOKS[0], formats: ["EPUB"] } },
+};
+
 /** Nothing to hand over — Calibre has no file for this book. */
 export const NoFormats: Story = {
   args: { book: { ...SAMPLE_BOOKS[0], formats: [] }, className: "opacity-100" },

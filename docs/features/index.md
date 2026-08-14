@@ -12,6 +12,7 @@ Add one with `okq new feature "<title>"`.
 | Title | File |
 |-------|------|
 | Application shell | [application-shell.md](application-shell.md) |
+| Book details panel | [book-details-panel.md](book-details-panel.md) |
 | Book list | [book-list.md](book-list.md) |
 | Book matching | [book-matching.md](book-matching.md) |
 | Calibre sync | [calibre-sync.md](calibre-sync.md) |

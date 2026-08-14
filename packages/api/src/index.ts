@@ -2,6 +2,7 @@ import type { CalibreServerTest, User } from "@grimoire/core";
 import {
   BooksStore,
   CalibreTestRequestSchema,
+  CoverChoiceSchema,
   type CoverSize,
   CoverStore,
   DuplicateUserError,
@@ -233,10 +234,17 @@ export function createApi(options: ApiOptions = {}) {
    *
    * The file is named by the *member* that holds it (ADR 0013), so the work is
    * resolved to whichever of its books actually has one.
+   *
+   * `?member=` asks for one particular member's cover instead of the work's
+   * chosen one — how the details panel draws the covers on the bottom of the
+   * stack. It is also what makes the URL change when the choice does: the
+   * client stamps the chosen member on it, so a swap is not left behind a
+   * year-long max-age (docs/features/book-details-panel.md).
    */
   app.get("/api/books/:id/cover/:size", async (c) => {
     const workId = Number(c.req.param("id"));
     const size = c.req.param("size");
+    const member = c.req.query("member");
     if (!Number.isInteger(workId) || workId <= 0) {
       return c.json({ error: `"${c.req.param("id")}" is not a book id.` }, 400);
     }
@@ -244,7 +252,11 @@ export function createApi(options: ApiOptions = {}) {
       return c.json({ error: `"${size}" is not a cover size.` }, 400);
     }
 
-    const id = getBooks().coverBookId(workId);
+    const books = getBooks();
+    const id =
+      member === undefined
+        ? books.coverBookId(workId)
+        : books.memberCoverBookId(workId, Number(member));
     if (id === null) {
       return c.json({ error: "No cached cover for that book." }, 404);
     }
@@ -266,6 +278,26 @@ export function createApi(options: ApiOptions = {}) {
         ETag: etag,
       },
     });
+  });
+
+  /**
+   * Choose which of a work's covers to show, for everyone
+   * (docs/features/book-details-panel.md). A work only has more than one when
+   * matching grouped members that each brought a cover, so this 404s for the
+   * vast majority of books — and for any body naming a book that is not a
+   * member of this work, or has no cached cover to show.
+   */
+  app.put("/api/books/:id/cover", zValidator("json", CoverChoiceSchema, invalid), (c) => {
+    const workId = Number(c.req.param("id"));
+    if (!Number.isInteger(workId) || workId <= 0) {
+      return c.json({ error: `"${c.req.param("id")}" is not a book id.` }, 400);
+    }
+
+    const book = getBooks().chooseCover(workId, c.req.valid("json").bookId);
+    if (!book) {
+      return c.json({ error: "That book has no cover to show for this work." }, 404);
+    }
+    return c.json(book);
   });
 
   // Sync status and control (docs/features/calibre-sync.md). The indicator polls
@@ -346,7 +378,9 @@ export function createApi(options: ApiOptions = {}) {
   app.post("/api/users/:id/hardcover/sync", async (c) => {
     const user = readerFromPath(c);
     try {
-      await getHardcoverSync().syncUser(user.id);
+      // Full: someone pressed a button, which is also how they say "the covers
+      // didn't come down, try again" (docs/features/hardcover-sync.md).
+      await getHardcoverSync().syncUser(user.id, true);
     } catch {
       // The reason is recorded against the reader and comes back on the row
       // below, so a failed sync answers with the reader, not with a 500.

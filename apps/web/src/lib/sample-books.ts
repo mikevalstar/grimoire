@@ -9,8 +9,18 @@ type Fixture = Pick<LibraryBook, "id" | "title" | "authors" | "formats" | "added
   Partial<LibraryBook>;
 
 function book(fixture: Fixture): LibraryBook {
+  const sources = fixture.sources ?? ["calibre"];
+  const coverState = fixture.coverState ?? "cached";
+  // A fixture is one member unless it says otherwise, so it brings one cover —
+  // its own. The two-cover case is the interesting one and is spelled out where
+  // it appears (docs/features/book-details-panel.md).
+  const covers = coverState === "cached" ? [{ bookId: fixture.id, source: sources[0] ?? "" }] : [];
+
   return {
-    sources: ["calibre"],
+    sources,
+    coverState,
+    covers,
+    coverBookId: covers[0]?.bookId ?? null,
     // Same as the Grimoire id unless a fixture says otherwise. Null is the
     // interesting case: a book Grimoire kept after Calibre dropped it.
     calibreId: fixture.id,
@@ -22,7 +32,6 @@ function book(fixture: Fixture): LibraryBook {
     identifiers: {},
     description: null,
     pages: null,
-    coverState: "cached",
     coverUrl: null,
     ...fixture,
   };
@@ -179,8 +188,9 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     coverState: "none",
     coverUrl: null,
   }),
-  // What a matched book will look like once de-duping lands: one book, two
-  // sources, two marks. Nothing produces this yet.
+  // A matched book: one work, two member rows, two marks — and two covers, one
+  // from each library, which is what the details panel lets you swap between
+  // (docs/features/book-details-panel.md). The member ids are not the work's.
   book({
     id: 14,
     title: "Piranesi",
@@ -190,6 +200,11 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     added: "2025-07-21T07:15:30+00:00",
     published: "2020-09-15T00:00:00+00:00",
     sources: ["calibre", "hardcover"],
+    covers: [
+      { bookId: 14, source: "calibre" },
+      { bookId: 114, source: "hardcover" },
+    ],
+    coverBookId: 14,
   }),
 ];
 

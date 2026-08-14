@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
 export interface BookGridProps {
   books: LibraryBook[];
   /**
-   * Opening a book. Cards are only clickable when this is given — there is no
-   * detail panel yet, and a hover affordance that leads nowhere is a lie.
+   * Opening a book — the [details panel](../../../../docs/features/book-details-panel.md).
+   * Cards are only clickable when this is given: a hover affordance that leads
+   * nowhere is a lie.
    */
   onOpen?: (book: LibraryBook) => void;
   /** The reader's own ratings, which stand in front of Calibre's. */

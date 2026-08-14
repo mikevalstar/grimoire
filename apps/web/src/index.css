@@ -171,6 +171,39 @@
   }
 }
 
+/* Turning over the cover stack (docs/features/book-details-panel.md). The sheet
+   on top flicks aside and drops to the back of the pile, while the next one
+   rises from its tilt to face up. The `z-index` step at the half way point is
+   what actually sells it: until then the outgoing sheet is above everything, and
+   after it is underneath — which is the moment the two cards trade places.
+   `--tilt` is the angle the sheet is going to (or coming from), set per card. */
+@keyframes cover-to-back {
+  0% {
+    transform: rotate(0deg) translate(0, 0) scale(1);
+    z-index: 30;
+  }
+  45% {
+    transform: rotate(9deg) translate(26%, -3%) scale(1.03);
+    z-index: 30;
+  }
+  100% {
+    transform: rotate(var(--tilt)) translate(0, 0) scale(1);
+    z-index: 0;
+  }
+}
+
+@keyframes cover-to-front {
+  0% {
+    transform: rotate(var(--tilt)) scale(0.97);
+  }
+  55% {
+    transform: rotate(0deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
 @keyframes star-pop {
   0% {
     transform: scale(1);

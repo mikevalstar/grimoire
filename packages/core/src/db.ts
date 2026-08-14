@@ -248,6 +248,13 @@ function migrate(db: Database): void {
     )
   `);
 
+  // Which member's cover to show for a work whose members brought more than one
+  // (docs/features/book-details-panel.md). Null means "nobody has chosen", and
+  // the rule picks — so this holds *decisions*, and a work reverts to the rule
+  // if the chosen member ever loses its cover. Not per reader: a cover is what
+  // the book looks like, not what someone thinks of it.
+  addColumn(db, "works", "cover_book_id", "INTEGER REFERENCES books(id)");
+
   // Nullable in SQL only because ALTER cannot add a NOT NULL column to a table
   // that already has rows; every path that inserts a book gives it a work, and
   // the backfill below gives one to every row written before this existed.

@@ -14,6 +14,13 @@ export interface StarRatingProps {
   onRate?: (rating: number) => void;
   /** Names the book in the stars' accessible labels ("Rate Dune 3 stars"). */
   label?: string;
+  /**
+   * Show the empty stars and the clear button without waiting for a hover. The
+   * shelf reveals them, so a wall of cards stays quiet; the
+   * [details panel](../../../../docs/features/book-details-panel.md) is already
+   * about one book, and has nothing to reveal them against.
+   */
+  revealed?: boolean;
   size?: number;
   className?: string;
 }
@@ -32,7 +39,14 @@ const BURST_MS = 450;
  *
  * Interactive when given `onRate` — see docs/features/rating-a-book.md.
  */
-export function StarRating({ value, onRate, label, size = 11, className }: StarRatingProps) {
+export function StarRating({
+  value,
+  onRate,
+  label,
+  revealed = false,
+  size = 11,
+  className,
+}: StarRatingProps) {
   // The star being pointed at or focused, previewing what a click would set.
   const [preview, setPreview] = useState<number | null>(null);
 
@@ -144,6 +158,7 @@ export function StarRating({ value, onRate, label, size = 11, className }: StarR
                     // is in the control, then fades in outlined — that reveal
                     // is the whole "these are yours to set" signal.
                     !filled &&
+                      !revealed &&
                       "opacity-0 group-hover/rating:opacity-100 group-focus-within/rating:opacity-100",
                     "motion-safe:transition-all motion-safe:duration-150",
                   )}
@@ -185,7 +200,12 @@ export function StarRating({ value, onRate, label, size = 11, className }: StarR
             onMouseLeave={() => setPreview(null)}
             onFocus={() => setPreview(0)}
             onBlur={() => setPreview(null)}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 cursor-pointer rounded-[2px] opacity-0 group-hover/rating:opacity-70 group-focus-within/rating:opacity-70 hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none motion-safe:transition-opacity"
+            className={cn(
+              "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 cursor-pointer rounded-[2px] hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none motion-safe:transition-opacity",
+              revealed
+                ? "opacity-70"
+                : "opacity-0 group-hover/rating:opacity-70 group-focus-within/rating:opacity-70",
+            )}
           >
             <X size={size} />
           </button>

@@ -1,11 +1,13 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import {
+  chooseBookCover,
   fetchBooks,
   fetchPreferences,
   fetchRatings,
   fetchSyncStatus,
   fetchUsers,
+  type LibraryBook,
   type Ratings,
   saveRating,
   saveSyncInterval,
@@ -118,6 +120,36 @@ export function useSaveSyncInterval() {
     onSuccess: (status) => {
       queryClient.setQueryData(syncQuery.queryKey, status);
       void queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
+  });
+}
+
+/**
+ * Swap which of a work's covers is shown, optimistically — the stack turns over
+ * under the click and the PUT follows. The cached library is patched in place
+ * rather than invalidated, so the shelf behind the panel turns over with it
+ * without refetching every book (docs/features/book-details-panel.md).
+ */
+export function useChooseCover() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workId, bookId }: { workId: number; bookId: number }) =>
+      chooseBookCover(workId, bookId),
+
+    async onMutate({ workId, bookId }) {
+      await queryClient.cancelQueries({ queryKey: booksQuery.queryKey });
+      const previous = queryClient.getQueryData<LibraryBook[]>(booksQuery.queryKey);
+
+      queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
+        books?.map((book) => (book.id === workId ? { ...book, coverBookId: bookId } : book)),
+      );
+
+      return { previous };
+    },
+
+    onError(_error, _variables, context) {
+      if (context?.previous) queryClient.setQueryData(booksQuery.queryKey, context.previous);
     },
   });
 }

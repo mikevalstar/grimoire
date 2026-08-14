@@ -131,6 +131,13 @@ else. For that to be true a **full** sync checks the filesystem for every book
 it believes is cached and re-queues whatever has gone missing. Incremental ticks
 skip that check.
 
+A full sync also re-tries the books marked missing. A failure stamps the book
+with the timestamp it was checked against, so the staleness test that queues
+covers would never queue them again — meaning a content server that was
+restarting could mark a whole library missing for good. Only a full sync does
+this: retrying every failure every minute is how a library with genuinely
+coverless books hammers the content server forever.
+
 ### The sync indicator
 
 A button in the header, in three states: **idle**, with the last sync time in

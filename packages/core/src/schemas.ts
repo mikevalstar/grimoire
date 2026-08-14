@@ -257,6 +257,24 @@ export const BookSchema = z.object({
   /** Whether a cached cover exists: "cached" is the only one worth requesting. */
   coverState: z.enum(["none", "cached", "missing"]),
   /**
+   * Every cached cover this work has — one per member that brought one, so a
+   * book held in Calibre *and* on Hardcover offers both
+   * (docs/features/book-details-panel.md). Ordered as the shelf would pick
+   * them, and empty for a book with no cached cover at all.
+   *
+   * This is the one place a member row id crosses to the browser. Choosing
+   * between covers means naming them, and an index into this list would shift
+   * under a sync while a panel was open.
+   */
+  covers: z.array(z.object({ bookId: z.number(), source: z.string() })).default([]),
+  /**
+   * The member currently serving as this work's cover — the chosen one, or the
+   * rule's pick when nobody has chosen. Null when there is no cached cover.
+   * Also what makes a cover URL change when the choice does, so a swap is not
+   * hidden behind the browser cache.
+   */
+  coverBookId: z.number().nullable().default(null),
+  /**
    * A cover Grimoire holds no file for, served from the source's own CDN —
    * Hardcover books, today. Null for anything with a cached cover, and the
    * reason a Hardcover book's cover needs the network (docs/features/hardcover-sync.md).
@@ -266,6 +284,12 @@ export const BookSchema = z.object({
 export type Book = z.infer<typeof BookSchema>;
 
 export const BooksSchema = z.array(BookSchema);
+
+/** Body of PUT /api/books/:id/cover — which member's cover this work should show. */
+export const CoverChoiceSchema = z.object({
+  bookId: z.number().int().positive(),
+});
+export type CoverChoice = z.infer<typeof CoverChoiceSchema>;
 
 // --- Sync ------------------------------------------------------------------
 // docs/features/calibre-sync.md

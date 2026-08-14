@@ -59,6 +59,16 @@ export const InteractiveUnrated: Story = {
   args: { value: 0 },
 };
 
+/**
+ * `revealed` skips the reveal: the empty stars and the clear button are there
+ * from the start. For the details panel, which is already about one book
+ * (docs/features/book-details-panel.md).
+ */
+export const Revealed: Story = {
+  ...Interactive,
+  args: { value: 0, revealed: true },
+};
+
 export const InteractiveLight: Story = {
   ...Interactive,
   globals: { theme: "light" },

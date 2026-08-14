@@ -143,9 +143,10 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   Paging or windowing is the same decision as whether filtering happens on the
   server, and it is now Grimoire's decision to make in SQL rather than one
   inherited from Calibre's query vocabulary.
-- **Selection and detail.** Clicking a book does nothing yet; the detail panel
-  is its own feature. Keyboard roving through the grid waits for the same work,
-  and would fix a tab order that currently stops at every download link.
+- **Selection and detail.** Clicking a book opens the
+  [details panel](book-details-panel.md). Keyboard roving through the grid is
+  still missing, and would fix a tab order that currently stops at every
+  download link.
 - **Reading.** Calibre's own web viewer can't be reached through the proxy, so
   there is nothing to point a "Read now" action at until Grimoire has a reader.
 - **Spines.** Latitude's third view is not built; nothing here blocks it.

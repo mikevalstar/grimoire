@@ -111,12 +111,19 @@ export class HardcoverSync {
 
   // --- running --------------------------------------------------------------
 
-  /** Sync one reader, or join the sweep already running for them. */
-  syncUser(userId: number): Promise<HardcoverSyncOutcome> {
+  /**
+   * Sync one reader, or join the sweep already running for them.
+   *
+   * `full` retries the covers a previous sweep failed to fetch, and re-checks
+   * the ones it believes are on disk — what a manual sync does, so that "the
+   * covers didn't come down, sync again" is a real remedy rather than a no-op
+   * (docs/features/hardcover-sync.md).
+   */
+  syncUser(userId: number, full = false): Promise<HardcoverSyncOutcome> {
     const inFlight = this.running.get(userId);
     if (inFlight) return inFlight;
 
-    const run = this.run(userId).finally(() => this.running.delete(userId));
+    const run = this.run(userId, full).finally(() => this.running.delete(userId));
     this.running.set(userId, run);
     return run;
   }
@@ -125,9 +132,9 @@ export class HardcoverSync {
     return this.running.has(userId);
   }
 
-  private async run(userId: number): Promise<HardcoverSyncOutcome> {
+  private async run(userId: number, full: boolean): Promise<HardcoverSyncOutcome> {
     try {
-      const outcome = await this.sweep(userId);
+      const outcome = await this.sweep(userId, full);
       this.users.markHardcoverSync(userId, null);
       return outcome;
     } catch (err) {
@@ -136,7 +143,7 @@ export class HardcoverSync {
     }
   }
 
-  private async sweep(userId: number): Promise<HardcoverSyncOutcome> {
+  private async sweep(userId: number, full: boolean): Promise<HardcoverSyncOutcome> {
     const account = this.users.hardcoverAccount(userId);
     if (!account) throw new HardcoverError("This reader has no Hardcover account linked.");
 
@@ -180,7 +187,7 @@ export class HardcoverSync {
 
     // Covers last, for the same reason the Calibre sync does it last: files are
     // named by the book id that reconcile assigns.
-    const coversFetched = await this.cacheCovers();
+    const coversFetched = await this.cacheCovers(full);
 
     return {
       entries: seen.length,
@@ -198,9 +205,16 @@ export class HardcoverSync {
    *
    * A hand-rolled pool rather than one Promise.all: a first sync of a large
    * shelf is hundreds of images from someone else's CDN.
+   *
+   * A full sweep also reconciles what is actually on disk: the failures from
+   * last time are tried again, and the covers the database calls cached are
+   * stat'd, so a deleted `covers/` tree rebuilds itself. Incremental sweeps do
+   * neither — three stats a book every hour to catch someone deleting files
+   * behind our back is not a price worth paying.
    */
-  private async cacheCovers(): Promise<number> {
-    const queue = this.books.remoteCoversToFetch();
+  private async cacheCovers(full: boolean): Promise<number> {
+    const queue = this.books.remoteCoversToFetch(full);
+    if (full) queue.push(...(await this.missingRemoteCovers()));
     if (queue.length === 0) return 0;
 
     let fetched = 0;
@@ -222,5 +236,18 @@ export class HardcoverSync {
 
     await Promise.all(workers);
     return fetched;
+  }
+
+  /**
+   * Remote covers the database calls cached whose files are not on disk. The
+   * Calibre pass rebuilds its own the same way, but it can only re-fetch books
+   * with a Calibre id — these have none, so nothing else would ever notice.
+   */
+  private async missingRemoteCovers(): Promise<{ id: number; url: string }[]> {
+    const missing: { id: number; url: string }[] = [];
+    for (const target of this.books.cachedRemoteCoverTargets()) {
+      if (!(await this.covers.hasAll(target.id))) missing.push(target);
+    }
+    return missing;
   }
 }

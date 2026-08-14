@@ -159,11 +159,23 @@ Rules the cache follows:
 - **Never upscale.** An image smaller than a size we cache is written as it is.
 - **All three sizes or none.** A book with two of three on disk would be a cache
   that lies, so any failure leaves the book marked and nothing half-written.
-- **A failure is marked, not retried.** A cover that 404s or isn't an image
-  marks the book `missing` rather than being re-fetched every sync.
-- **A changed URL invalidates the file.** Reconcile resets the book's cover
-  state when Hardcover reports a different image, which is the one thing that
-  should make us fetch again.
+- **A failure is marked, not retried — on a *scheduled* sweep.** A cover that
+  404s or isn't an image marks the book `missing` rather than being re-fetched
+  every hour.
+- **A full sweep tries the failures again.** Two things make a failure worth
+  another attempt, and both are answers to the same problem: `missing` used to
+  be permanent, so one minute without a network — this is someone else's CDN,
+  and the whole shelf is fetched in one pass — cost every book on it its cover
+  until Hardcover next edited the book.
+  - A **manual** sync is full: pressing the button is how a reader says "the
+    covers didn't come down, try again", and it has to mean something.
+  - A **changed URL** invalidates the file. Reconcile resets the book's cover
+    state when Hardcover reports a different image.
+- **A full sweep also reconciles against the disk.** Covers the database calls
+  cached are stat'd, and whatever has gone is fetched again — the same promise
+  [Calibre sync](calibre-sync.md) makes, and one only this pass can keep for
+  these books: the Calibre pass rebuilds by re-fetching from a Calibre id, and
+  a Hardcover-only book has none.
 
 `books.cover_url` stays as the fallback the shelf draws *while* a cover is still
 waiting to be downloaded — a first sync shows covers immediately rather than a
@@ -173,10 +185,11 @@ the payload stops offering the URL.
 **A grouped book keeps every member's cover**, and that is the point rather than
 an oversight. Covers are named by the member row that holds them
 ([ADR 0013](../adrs/0013-group-duplicate-books-into-works.md)), so a book in two
-libraries has two on disk: Calibre's edition and Hardcover's. The shelf serves
-Calibre's today, chosen by a rule rather than by anyone; keeping both is what
-lets a reader pick later without a re-sync. The cost is a few hundred kilobytes
-per matched book, which is the cheapest part of this whole design.
+libraries has two on disk: Calibre's edition and Hardcover's. Calibre's is shown
+until someone says otherwise, and the
+[details panel](book-details-panel.md) is where they say it — keeping both on
+disk is what makes that a click rather than a re-sync. The cost is a few hundred
+kilobytes per matched book, which is the cheapest part of this whole design.
 
 ## Data model
 

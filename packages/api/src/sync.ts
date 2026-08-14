@@ -352,7 +352,10 @@ export class CalibreSync {
   // --- phase 3: covers ------------------------------------------------------
 
   private async phaseCovers(base: string, full: boolean): Promise<number> {
-    const targets = this.books.coversToFetch();
+    // A full sync also re-tries the covers that failed last time: a content
+    // server that was restarting marks every book it was asked about `missing`,
+    // and the stamp it leaves means nothing would ask again.
+    const targets = this.books.coversToFetch(full);
 
     // `covers/` is disposable — deleting it should cost a re-sync and nothing
     // else (ADR 0007). But the database still says those covers are cached, so

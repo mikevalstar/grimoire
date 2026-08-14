@@ -1,8 +1,10 @@
+import { useState } from "react";
+import { BookDetailsPanel } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
-import { ApiError, type LibraryBook, type Ratings } from "@/lib/api";
+import { ApiError, bookRating, type LibraryBook, type Ratings } from "@/lib/api";
 import { useViewMode } from "@/lib/view-mode";
 
 export interface BookLibraryProps {
@@ -15,12 +17,18 @@ export interface BookLibraryProps {
   ratings?: Ratings;
   /** Set a rating. Without it the stars stay a read-out. */
   onRate?: (book: LibraryBook, rating: number) => void;
+  /**
+   * Show a different one of a work's covers, by member id — the details panel's
+   * cover stack (docs/features/book-details-panel.md).
+   */
+  onChooseCover?: (book: LibraryBook, bookId: number) => void;
 }
 
 /**
  * The library screen: the toolbar, and under it the books in whichever view is
  * chosen. Owns the scroll region so the table's header can stick to the top of
- * it. See docs/features/book-list.md.
+ * it, and the details panel a click on any book opens.
+ * See docs/features/book-list.md and docs/features/book-details-panel.md.
  */
 export function BookLibrary({
   books,
@@ -29,8 +37,15 @@ export function BookLibrary({
   onRetry,
   ratings,
   onRate,
+  onChooseCover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
+
+  // Which book the details panel is showing, by id rather than by value, so a
+  // refetch behind the panel updates it instead of pinning a stale copy — and
+  // so a book that leaves the library takes its panel with it.
+  const [openId, setOpenId] = useState<number | null>(null);
+  const openBook = books?.find((book) => book.id === openId) ?? null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -58,11 +73,31 @@ export function BookLibrary({
         ) : books.length === 0 ? (
           <LibraryEmpty />
         ) : view === "covers" ? (
-          <BookGrid books={books} ratings={ratings} onRate={onRate} />
+          <BookGrid
+            books={books}
+            ratings={ratings}
+            onRate={onRate}
+            onOpen={(book) => setOpenId(book.id)}
+          />
         ) : (
-          <BookTable books={books} ratings={ratings} onRate={onRate} />
+          <BookTable
+            books={books}
+            ratings={ratings}
+            onRate={onRate}
+            onOpen={(book) => setOpenId(book.id)}
+          />
         )}
       </div>
+
+      <BookDetailsPanel
+        book={openBook}
+        onClose={() => setOpenId(null)}
+        rating={openBook ? bookRating(openBook, ratings) : 0}
+        onRate={onRate && openBook ? (rating) => onRate(openBook, rating) : undefined}
+        onChooseCover={
+          onChooseCover && openBook ? (bookId) => onChooseCover(openBook, bookId) : undefined
+        }
+      />
     </div>
   );
 }
