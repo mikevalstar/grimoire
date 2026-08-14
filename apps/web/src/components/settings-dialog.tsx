@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { CalibreTestResult } from "@/components/calibre-test-result";
+import { HardcoverLink } from "@/components/hardcover-link";
 import { relativeTime, syncTooltip } from "@/components/sync-indicator";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,8 @@ import { UserColorPicker } from "@/components/user-color-picker";
 import {
   type CalibreServerTest,
   createUser,
+  type MatchOutcome,
+  matchBooks,
   PREF_KEYS,
   SYNC_INTERVAL_CHOICES,
   savePreferences,
@@ -148,6 +151,11 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
       </section>
 
       <section className="grid gap-2">
+        <SectionTitle>Duplicates</SectionTitle>
+        <MatchBooks />
+      </section>
+
+      <section className="grid gap-2">
         <SectionTitle>Readers</SectionTitle>
         <ReaderList
           users={users ?? []}
@@ -157,6 +165,14 @@ function SettingsForm({ onClose }: { onClose: () => void }) {
             queryClient.setQueryData(usersQuery.queryKey, [...(users ?? []), user]);
             // First reader on a device nobody has claimed: that's you.
             if (!currentUser) setCurrentUserId(user.id);
+          }}
+          // Linking or unlinking Hardcover comes back with the whole reader.
+          onUpdated={(user) => {
+            queryClient.setQueryData(
+              usersQuery.queryKey,
+              (current: User[] | undefined) =>
+                current?.map((existing) => (existing.id === user.id ? user : existing)) ?? [user],
+            );
           }}
         />
       </section>
@@ -281,6 +297,61 @@ function SyncSettings() {
 }
 
 /**
+ * Grouping a book held by two sources into one card
+ * (docs/features/book-matching.md). This runs at startup and after any sync
+ * that changed something, so the button is a "look again" — worth having
+ * because the interesting number is the one it *doesn't* group.
+ */
+function MatchBooks() {
+  const queryClient = useQueryClient();
+  const [outcome, setOutcome] = useState<MatchOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    setOutcome(null);
+    try {
+      setOutcome(await matchBooks());
+      // Grouping changes what the shelf shows, not just what the database holds.
+      void queryClient.invalidateQueries({ queryKey: booksQuery.queryKey });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-muted-foreground text-[13px]">
+        A book in both Calibre and Hardcover is one card carrying both marks. Matching runs on its
+        own; this looks again.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => void run()} disabled={busy}>
+          {busy && <Loader2 className="animate-spin" />}
+          Find duplicates
+        </Button>
+        {outcome && (
+          <p className="text-muted-foreground text-[13px]">
+            {outcome.grouped > 0
+              ? `Grouped ${outcome.grouped.toLocaleString()} ${outcome.grouped === 1 ? "book" : "books"}.`
+              : "Nothing new to group."}
+            {/* Left alone on purpose: two rows from one source are a question
+                for a person, and there is nowhere to ask one yet. */}
+            {outcome.conflicts > 0 &&
+              ` ${outcome.conflicts.toLocaleString()} left alone — same source twice.`}
+          </p>
+        )}
+        {error && <p className="text-destructive text-[13px]">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Who reads here, and which of them is on this device. Picking applies at once
  * — there's nothing to review, and hiding it behind Save would only lose it.
  */
@@ -289,11 +360,13 @@ function ReaderList({
   currentUserId,
   onPick,
   onAdded,
+  onUpdated,
 }: {
   users: User[];
   currentUserId?: number;
   onPick: (user: User) => void;
   onAdded: (user: User) => void;
+  onUpdated: (user: User) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -318,32 +391,40 @@ function ReaderList({
 
   return (
     <>
+      {/* The border and hover live on the wrapper rather than the radio, so a
+          reader's Hardcover link sits inside their row without ending up inside
+          a control that has to stay a single radio. */}
       <div role="radiogroup" aria-label="Who's using this device" className="grid gap-1">
         {users.map((user) => {
           const current = user.id === currentUserId;
           return (
-            // biome-ignore lint/a11y/useSemanticElements: a native radio can't carry the avatar + name row; the ARIA pattern here is complete
-            <button
+            <div
               key={user.id}
-              type="button"
-              role="radio"
-              aria-checked={current}
-              onClick={() => onPick(user)}
-              className={`flex items-center gap-2.5 rounded-lg border px-2 py-1.5 text-left transition-colors ${
+              className={`rounded-lg border transition-colors ${
                 current
                   ? "border-you/40 bg-you-dim"
                   : "border-transparent hover:border-line hover:bg-fill"
               }`}
             >
-              <UserAvatar name={user.name} color={user.color} size="sm" />
-              <span className="flex-1 truncate text-[13px]">{user.name}</span>
-              {current && (
-                <span className="text-you-soft flex items-center gap-1 text-[11px]">
-                  <Check size={12} />
-                  This device
-                </span>
-              )}
-            </button>
+              {/* biome-ignore lint/a11y/useSemanticElements: a native radio can't carry the avatar + name row; the ARIA pattern here is complete */}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={current}
+                onClick={() => onPick(user)}
+                className="flex w-full items-center gap-2.5 px-2 py-1.5 text-left"
+              >
+                <UserAvatar name={user.name} color={user.color} size="sm" />
+                <span className="flex-1 truncate text-[13px]">{user.name}</span>
+                {current && (
+                  <span className="text-you-soft flex items-center gap-1 text-[11px]">
+                    <Check size={12} />
+                    This device
+                  </span>
+                )}
+              </button>
+              <HardcoverLink user={user} onChange={onUpdated} />
+            </div>
           );
         })}
       </div>

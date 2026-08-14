@@ -22,4 +22,6 @@ Add one with `okq new adr "<title>"`.
 | Zod schemas shared between API and client | [0009-zod-schemas-shared-between-api-and-client.md](0009-zod-schemas-shared-between-api-and-client.md) |
 | Biome for linting and formatting | [0010-biome-for-linting-and-formatting.md](0010-biome-for-linting-and-formatting.md) |
 | Sync Calibre into grimoire.db and read the library from there | [0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md](0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md) |
+| Hardcover as a second source, with per-reader tokens | [0012-hardcover-as-a-second-source-with-per-reader-tokens.md](0012-hardcover-as-a-second-source-with-per-reader-tokens.md) |
+| Group duplicate books into works | [0013-group-duplicate-books-into-works.md](0013-group-duplicate-books-into-works.md) |
 <!-- okq:index:end -->

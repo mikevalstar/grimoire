@@ -13,6 +13,7 @@ import {
   type SyncProgress,
   type SyncStatus,
   syncIntervalMinutes,
+  WorksStore,
 } from "@grimoire/core";
 import type { z } from "zod";
 
@@ -68,6 +69,7 @@ export class CalibreSync {
   private readonly settings: SettingsStore;
   private readonly mirror: CalibreBooksStore;
   private readonly books: BooksStore;
+  private readonly works: WorksStore;
   private readonly covers: CoverStore;
 
   private running: Promise<SyncOutcome> | null = null;
@@ -79,6 +81,7 @@ export class CalibreSync {
     this.settings = new SettingsStore(deps.db);
     this.mirror = new CalibreBooksStore(deps.db);
     this.books = new BooksStore(deps.db);
+    this.works = new WorksStore(deps.db);
     this.covers = new CoverStore(deps.dataDir);
   }
 
@@ -216,6 +219,11 @@ export class CalibreSync {
       this.progress = { phase: "reconcile", done: 0, total: null };
       reconciled = this.books.reconcileFromCalibre(this.mirror.all(), now);
     }
+
+    // A new or edited book may be the other half of one already here from
+    // another source (docs/features/book-matching.md). Cheap enough to run
+    // every time: one indexed query and a handful of updates.
+    if (reconciled.inserted > 0 || reconciled.updated > 0) this.works.matchAll();
 
     const coversFetched = await this.phaseCovers(base, full);
 

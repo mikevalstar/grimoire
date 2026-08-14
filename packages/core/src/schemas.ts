@@ -40,6 +40,20 @@ export const UserSchema = z.object({
    *  a newer server doesn't break an older client — the UI falls back. */
   color: z.string(),
   createdAt: z.string(),
+  /**
+   * The Hardcover account this reader is linked to, or null (ADR 0012). The
+   * *token* is deliberately absent and must stay that way: this payload is
+   * readable by any browser that can reach Grimoire. Defaulted rather than
+   * required so a response from a server predating the column still parses.
+   */
+  hardcoverUsername: z.string().nullable().default(null),
+  /** Books on their Hardcover shelves, as of the last sync. */
+  hardcoverBookCount: z.number().default(0),
+  /** Those books by Hardcover status id, so settings can say what they're reading. */
+  hardcoverStatusCounts: z.array(z.object({ statusId: z.number(), count: z.number() })).default([]),
+  hardcoverSyncedAt: z.string().nullable().default(null),
+  /** Why the last Hardcover sync failed — an expired token, most likely. */
+  hardcoverSyncError: z.string().nullable().default(null),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -55,6 +69,120 @@ export const UserCreateSchema = z.object({
   color: z.string().refine(isUserColorId, "Not one of Grimoire's reader colours").optional(),
 });
 export type UserCreate = z.infer<typeof UserCreateSchema>;
+
+// --- Hardcover -------------------------------------------------------------
+// A reader's link to hardcover.app (ADR 0012). Grimoire's own payloads first,
+// then the shape Hardcover itself answers with — parsed at the boundary so
+// their API changing breaks here rather than three components deep.
+// See docs/features/hardcover-connection.md.
+
+/** What a probe found. `username` and `userId` are present exactly when `ok`. */
+export const HardcoverTestSchema = z.object({
+  ok: z.boolean(),
+  /** The Hardcover account the token belongs to — proof it's the right one. */
+  username: z.string().optional(),
+  /** Their numeric id, which is what asking for the account's library takes. */
+  userId: z.number().optional(),
+  error: z.string().optional(),
+});
+export type HardcoverTest = z.infer<typeof HardcoverTestSchema>;
+
+/**
+ * Body of POST /api/users/:id/hardcover/test. Omit the token to re-probe the
+ * one already stored, which is how an expired link is found without pasting it
+ * again.
+ */
+export const HardcoverTestRequestSchema = z.object({
+  token: z.string().optional(),
+});
+
+/** Body of PUT /api/users/:id/hardcover. */
+export const HardcoverLinkSchema = z.object({
+  token: z.string().trim().min(1, "Paste your Hardcover API token"),
+});
+export type HardcoverLink = z.infer<typeof HardcoverLinkSchema>;
+
+// Their API's own shapes carry an `Hc` prefix, the way Calibre's carry `Cs`.
+//
+// Errors arrive in two dialects: GraphQL's `errors` array, and a bare
+// `{ error: "Unable to verify token" }` for the ones their gateway answers
+// before the query runs (401, 429). Both are optional, and neither implies the
+// other is absent.
+const hcErrors = {
+  errors: z.array(z.object({ message: z.string() })).nullish(),
+  error: z.string().nullish(),
+};
+
+/**
+ * What `query { me { id username } }` comes back as. `me` is a *collection* —
+ * their API is Hasura, which shapes it that way even though a token names
+ * exactly one account — so a bare object is tolerated too rather than trusting
+ * one reading of it.
+ */
+export const HcMeSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+});
+
+export const HcMeResponseSchema = z.object({
+  data: z
+    .object({
+      me: z.union([z.array(HcMeSchema), HcMeSchema]).nullish(),
+    })
+    .nullish(),
+  ...hcErrors,
+});
+
+/**
+ * A book as Hardcover's library query returns it. The `cached_*` fields are
+ * JSON blobs with no documented shape, so they are carried as `unknown` and
+ * read defensively in `hardcover-books.ts` — they are also the *only* way to
+ * get contributors, tags and the cover within their depth-3 query limit.
+ *
+ * `title` is nullish because their catalogue has records that lack one; the
+ * mirror substitutes rather than dropping the book.
+ */
+export const HcBookSchema = z.object({
+  id: z.number(),
+  title: z.string().nullish(),
+  subtitle: z.string().nullish(),
+  description: z.string().nullish(),
+  pages: z.number().nullish(),
+  release_date: z.string().nullish(),
+  slug: z.string().nullish(),
+  // `.optional()` is load-bearing: `z.unknown()` alone rejects a *missing* key,
+  // which would fail a whole page over a field we already read defensively.
+  cached_contributors: z.unknown().optional(),
+  cached_image: z.unknown().optional(),
+  cached_tags: z.unknown().optional(),
+});
+
+/** One entry on a reader's shelves: the book, plus their relationship with it. */
+export const HcUserBookSchema = z.object({
+  id: z.number(),
+  book_id: z.number(),
+  /** 1 want to read, 2 reading, 3 read, 4 paused, 5 DNF, 6 ignored. */
+  status_id: z.number(),
+  /**
+   * Theirs, 0–5 with halves — never Grimoire's stars. Postgres `numeric`, which
+   * their gateway may render as a string; taking both keeps a serialisation
+   * detail from failing a whole page of somebody's shelves.
+   */
+  rating: z.union([z.number(), z.string()]).nullish(),
+  owned: z.boolean().nullish(),
+  read_count: z.number().nullish(),
+  date_added: z.string().nullish(),
+  first_read_date: z.string().nullish(),
+  last_read_date: z.string().nullish(),
+  updated_at: z.string().nullish(),
+  book: HcBookSchema,
+});
+export type HcUserBook = z.infer<typeof HcUserBookSchema>;
+
+export const HcLibraryResponseSchema = z.object({
+  data: z.object({ user_books: z.array(HcUserBookSchema) }).nullish(),
+  ...hcErrors,
+});
 
 // --- Ratings ---------------------------------------------------------------
 // A reader's own stars, kept in grimoire.db and never written back to Calibre.
@@ -96,8 +224,13 @@ export const ApiErrorSchema = z.object({
 export const BookSchema = z.object({
   /** Grimoire's id — what every Grimoire-owned row points at, and what names a cover file. */
   id: z.number(),
-  /** Where the record was ingested from: "calibre" today. */
-  source: z.string(),
+  /**
+   * Every source this book came from — `["calibre"]`, `["hardcover"]`, and
+   * after matching lands, both on one book. Plural from the start because the
+   * UI marks each one, and a book that is genuinely in two libraries is the
+   * point of the next step (docs/features/hardcover-sync.md).
+   */
+  sources: z.array(z.string()).default([]),
   /**
    * Calibre's book id, or null once the book is no longer in the connected
    * library. This is the *only* "is it still there?" test — and the only thing
@@ -123,6 +256,12 @@ export const BookSchema = z.object({
   added: z.string(),
   /** Whether a cached cover exists: "cached" is the only one worth requesting. */
   coverState: z.enum(["none", "cached", "missing"]),
+  /**
+   * A cover Grimoire holds no file for, served from the source's own CDN —
+   * Hardcover books, today. Null for anything with a cached cover, and the
+   * reason a Hardcover book's cover needs the network (docs/features/hardcover-sync.md).
+   */
+  coverUrl: z.string().nullable().default(null),
 });
 export type Book = z.infer<typeof BookSchema>;
 
@@ -163,6 +302,16 @@ export const SyncStatusSchema = z.object({
   configured: z.boolean(),
 });
 export type SyncStatus = z.infer<typeof SyncStatusSchema>;
+
+/**
+ * What one matching pass did (POST /api/match). Conflicts are groups it
+ * deliberately left alone — see docs/features/book-matching.md.
+ */
+export const MatchOutcomeSchema = z.object({
+  grouped: z.number(),
+  conflicts: z.number(),
+});
+export type MatchOutcome = z.infer<typeof MatchOutcomeSchema>;
 
 /** Body of PUT /api/sync/settings. */
 export const SyncSettingsUpdateSchema = z.object({

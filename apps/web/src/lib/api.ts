@@ -4,6 +4,10 @@ import {
   BooksSchema,
   type CalibreServerTest,
   CalibreServerTestSchema,
+  type HardcoverTest,
+  HardcoverTestSchema,
+  type MatchOutcome,
+  MatchOutcomeSchema,
   type Preferences,
   PreferencesSchema,
   type RatingResult,
@@ -18,9 +22,11 @@ import {
   UsersSchema,
 } from "@grimoire/core/schemas";
 import {
+  BOOK_SOURCE,
   COVER_SIZES,
   type CoverSize,
   DEFAULT_SYNC_INTERVAL_MINUTES,
+  hardcoverStatusLabel,
   PREF_KEYS,
   PREFERENCES_VERSION,
   SYNC_INTERVAL_CHOICES,
@@ -32,6 +38,8 @@ export type {
   Book,
   CalibreServerTest,
   CoverSize,
+  HardcoverTest,
+  MatchOutcome,
   Preferences,
   RatingResult,
   Ratings,
@@ -40,8 +48,10 @@ export type {
   UserCreate,
 };
 export {
+  BOOK_SOURCE,
   COVER_SIZES,
   DEFAULT_SYNC_INTERVAL_MINUTES,
+  hardcoverStatusLabel,
   PREF_KEYS,
   PREFERENCES_VERSION,
   SYNC_INTERVAL_CHOICES,
@@ -140,6 +150,43 @@ export function createUser(user: UserCreate) {
   return request("/api/users", UserSchema, { method: "POST", body: user });
 }
 
+/**
+ * A reader's link to hardcover.app (ADR 0012). The token goes *up* and never
+ * comes back: nothing the API returns to this client carries it, so `User`
+ * knows only which account a reader is linked to.
+ * See docs/features/hardcover-connection.md.
+ */
+
+/** Probe a token without saving it. Omit it to re-probe the stored one. */
+export function testHardcover(userId: number, token?: string) {
+  return request(`/api/users/${userId}/hardcover/test`, HardcoverTestSchema, {
+    method: "POST",
+    body: { token },
+  });
+}
+
+/** Link a reader to a Hardcover account. Rejects a token Hardcover won't accept. */
+export function linkHardcover(userId: number, token: string) {
+  return request(`/api/users/${userId}/hardcover`, UserSchema, {
+    method: "PUT",
+    body: { token },
+  });
+}
+
+/** Forget the token, and the shelf entries synced under it. */
+export function unlinkHardcover(userId: number) {
+  return request(`/api/users/${userId}/hardcover`, UserSchema, { method: "DELETE" });
+}
+
+/**
+ * Pull this reader's Hardcover shelves now. Runs to completion server-side, so
+ * this resolves when the sweep is done — with the reader's updated counts, or
+ * with `hardcoverSyncError` set if it failed (docs/features/hardcover-sync.md).
+ */
+export function syncHardcover(userId: number) {
+  return request(`/api/users/${userId}/hardcover/sync`, UserSchema, { method: "POST" });
+}
+
 /** Every rating this reader has set, keyed by Calibre book id. */
 export function fetchRatings(userId: number) {
   return request("/api/ratings", RatingsSchema, { method: "GET", userId });
@@ -214,9 +261,29 @@ export function bookDownloadUrl(calibreId: number, format: string): string {
   return `${API_BASE}/api/cs/get/${format.toLowerCase()}/${calibreId}`;
 }
 
-/** Whether the book is still in the connected Calibre library. */
+/**
+ * Whether the book is still in the connected Calibre library — the test for
+ * whether there is a file to download.
+ *
+ * Not the test for the "no longer in Calibre" mark: a book from another source
+ * has no Calibre id and never had one, so this would accuse Calibre of losing a
+ * book it never held. That mark is per source, in `bookMarks`.
+ */
 export function isInLibrary(book: Pick<LibraryBook, "calibreId">): boolean {
   return book.calibreId !== null;
+}
+
+/**
+ * The image to draw for a book: Grimoire's own cached file when sync fetched
+ * one, otherwise the source's own URL. Hardcover serves covers from a CDN and
+ * gives us no scaler, so those load over the network rather than from disk.
+ */
+export function bookImageUrl(
+  book: Pick<LibraryBook, "id" | "coverState"> & Partial<Pick<LibraryBook, "coverUrl">>,
+  width: number,
+): string {
+  if (book.coverState !== "cached" && book.coverUrl) return book.coverUrl;
+  return bookCoverUrl(book.id, coverSizeFor(width));
 }
 
 /** Most portable first — the order a book's formats are offered in. */
@@ -252,6 +319,15 @@ export function fetchSyncStatus(): Promise<SyncStatus> {
 /** Kick off a full sync. Returns immediately; watch `fetchSyncStatus` for progress. */
 export function startSync(): Promise<SyncStatus> {
   return request("/api/sync", SyncStatusSchema, { method: "POST" });
+}
+
+/**
+ * Look for duplicates across sources now. This also runs at startup and after
+ * any sync that changed something, so it is a "do it again" rather than the
+ * only way it ever happens (docs/features/book-matching.md).
+ */
+export function matchBooks(): Promise<MatchOutcome> {
+  return request("/api/match", MatchOutcomeSchema, { method: "POST" });
 }
 
 /** How often to sync automatically. 0 means never. */

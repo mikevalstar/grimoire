@@ -1,9 +1,9 @@
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
-import { BookMissingBadge } from "@/components/book-missing-badge";
+import { BookMarks } from "@/components/book-marks";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bookRating, isInLibrary, type LibraryBook, type Ratings } from "@/lib/api";
+import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookGridProps {
@@ -63,10 +63,17 @@ export function BookGrid({ books, onOpen, ratings, onRate, className }: BookGrid
               />
               {/* On the cover rather than under it: the metadata lines below are
                   reserved to a fixed height so stars line up across a row, and
-                  an extra line here would break that alignment. */}
-              {!isInLibrary(book) && (
-                <BookMissingBadge variant="overlay" className="absolute top-1.5 left-1.5" />
-              )}
+                  an extra line here would break that alignment.
+
+                  Bottom left, where a cover's artwork is least often busy, and
+                  clear of the download button that appears centred on hover —
+                  with room to the right for a book that carries more than one
+                  mark. */}
+              <BookMarks
+                book={book}
+                variant="overlay"
+                className="absolute bottom-1.5 left-1.5 max-w-[calc(50%-1rem)]"
+              />
             </div>
 
             {/* Every card spends the same number of lines on metadata — one

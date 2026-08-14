@@ -3,16 +3,20 @@ import { resolveDatabase } from "./db.ts";
 import type { Ratings } from "./schemas.ts";
 
 interface RatingRow {
-  book_id: number;
+  work_id: number;
   rating: number;
 }
 
 /**
- * A reader's own stars, keyed by Grimoire's own `books.id` (ADR 0011 — it used
- * to be a Calibre id, which meant a rating could outlive its book as an orphan
- * pointing at a number nothing owned). Per-reader by construction — every
- * method takes a user id, because there is no such thing as "the" rating of a
- * book here (ADR 0008). Nothing in this store touches Calibre.
+ * A reader's own stars, keyed by `works.id` (ADR 0013). It was a Calibre id
+ * once, then a `books.id` (ADR 0011); each move was the same lesson, that a
+ * rating must not be keyed to something a source can revoke or duplicate. A
+ * work is the book itself, however many sources turn out to carry it — so a
+ * rating survives its book gaining a second one.
+ *
+ * Per-reader by construction: every method takes a user id, because there is no
+ * such thing as "the" rating of a book here (ADR 0008). Nothing in this store
+ * touches Calibre.
  *
  * See docs/features/rating-a-book.md.
  */
@@ -24,23 +28,23 @@ export class RatingsStore {
   }
 
   /**
-   * Everything this reader has rated, as a book-id-keyed map — the shape the
-   * book list merges against. Unrated books are absent rather than zero.
+   * Everything this reader has rated, keyed by work id — the same id the book
+   * list carries as `Book.id`. Unrated books are absent rather than zero.
    */
   forUser(userId: number): Ratings {
     const rows = this.db
-      .query("SELECT book_id, rating FROM ratings WHERE user_id = $userId")
+      .query("SELECT work_id, rating FROM ratings WHERE user_id = $userId")
       .all({ $userId: userId }) as RatingRow[];
 
     const ratings: Ratings = {};
-    for (const row of rows) ratings[String(row.book_id)] = row.rating;
+    for (const row of rows) ratings[String(row.work_id)] = row.rating;
     return ratings;
   }
 
-  get(userId: number, bookId: number): number | null {
+  get(userId: number, workId: number): number | null {
     const row = this.db
-      .query("SELECT rating FROM ratings WHERE user_id = $userId AND book_id = $bookId")
-      .get({ $userId: userId, $bookId: bookId }) as { rating: number } | null;
+      .query("SELECT rating FROM ratings WHERE user_id = $userId AND work_id = $workId")
+      .get({ $userId: userId, $workId: workId }) as { rating: number } | null;
     return row?.rating ?? null;
   }
 
@@ -49,21 +53,21 @@ export class RatingsStore {
    * unrated, and why the row is deleted rather than zeroed.
    * Returns what's stored afterwards.
    */
-  set(userId: number, bookId: number, rating: number): number | null {
+  set(userId: number, workId: number, rating: number): number | null {
     if (rating <= 0) {
-      this.clear(userId, bookId);
+      this.clear(userId, workId);
       return null;
     }
 
     this.db
       .query(
-        "INSERT INTO ratings (user_id, book_id, rating, updated_at) " +
-          "VALUES ($userId, $bookId, $rating, $updatedAt) " +
-          "ON CONFLICT (user_id, book_id) DO UPDATE SET rating = $rating, updated_at = $updatedAt",
+        "INSERT INTO ratings (user_id, work_id, rating, updated_at) " +
+          "VALUES ($userId, $workId, $rating, $updatedAt) " +
+          "ON CONFLICT (user_id, work_id) DO UPDATE SET rating = $rating, updated_at = $updatedAt",
       )
       .run({
         $userId: userId,
-        $bookId: bookId,
+        $workId: workId,
         $rating: rating,
         $updatedAt: new Date().toISOString(),
       });
@@ -71,10 +75,10 @@ export class RatingsStore {
     return rating;
   }
 
-  clear(userId: number, bookId: number): void {
+  clear(userId: number, workId: number): void {
     this.db
-      .query("DELETE FROM ratings WHERE user_id = $userId AND book_id = $bookId")
-      .run({ $userId: userId, $bookId: bookId });
+      .query("DELETE FROM ratings WHERE user_id = $userId AND work_id = $workId")
+      .run({ $userId: userId, $workId: workId });
   }
 
   close(): void {

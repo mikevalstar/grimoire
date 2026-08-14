@@ -1,9 +1,9 @@
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
-import { BookMissingBadge } from "@/components/book-missing-badge";
+import { BookMarks } from "@/components/book-marks";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bookRating, isInLibrary, type LibraryBook, type Ratings } from "@/lib/api";
+import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookTableProps {
@@ -63,7 +63,9 @@ export function BookTable({ books, onOpen, ratings, onRate, className }: BookTab
             <td className="text-foreground max-w-[420px] px-3 py-1.5 font-medium">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate">{book.title}</span>
-                {!isInLibrary(book) && <BookMissingBadge className="shrink-0" />}
+                {/* Beside the title rather than over the thumbnail: a 28px
+                    cover has no corner to put a mark in. */}
+                <BookMarks book={book} className="shrink-0" />
               </span>
             </td>
             <td className="text-muted-foreground max-w-[220px] truncate px-3 py-1.5">

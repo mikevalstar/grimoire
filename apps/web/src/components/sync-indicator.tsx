@@ -56,7 +56,7 @@ export function syncTooltip(status: SyncStatus | undefined, now?: number): strin
 
   if (!status.configured) return "No Calibre server configured yet — see Settings.";
   if (!status.lastCompletedAt) return "Never synced. Click to sync now.";
-  return `Last synced ${relativeTime(status.lastCompletedAt, now)}. Click to sync now.`;
+  return `Last synced ${relativeTime(status.lastCompletedAt, now)}, Click to sync now.`;
 }
 
 /**

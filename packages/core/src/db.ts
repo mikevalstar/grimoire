@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { matchKey } from "./matching.ts";
 import { PREF_KEYS } from "./types.ts";
 
 /**
@@ -57,14 +58,87 @@ function migrate(db: Database): void {
 
   // The people sharing this library (ADR 0008). Names are unique
   // case-insensitively: two "dad"s in one household is a mistake, not a plan.
+  //
+  // The hardcover_* pair is a *credential*, held per reader rather than per
+  // instance because a Hardcover token is a person — everything behind it is
+  // theirs, and writes we make later happen as them (ADR 0012). Both columns
+  // move together: a token is only ever stored alongside the username the probe
+  // that accepted it returned, so `hardcover_username IS NOT NULL` is the exact
+  // test for "linked". hardcover_token must never reach the browser — see
+  // UsersStore, which leaves it out of every row it returns.
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT NOT NULL COLLATE NOCASE UNIQUE,
-      color      TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      name               TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      color              TEXT NOT NULL,
+      created_at         TEXT NOT NULL,
+      hardcover_token    TEXT,
+      hardcover_username TEXT,
+      hardcover_user_id  INTEGER,
+      hardcover_synced_at TEXT,
+      hardcover_sync_error TEXT
     )
   `);
+  addColumn(db, "users", "hardcover_token", "TEXT");
+  addColumn(db, "users", "hardcover_username", "TEXT");
+  // Their numeric id, which is what asking for their library takes; and the
+  // state of their last sync, kept per reader because each one has their own
+  // account, own rate limit and own way to fail (docs/features/hardcover-sync.md).
+  addColumn(db, "users", "hardcover_user_id", "INTEGER");
+  addColumn(db, "users", "hardcover_synced_at", "TEXT");
+  addColumn(db, "users", "hardcover_sync_error", "TEXT");
+
+  // A verbatim mirror of hardcover.app, split the way the Calibre mirror is:
+  // what they said, kept apart from what Grimoire decided to keep.
+  //
+  // Keyed by Hardcover's book id, which — unlike Calibre's — is global rather
+  // than scoped to one library, so it identifies on its own. Shared across
+  // readers: two people who shelved the same book get one row here.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS hardcover_books (
+      hardcover_id INTEGER PRIMARY KEY,
+      title        TEXT NOT NULL,
+      subtitle     TEXT,
+      authors      TEXT NOT NULL DEFAULT '[]',
+      description  TEXT,
+      pages        INTEGER,
+      release_date TEXT,
+      slug         TEXT,
+      tags         TEXT NOT NULL DEFAULT '[]',
+      cover_url    TEXT,
+      raw          TEXT NOT NULL,
+      synced_at    TEXT NOT NULL
+    )
+  `);
+
+  // One reader's relationship with one book: status, their rating, the dates.
+  // Rows here *are* deleted when a book leaves someone's shelves — this mirrors
+  // their library as it is now, where `books` is a permanent record.
+  //
+  // Keyed by (reader, book) rather than by Hardcover's user_books.id: the sweep
+  // asks for one entry per book, and "this reader's take on this book" is what
+  // every later feature looks up.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS hardcover_user_books (
+      user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      hardcover_book_id INTEGER NOT NULL,
+      user_book_id      INTEGER NOT NULL,
+      status_id         INTEGER NOT NULL,
+      rating            REAL,
+      owned             INTEGER NOT NULL DEFAULT 0,
+      read_count        INTEGER,
+      date_added        TEXT,
+      first_read_date   TEXT,
+      last_read_date    TEXT,
+      updated_at        TEXT,
+      raw               TEXT NOT NULL,
+      synced_at         TEXT NOT NULL,
+      PRIMARY KEY (user_id, hardcover_book_id)
+    )
+  `);
+  db.run(
+    "CREATE INDEX IF NOT EXISTS hardcover_user_books_book ON hardcover_user_books(hardcover_book_id)",
+  );
 
   // A verbatim mirror of the Calibre content server (ADR 0011). Rows here come
   // and go with Calibre's own; this is a cache of the connected library, not a
@@ -149,9 +223,47 @@ function migrate(db: Database): void {
       cover_state     TEXT NOT NULL DEFAULT 'none',
       cover_synced_at TEXT,
       created_at      TEXT NOT NULL,
-      updated_at      TEXT NOT NULL
+      updated_at      TEXT NOT NULL,
+      hardcover_id    INTEGER UNIQUE,
+      cover_url       TEXT
     )
   `);
+  // Shaped like calibre_uuid rather than calibre_id: Hardcover's book ids are
+  // global, so this identifies and is never cleared. `cover_url` is for books
+  // whose cover Grimoire holds no file for — Hardcover serves its own and there
+  // is no scaler on that path (docs/features/hardcover-sync.md).
+  addColumn(db, "books", "hardcover_id", "INTEGER");
+  addColumn(db, "books", "cover_url", "TEXT");
+  // SQLite cannot add a UNIQUE column by ALTER, so the constraint is an index —
+  // which is what the inline UNIQUE above creates anyway.
+  db.run("CREATE UNIQUE INDEX IF NOT EXISTS books_hardcover_id ON books(hardcover_id)");
+  // A book that exists in two sources is two rows and one work (ADR 0013). The
+  // row carries nothing but an id: its entire meaning is "these book rows are
+  // the same book". Grouping is only ever an UPDATE of books.work_id, so a book
+  // can never be in two works or none.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS works (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // Nullable in SQL only because ALTER cannot add a NOT NULL column to a table
+  // that already has rows; every path that inserts a book gives it a work, and
+  // the backfill below gives one to every row written before this existed.
+  addColumn(db, "books", "work_id", "INTEGER REFERENCES works(id)");
+  // The normalised title the matcher groups on, written by the same function on
+  // both reconcile paths (docs/features/book-matching.md).
+  addColumn(db, "books", "match_key", "TEXT");
+  // A grouping a human decided. The matcher skips these rows entirely, so a
+  // manual fix survives every later sync. Nothing writes it yet.
+  addColumn(db, "books", "work_pinned", "INTEGER NOT NULL DEFAULT 0");
+  db.run("CREATE INDEX IF NOT EXISTS books_work_id ON books(work_id)");
+  db.run("CREATE INDEX IF NOT EXISTS books_match_key ON books(match_key)");
+
+  backfillWorks(db);
+  backfillMatchKeys(db);
+
   db.run("CREATE INDEX IF NOT EXISTS books_title_sort ON books(title_sort)");
   db.run("CREATE INDEX IF NOT EXISTS books_source ON books(source)");
   db.run("CREATE INDEX IF NOT EXISTS books_calibre_id ON books(calibre_id)");
@@ -167,28 +279,139 @@ function migrate(db: Database): void {
   if (ratingsAreKeyedByCalibreId(db)) {
     db.run("DROP TABLE ratings");
   }
+  // Keyed by books.id (ADR 0011) rather than works.id (ADR 0013): set aside,
+  // so the table below can be created and the rows copied across into it.
+  if (ratingsTableReferences(db, "books")) {
+    db.run("ALTER TABLE ratings RENAME TO ratings_by_book");
+  }
   db.run(`
     CREATE TABLE IF NOT EXISTS ratings (
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      book_id    INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+      work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
       rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
       updated_at TEXT NOT NULL,
-      PRIMARY KEY (user_id, book_id)
+      PRIMARY KEY (user_id, work_id)
     )
   `);
+  rekeyRatingsOntoWorks(db);
+}
+
+/**
+ * Give every book a work of its own. Runs once per book, ever: after this,
+ * inserts create their own and the matcher only ever moves books between works.
+ *
+ * Row by row rather than one INSERT…SELECT, because the point is the *mapping*
+ * — which new work belongs to which book — and SQLite will not hand that back
+ * from a bulk insert.
+ */
+function backfillWorks(db: Database): void {
+  const orphans = db.query("SELECT id FROM books WHERE work_id IS NULL").all() as { id: number }[];
+  if (orphans.length === 0) return;
+
+  const now = new Date().toISOString();
+  const createWork = db.query("INSERT INTO works (created_at) VALUES ($now) RETURNING id");
+  const assign = db.query("UPDATE books SET work_id = $workId WHERE id = $id");
+
+  db.transaction(() => {
+    for (const book of orphans) {
+      const work = createWork.get({ $now: now }) as { id: number };
+      assign.run({ $workId: work.id, $id: book.id });
+    }
+  })();
+}
+
+/**
+ * Give every book already here a match key. Sync writes one for every row it
+ * reconciles, but a library that was already settled when this arrived would
+ * otherwise sit there with nothing to match on until each book happened to
+ * change (docs/features/book-matching.md).
+ *
+ * Rows whose title normalises to nothing keep a NULL key and are re-examined on
+ * every open, which is a handful of untitled books and a query that returns
+ * almost nothing — cheaper than a column to remember we already tried.
+ */
+function backfillMatchKeys(db: Database): void {
+  const rows = db.query("SELECT id, title FROM books WHERE match_key IS NULL").all() as {
+    id: number;
+    title: string;
+  }[];
+  if (rows.length === 0) return;
+
+  const set = db.query("UPDATE books SET match_key = $key WHERE id = $id");
+  db.transaction(() => {
+    for (const book of rows) {
+      const key = matchKey(book.title);
+      if (key) set.run({ $key: key, $id: book.id });
+    }
+  })();
+}
+
+/**
+ * Move ratings from `books.id` to `works.id` (ADR 0013).
+ *
+ * Unlike the ADR 0011 re-key, which had to discard ratings because `books` was
+ * empty at migration time, this one loses nothing: every book already has a
+ * work by the time this runs, so each rating has exactly one place to go. Two
+ * rows for one work — a reader who rated both halves of a book before it was
+ * grouped — keep the higher rating, since the alternative is picking by row
+ * order, which is picking at random.
+ */
+function rekeyRatingsOntoWorks(db: Database): void {
+  const legacy = db
+    .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ratings_by_book'")
+    .get();
+  if (!legacy) return;
+
+  db.transaction(() => {
+    db.run(
+      `INSERT INTO ratings (user_id, work_id, rating, updated_at)
+         SELECT r.user_id, b.work_id, MAX(r.rating), MAX(r.updated_at)
+           FROM ratings_by_book r
+           JOIN books b ON b.id = r.book_id
+          WHERE b.work_id IS NOT NULL
+          GROUP BY r.user_id, b.work_id
+       ON CONFLICT (user_id, work_id) DO NOTHING`,
+    );
+    db.run("DROP TABLE ratings_by_book");
+  })();
+}
+
+/**
+ * Add a column to a table that already exists, for databases created before it
+ * did. New databases get it from the CREATE above, so the two must agree — this
+ * is the catch-up path, not the definition.
+ *
+ * Table and column are interpolated because SQLite takes neither as a bound
+ * parameter; every caller is a literal in this file.
+ */
+function addColumn(db: Database, table: string, column: string, definition: string): void {
+  const columns = db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (columns.some((existing) => existing.name === column)) return;
+  db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+/** Whether the `ratings` table as it stands points at the given table. */
+function ratingsTableReferences(db: Database, table: string): boolean {
+  const row = db
+    .query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ratings'")
+    .get() as { sql: string } | null;
+  return row?.sql.includes(`REFERENCES ${table}`) ?? false;
 }
 
 /**
  * True for a pre-ADR-0011 `ratings` table, whose `book_id` held a Calibre id and
- * referenced nothing. Detected from the schema rather than a version counter so
- * the check is idempotent: once the table references `books`, this is false and
- * the drop never runs again.
+ * referenced nothing at all. Detected from the schema rather than a version
+ * counter so the check is idempotent — and it has to name *both* later shapes,
+ * or the work-keyed table this migration creates would look like the ancient one
+ * and be dropped on the next open.
  */
 function ratingsAreKeyedByCalibreId(db: Database): boolean {
   const row = db
     .query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ratings'")
     .get() as { sql: string } | null;
-  return row !== null && !row.sql.includes("REFERENCES books");
+  return (
+    row !== null && !row.sql.includes("REFERENCES books") && !row.sql.includes("REFERENCES works")
+  );
 }
 
 /** Accept either an open connection or a path, so stores can share one db. */

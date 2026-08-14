@@ -32,9 +32,34 @@ export const PREF_KEYS = {
 /** What a book record was ingested from. `books.source` holds one of these. */
 export const BOOK_SOURCE = {
   calibre: "calibre",
+  /** A book on a reader's hardcover.app shelves (docs/features/hardcover-sync.md). */
+  hardcover: "hardcover",
   /** Entered in Grimoire itself. Nothing creates these yet. */
   grimoire: "grimoire",
 } as const;
+
+export type BookSource = (typeof BOOK_SOURCE)[keyof typeof BOOK_SOURCE];
+
+/**
+ * Hardcover's reading statuses, by the integer their API sends. Stored as that
+ * integer rather than a name of ours: it is their vocabulary, and mapping it to
+ * a Grimoire read state is a decision that belongs to a read-status feature.
+ */
+export const HARDCOVER_STATUS = {
+  1: "Want to read",
+  2: "Reading",
+  3: "Read",
+  4: "Paused",
+  5: "Did not finish",
+  6: "Ignored",
+} as const;
+
+export type HardcoverStatusId = keyof typeof HARDCOVER_STATUS;
+
+/** The label for a status id, falling back rather than rendering a bare number. */
+export function hardcoverStatusLabel(id: number): string {
+  return HARDCOVER_STATUS[id as HardcoverStatusId] ?? `Status ${id}`;
+}
 
 /**
  * Cover sizes cached on disk, keyed by *Grimoire* book id so a book keeps its

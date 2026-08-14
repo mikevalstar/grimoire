@@ -10,7 +10,7 @@ type Fixture = Pick<LibraryBook, "id" | "title" | "authors" | "formats" | "added
 
 function book(fixture: Fixture): LibraryBook {
   return {
-    source: "calibre",
+    sources: ["calibre"],
     // Same as the Grimoire id unless a fixture says otherwise. Null is the
     // interesting case: a book Grimoire kept after Calibre dropped it.
     calibreId: fixture.id,
@@ -23,6 +23,7 @@ function book(fixture: Fixture): LibraryBook {
     description: null,
     pages: null,
     coverState: "cached",
+    coverUrl: null,
     ...fixture,
   };
 }
@@ -95,7 +96,7 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     published: "2014-04-01T00:00:00+00:00",
   }),
   // Deleted from Calibre, kept by Grimoire (ADR 0011): still has its details,
-  // cover and rating, but no calibre id — so no download, and a badge saying so.
+  // cover and rating, but no calibre id — so no download, and a mark saying so.
   book({
     id: 7,
     title: "Children of Time",
@@ -160,6 +161,35 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     formats: ["EPUB"],
     added: "2019-07-04T12:00:00+00:00",
     published: "1999-02-01T00:00:00+00:00",
+  }),
+  // On a reader's Hardcover shelves and not in Calibre: no file to download, and
+  // a cover that lives on their CDN (docs/features/hardcover-sync.md).
+  book({
+    id: 13,
+    title: "The Blade Itself",
+    authors: ["Joe Abercrombie"],
+    series: "The First Law",
+    seriesIndex: 1,
+    tags: ["Fantasy"],
+    formats: [],
+    added: "2026-02-02T00:00:00+00:00",
+    published: "2006-05-04T00:00:00+00:00",
+    sources: ["hardcover"],
+    calibreId: null,
+    coverState: "none",
+    coverUrl: null,
+  }),
+  // What a matched book will look like once de-duping lands: one book, two
+  // sources, two marks. Nothing produces this yet.
+  book({
+    id: 14,
+    title: "Piranesi",
+    authors: ["Susanna Clarke"],
+    tags: ["Fantasy"],
+    formats: ["EPUB"],
+    added: "2025-07-21T07:15:30+00:00",
+    published: "2020-09-15T00:00:00+00:00",
+    sources: ["calibre", "hardcover"],
   }),
 ];
 

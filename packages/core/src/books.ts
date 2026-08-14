@@ -1,6 +1,8 @@
 import type { Database } from "bun:sqlite";
 import type { CalibreBookRow } from "./calibre-books.ts";
 import { resolveDatabase } from "./db.ts";
+import type { HardcoverBookRow } from "./hardcover-books.ts";
+import { matchKey } from "./matching.ts";
 import type { Book } from "./schemas.ts";
 import { BOOK_SOURCE } from "./types.ts";
 
@@ -26,7 +28,23 @@ interface BookRow {
   added: string;
   cover_state: string;
   cover_synced_at: string | null;
+  hardcover_id: number | null;
+  cover_url: string | null;
+  work_id: number;
+  match_key: string | null;
 }
+
+/**
+ * Which source wins a field when a work has members from several (ADR 0013).
+ * Calibre first because it knows the things it can only know — the file, its
+ * formats, the title you gave it — and the others fill what it leaves empty.
+ */
+const SOURCE_PRECEDENCE = [BOOK_SOURCE.calibre, BOOK_SOURCE.grimoire, BOOK_SOURCE.hardcover];
+
+const precedence = (source: string): number => {
+  const index = SOURCE_PRECEDENCE.indexOf(source as (typeof SOURCE_PRECEDENCE)[number]);
+  return index === -1 ? SOURCE_PRECEDENCE.length : index;
+};
 
 /** What a reconcile did, for the sync log and the progress readout. */
 export interface ReconcileResult {
@@ -61,27 +79,96 @@ function parseRecord(json: string): Record<string, string> {
   }
 }
 
-function toBook(row: BookRow): Book {
-  return {
-    id: row.id,
-    source: row.source,
-    calibreId: row.calibre_id,
-    title: row.title,
-    authors: parseArray(row.authors),
-    series: row.series,
-    seriesIndex: row.series_index,
-    tags: parseArray(row.tags),
-    formats: parseArray(row.formats),
-    publisher: row.publisher,
-    languages: parseArray(row.languages),
-    identifiers: parseRecord(row.identifiers),
-    description: row.description,
-    pages: row.pages,
-    published: row.published,
-    added: row.added,
-    coverState:
-      row.cover_state === "cached" || row.cover_state === "missing" ? row.cover_state : "none",
+/**
+ * One work, as the shelf renders it: the members' fields merged by source
+ * precedence, their sources unioned — which is what lights up more than one
+ * mark on a card (docs/features/book-list.md).
+ *
+ * **`id` is the work's id, not any member's** (ADR 0013). It is what a rating
+ * keys on and what a cover URL names; the member row ids stay server-side.
+ */
+function toBook(members: BookRow[]): Book {
+  const rows = [...members].sort((a, b) => precedence(a.source) - precedence(b.source));
+  const first = rows[0];
+  if (!first) throw new Error("A work with no books");
+
+  /** The first member that has this field, in precedence order. */
+  const pick = <T>(read: (row: BookRow) => T | null | undefined): T | null => {
+    for (const row of rows) {
+      const value = read(row);
+      if (value !== null && value !== undefined && value !== "") return value;
+    }
+    return null;
   };
+  const pickList = (read: (row: BookRow) => string): string[] => {
+    for (const row of rows) {
+      const list = parseArray(read(row));
+      if (list.length > 0) return list;
+    }
+    return [];
+  };
+
+  // A cached file beats a remote URL, whichever member holds it.
+  const cached = rows.some((row) => row.cover_state === "cached");
+  const missing = rows.some((row) => row.cover_state === "missing");
+
+  return {
+    id: first.work_id,
+    sources: [...new Set(rows.map((row) => row.source))],
+    // From whichever member is the Calibre one; null when no member is in the
+    // library, which is still the exact test for "is there a file to download".
+    calibreId: pick((row) => row.calibre_id),
+    title: first.title,
+    authors: pickList((row) => row.authors),
+    series: pick((row) => row.series),
+    seriesIndex: pick((row) => row.series_index),
+    tags: pickList((row) => row.tags),
+    formats: pickList((row) => row.formats),
+    publisher: pick((row) => row.publisher),
+    languages: pickList((row) => row.languages),
+    identifiers:
+      rows.map((row) => parseRecord(row.identifiers)).find((ids) => Object.keys(ids).length > 0) ??
+      {},
+    description: pick((row) => row.description),
+    pages: pick((row) => row.pages),
+    published: pick((row) => row.published),
+    // The earliest date any source took the book in — a book does not become
+    // newer by turning up somewhere else.
+    added: rows.map((row) => row.added).sort()[0] ?? first.added,
+    coverState: cached ? "cached" : missing ? "missing" : "none",
+    // Only offered while a cover is still waiting to be downloaded, so the
+    // shelf has something to draw during a first sync. A cover already proven
+    // unfetchable is not worth sending the browser after.
+    coverUrl: cached || missing ? null : pick((row) => row.cover_url),
+  };
+}
+
+/**
+ * Fold rows into works, ordered the way the shelf wants them: by the sort title
+ * where a source gave us one — Calibre files "The Blade Itself" under B — and by
+ * the title itself otherwise. Sorting happens here rather than in SQL because a
+ * work's title is decided by merging its members, which SQL cannot do before it
+ * orders.
+ */
+function toBooks(rows: BookRow[]): Book[] {
+  const works = new Map<number, BookRow[]>();
+  for (const row of rows) {
+    const members = works.get(row.work_id);
+    if (members) members.push(row);
+    else works.set(row.work_id, [row]);
+  }
+
+  return [...works.values()]
+    .map((members) => {
+      const sorted = [...members].sort((a, b) => precedence(a.source) - precedence(b.source));
+      const lead = sorted[0];
+      return {
+        book: toBook(members),
+        sortKey: (lead?.title_sort || lead?.title) ?? "",
+      };
+    })
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .map((entry) => entry.book);
 }
 
 /**
@@ -98,29 +185,48 @@ export class BooksStore {
     this.db = resolveDatabase(source);
   }
 
+  /** The shelf: one entry per work, not per row (ADR 0013). */
   list(): Book[] {
+    return toBooks(this.db.query("SELECT * FROM books ORDER BY work_id").all() as BookRow[]);
+  }
+
+  /** By *work* id — the id every payload speaks. */
+  get(workId: number): Book | null {
     const rows = this.db
-      .query("SELECT * FROM books ORDER BY title_sort IS NULL, title_sort, title")
-      .all() as BookRow[];
-    return rows.map(toBook);
+      .query("SELECT * FROM books WHERE work_id = $workId")
+      .all({ $workId: workId }) as BookRow[];
+    return rows.length > 0 ? toBook(rows) : null;
   }
 
-  get(id: number): Book | null {
+  /**
+   * Which member's file to serve as this work's cover. Cover files are named by
+   * the member's own id, so a work has to be resolved to whichever member
+   * actually has one — preferring Calibre's, which is cached at all three sizes.
+   */
+  coverBookId(workId: number): number | null {
     const row = this.db
-      .query("SELECT * FROM books WHERE id = $id")
-      .get({ $id: id }) as BookRow | null;
-    return row ? toBook(row) : null;
+      .query(
+        `SELECT id FROM books
+          WHERE work_id = $workId AND cover_state = 'cached'
+          ORDER BY source = 'calibre' DESC, id
+          LIMIT 1`,
+      )
+      .get({ $workId: workId }) as { id: number } | null;
+    return row?.id ?? null;
   }
 
+  /** Books on the shelf — works, since that is what a reader counts. */
   count(): number {
-    const row = this.db.query("SELECT COUNT(*) AS n FROM books").get() as { n: number };
+    const row = this.db.query("SELECT COUNT(DISTINCT work_id) AS n FROM books").get() as {
+      n: number;
+    };
     return row.n;
   }
 
   /** How many are still in the connected Calibre library. */
   inLibraryCount(): number {
     const row = this.db
-      .query("SELECT COUNT(*) AS n FROM books WHERE calibre_id IS NOT NULL")
+      .query("SELECT COUNT(DISTINCT work_id) AS n FROM books WHERE calibre_id IS NOT NULL")
       .get() as { n: number };
     return row.n;
   }
@@ -147,17 +253,19 @@ export class BooksStore {
       `INSERT INTO books (
          source, calibre_uuid, calibre_id, title, title_sort, authors, author_sort,
          series, series_index, tags, formats, publisher, languages, identifiers,
-         description, pages, published, added, created_at, updated_at
+         description, pages, published, added, match_key, work_id, created_at, updated_at
        ) VALUES (
          $source, $calibreUuid, $calibreId, $title, $titleSort, $authors, $authorSort,
          $series, $seriesIndex, $tags, $formats, $publisher, $languages, $identifiers,
-         $description, $pages, $published, $added, $now, $now
+         $description, $pages, $published, $added, $matchKey, $workId, $now, $now
        )`,
     );
 
     // calibre_uuid is absent here on purpose: it is identity, set once on
     // insert and never rewritten. Everything else, including calibre_id, is
-    // Calibre's to change.
+    // Calibre's to change — and match_key with them, since it is derived from a
+    // title Calibre can edit. work_id is *not* rewritten: which work a book
+    // belongs to is the matcher's business, never sync's.
     const update = this.db.query(
       `UPDATE books SET
          calibre_id = $calibreId, title = $title, title_sort = $titleSort,
@@ -165,7 +273,7 @@ export class BooksStore {
          series_index = $seriesIndex, tags = $tags, formats = $formats,
          publisher = $publisher, languages = $languages, identifiers = $identifiers,
          description = $description, pages = $pages, published = $published,
-         updated_at = $now
+         match_key = $matchKey, updated_at = $now
        WHERE id = $id`,
     );
 
@@ -200,6 +308,7 @@ export class BooksStore {
           $description: row.comments,
           $pages: row.pages,
           $published: row.pubdate,
+          $matchKey: matchKey(row.title),
           $now: now,
         };
 
@@ -210,6 +319,7 @@ export class BooksStore {
             $source: BOOK_SOURCE.calibre,
             $calibreUuid: row.uuid,
             $added: row.timestamp ?? now,
+            $workId: this.createWork(now),
           });
           result.inserted++;
         } else {
@@ -220,6 +330,84 @@ export class BooksStore {
     });
 
     run(mirror);
+    return result;
+  }
+
+  /**
+   * Fold the Hardcover mirror into `books`, matched on **Hardcover's own book
+   * id and nothing else** — not title, not ISBN. A book that is also in Calibre
+   * therefore gets a second row and appears twice, which is this step's whole
+   * point: see docs/features/hardcover-sync.md.
+   *
+   * Same two rules as the Calibre reconcile: one transaction, and no deletes.
+   */
+  reconcileFromHardcover(mirror: HardcoverBookRow[], now: string): ReconcileResult {
+    const result: ReconcileResult = { inserted: 0, updated: 0, unlinked: 0 };
+
+    const existing = this.db
+      .query("SELECT id, hardcover_id FROM books WHERE hardcover_id IS NOT NULL")
+      .all() as { id: number; hardcover_id: number }[];
+    const byHardcoverId = new Map(existing.map((row) => [row.hardcover_id, row.id]));
+
+    const insert = this.db.query(
+      `INSERT INTO books (
+         source, hardcover_id, title, title_sort, authors, tags, description,
+         pages, published, added, cover_url, match_key, work_id, created_at, updated_at
+       ) VALUES (
+         $source, $hardcoverId, $title, $titleSort, $authors, $tags, $description,
+         $pages, $published, $added, $coverUrl, $matchKey, $workId, $now, $now
+       )`,
+    );
+
+    // hardcover_id is absent here for the same reason calibre_uuid is: it is
+    // identity, set on insert and never rewritten. So is work_id — grouping
+    // belongs to the matcher, not to a sync.
+    const update = this.db.query(
+      `UPDATE books SET
+         title = $title, title_sort = $titleSort, authors = $authors, tags = $tags,
+         description = $description, pages = $pages, published = $published,
+         cover_url = $coverUrl, match_key = $matchKey, updated_at = $now,
+         -- A new cover URL invalidates the file cached from the old one. Every
+         -- SET reads the row as it was, so this compares old against new.
+         cover_state = CASE WHEN cover_url IS NOT $coverUrl THEN 'none' ELSE cover_state END
+       WHERE id = $id`,
+    );
+
+    this.db.transaction((rows: HardcoverBookRow[]) => {
+      for (const row of rows) {
+        const shared = {
+          $title: row.title,
+          // Hardcover has no sort title, so the shelf's ordering key is the
+          // title itself rather than nothing — otherwise every Hardcover book
+          // sorts after every Calibre one.
+          $titleSort: row.title,
+          $authors: row.authors,
+          $tags: row.tags,
+          $description: row.description,
+          $pages: row.pages,
+          $published: row.release_date,
+          $coverUrl: row.cover_url,
+          $matchKey: matchKey(row.title),
+          $now: now,
+        };
+
+        const id = byHardcoverId.get(row.hardcover_id);
+        if (id === undefined) {
+          insert.run({
+            ...shared,
+            $source: BOOK_SOURCE.hardcover,
+            $hardcoverId: row.hardcover_id,
+            $added: now,
+            $workId: this.createWork(now),
+          });
+          result.inserted++;
+        } else {
+          update.run({ ...shared, $id: id });
+          result.updated++;
+        }
+      }
+    })(mirror);
+
     return result;
   }
 
@@ -247,6 +435,25 @@ export class BooksStore {
   }
 
   /**
+   * Books whose cover is a URL we haven't cached yet — Hardcover's, today
+   * (docs/features/hardcover-sync.md).
+   *
+   * `cover_state = 'none'` and not merely "not cached", so a book whose image
+   * failed to download is marked `missing` and left alone rather than retried
+   * every sync. Reconcile resets it to `none` when the URL changes, which is
+   * the one thing that should make us try again.
+   */
+  remoteCoversToFetch(): { id: number; url: string }[] {
+    return this.db
+      .query(
+        `SELECT id, cover_url AS url FROM books
+          WHERE cover_url IS NOT NULL AND cover_state = 'none'
+          ORDER BY id`,
+      )
+      .all() as { id: number; url: string }[];
+  }
+
+  /**
    * Books the database believes have cached covers, for checking that claim
    * against the filesystem. Only those still in Calibre, since a book that has
    * left cannot have its cover fetched again anyway.
@@ -260,6 +467,17 @@ export class BooksStore {
           WHERE b.cover_state = 'cached' AND b.calibre_id IS NOT NULL`,
       )
       .all() as CoverTarget[];
+  }
+
+  /**
+   * A work of its own for a book being inserted. Every book starts alone (ADR
+   * 0013); the matcher is the only thing that ever moves one.
+   */
+  private createWork(now: string): number {
+    const work = this.db
+      .query("INSERT INTO works (created_at) VALUES ($now) RETURNING id")
+      .get({ $now: now }) as { id: number };
+    return work.id;
   }
 
   markCover(id: number, state: "cached" | "missing", syncedAt: string | null): void {

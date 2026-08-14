@@ -3,6 +3,15 @@ import { useEffect } from "react";
 import { PREF_KEYS } from "@/lib/api";
 import { SetupWizard } from "./setup-wizard";
 
+/** No Hardcover account, which is every reader the wizard can produce. */
+const UNLINKED = {
+  hardcoverUsername: null,
+  hardcoverBookCount: 0,
+  hardcoverStatusCounts: [],
+  hardcoverSyncedAt: null,
+  hardcoverSyncError: null,
+};
+
 /**
  * Stub `fetch` so Test, reader creation and Save all respond in isolation —
  * there's no API behind Storybook. Restored when the story unmounts.
@@ -70,8 +79,22 @@ export const ReRun: Story = {
       [PREF_KEYS.calibreServerUrl]: "http://bookwyrm.local:8080",
     },
     existingUsers: [
-      { id: 1, name: "Mike Valstar", color: "indigo", createdAt: "2026-08-01T10:00:00.000Z" },
-      { id: 2, name: "Robin", color: "crimson", createdAt: "2026-08-01T10:01:00.000Z" },
+      // The wizard predates Hardcover and shows none of it; the fields are here
+      // only because a reader is a reader (docs/features/hardcover-connection.md).
+      {
+        id: 1,
+        name: "Mike Valstar",
+        color: "indigo",
+        createdAt: "2026-08-01T10:00:00.000Z",
+        ...UNLINKED,
+      },
+      {
+        id: 2,
+        name: "Robin",
+        color: "crimson",
+        createdAt: "2026-08-01T10:01:00.000Z",
+        ...UNLINKED,
+      },
     ],
   },
 };
