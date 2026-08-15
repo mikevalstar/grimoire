@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
 import { useState } from "react";
 import type { Ratings } from "@/lib/api";
+import { orderLibrary } from "@/lib/library-order";
 import { SAMPLE_BOOKS, SAMPLE_RATINGS } from "@/lib/sample-books";
 import { BookGrid, BookGridSkeleton } from "./book-grid";
 
@@ -11,7 +12,7 @@ import { BookGrid, BookGridSkeleton } from "./book-grid";
 const meta = {
   title: "Library/BookGrid",
   component: BookGrid,
-  args: { books: SAMPLE_BOOKS },
+  args: { sections: orderLibrary(SAMPLE_BOOKS, { sort: "title", dir: "asc", group: "none" }) },
   parameters: { layout: "fullscreen" },
   decorators: [
     (Story) => (
@@ -56,6 +57,15 @@ export const Ratable: Story = {
       />
     );
   },
+};
+
+/**
+ * Grouped, each section gets a labelled, counted header spanning the grid —
+ * here by series, with the standalone books gathered under "No series" last
+ * (docs/features/library-sort-and-group.md).
+ */
+export const Grouped: Story = {
+  args: { sections: orderLibrary(SAMPLE_BOOKS, { sort: "series", dir: "asc", group: "series" }) },
 };
 
 export const Loading: Story = { render: () => <BookGridSkeleton count={12} /> };

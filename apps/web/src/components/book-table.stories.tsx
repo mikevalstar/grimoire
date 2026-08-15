@@ -1,13 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
 import { useState } from "react";
 import type { Ratings } from "@/lib/api";
+import { orderLibrary } from "@/lib/library-order";
 import { SAMPLE_BOOKS, SAMPLE_RATINGS } from "@/lib/sample-books";
 import { BookTable, BookTableSkeleton } from "./book-table";
 
 const meta = {
   title: "Library/BookTable",
   component: BookTable,
-  args: { books: SAMPLE_BOOKS },
+  args: { sections: orderLibrary(SAMPLE_BOOKS, { sort: "title", dir: "asc", group: "none" }) },
   parameters: { layout: "fullscreen" },
   decorators: [
     (Story) => (
@@ -52,6 +53,11 @@ export const Ratable: Story = {
       />
     );
   },
+};
+
+/** Grouped by author: full-width header rows under the sticky column header. */
+export const Grouped: Story = {
+  args: { sections: orderLibrary(SAMPLE_BOOKS, { sort: "title", dir: "asc", group: "author" }) },
 };
 
 export const Loading: Story = { render: () => <BookTableSkeleton count={10} /> };

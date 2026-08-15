@@ -19,6 +19,7 @@ Add one with `okq new feature "<title>"`.
 | First-run setup wizard | [first-run-setup-wizard.md](first-run-setup-wizard.md) |
 | Hardcover connection | [hardcover-connection.md](hardcover-connection.md) |
 | Hardcover sync | [hardcover-sync.md](hardcover-sync.md) |
+| Library sort and group | [library-sort-and-group.md](library-sort-and-group.md) |
 | Marking a book read | [marking-a-book-read.md](marking-a-book-read.md) |
 | Rating a book | [rating-a-book.md](rating-a-book.md) |
 | Resolving duplicates | [resolving-duplicates.md](resolving-duplicates.md) |
