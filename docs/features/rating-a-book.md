@@ -127,6 +127,11 @@ Each reader picks a **rating source** in the settings Hardcover section
     period, plus `finished_at_precision` (0 none, 1 day, 2 month, 3 year — an
     undocumented but introspectable column), so "sometime in June 2023"
     displays as exactly that on hardcover.app.
+  - The offered dates are bounded by the book itself: never after today, and
+    never before the year *preceding* publication — one year of slack for
+    advance copies. A book with no known publication date keeps the old
+    open-ended range, and in the finder the picked search result's release
+    year is the bound, since that edition is the one being shelved.
   - A **Calibre-only** book opens a finder instead: a search of Hardcover's
     catalogue, seeded with the book's title. Picking the match adds it to
     their shelves as **Read** — the dialog says so — sets the rating, and

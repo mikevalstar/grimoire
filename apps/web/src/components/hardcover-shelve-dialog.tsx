@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { hardcoverStatusLabel, type LibraryBook } from "@/lib/api";
+import { publicationYear } from "@/lib/publication";
 
 /**
  * What the confirm is holding: the book being rated, the stars to give it, and
@@ -109,7 +110,11 @@ function ShelveBody({
         </AlertDialogDescription>
       </AlertDialogHeader>
 
-      <ReadDatePicker value={readDate} onChange={setReadDate} />
+      <ReadDatePicker
+        value={readDate}
+        onChange={setReadDate}
+        publishedYear={publicationYear(pending.book.published)}
+      />
 
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>

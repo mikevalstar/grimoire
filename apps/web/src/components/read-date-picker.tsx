@@ -46,6 +46,19 @@ function localToday(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * The earliest year worth offering for a book published in `publishedYear`:
+ * one year before it, so someone with an advance copy isn't told they're
+ * wrong. Nothing known about publication means no lower bound beyond the
+ * eighty years the picker has always offered.
+ */
+function earliestYear(publishedYear: number | null, thisYear: number): number {
+  const floor = thisYear - 79;
+  if (publishedYear === null) return floor;
+  // A book published in the future still has to offer *some* year.
+  return Math.min(Math.max(publishedYear - 1, floor), thisYear);
+}
+
 const MONTH_NAMES = [
   "January",
   "February",
@@ -76,14 +89,21 @@ const OPTIONS = [
 export function ReadDatePicker({
   value,
   onChange,
+  publishedYear = null,
   className,
 }: {
   value: ReadDateChoice;
   onChange: (choice: ReadDateChoice) => void;
+  /**
+   * The year the book was published, when known — nobody finished it a decade
+   * before it existed, so the offered years stop just short of it.
+   */
+  publishedYear?: number | null;
   className?: string;
 }) {
   const dateId = useId();
   const thisYear = new Date().getFullYear();
+  const firstYear = earliestYear(publishedYear, thisYear);
 
   function pick(kind: (typeof OPTIONS)[number]["kind"]) {
     if (kind === value.kind) return;
@@ -125,6 +145,7 @@ export function ReadDatePicker({
           id={dateId}
           type="date"
           value={value.date}
+          min={`${firstYear}-01-01`}
           max={localToday()}
           aria-label="The date you finished it"
           onChange={(e) => onChange({ kind: "date", date: e.target.value })}
@@ -167,11 +188,13 @@ export function ReadDatePicker({
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper">
-              {Array.from({ length: 80 }, (_, i) => thisYear - i).map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {year}
-                </SelectItem>
-              ))}
+              {Array.from({ length: thisYear - firstYear + 1 }, (_, i) => thisYear - i).map(
+                (year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ),
+              )}
             </SelectContent>
           </Select>
         </div>

@@ -57,7 +57,8 @@ established the pattern):
 Always through the modal — never a bare toggle:
 
 - The finished-when question, exactly as in [rating](rating-a-book.md):
-  I don't know (default), today, a date, a month or year.
+  I don't know (default), today, a date, a month or year. Never earlier than
+  the year before publication, and never later than today.
 - An optional rating — skippable stars, offered only when the reader's rating
   source matches their read-state source, so a rating can never land in the
   other store as a side effect.

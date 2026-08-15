@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { HardcoverSearchResult, LibraryBook } from "@/lib/api";
+import { publicationYear } from "@/lib/publication";
 import { cn } from "@/lib/utils";
 
 /**
@@ -240,6 +241,11 @@ function FinderBody({
         <ReadDatePicker
           value={readDate}
           onChange={setReadDate}
+          // The picked edition is the one being shelved, so its release year
+          // bounds the answer; Calibre's date is the fallback.
+          publishedYear={
+            results?.find((r) => r.id === picked)?.releaseYear ?? publicationYear(book.published)
+          }
           className="border-line border-t pt-3"
         />
       )}

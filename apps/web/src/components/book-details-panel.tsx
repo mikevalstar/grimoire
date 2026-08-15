@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
+import { publicationYear } from "@/lib/publication";
 
 export interface BookDetailsPanelProps {
   /** The book to show. Null closes the panel. */
@@ -230,7 +231,10 @@ export function BookDetailsPanel({
                   <Section title="Details">
                     <dl className="grid grid-cols-[92px_1fr] items-baseline gap-y-1.5 text-[12.5px]">
                       <Field label="Publisher" value={shown.publisher} />
-                      <Field label="Published" value={publicationYear(shown.published)} />
+                      <Field
+                        label="Published"
+                        value={publicationYear(shown.published)?.toString()}
+                      />
                       <Field label="Added" value={formatDate(shown.added)} />
                       <Field label="Languages" value={formatLanguages(shown.languages)} />
                       <Field label="Pages" value={shown.pages?.toLocaleString()} />
@@ -339,19 +343,6 @@ function formatDate(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString();
-}
-
-/**
- * The year alone — a publication date is a year to a reader, and Calibre's day
- * and month are usually invented anyway. Calibre also writes year 101 for
- * "unknown", which is not a date worth printing.
- */
-function publicationYear(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const year = date.getFullYear();
-  return year > 1000 ? String(year) : null;
 }
 
 /**

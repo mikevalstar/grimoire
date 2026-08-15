@@ -35,6 +35,14 @@ export const YearOrMonth: Story = {
   args: { value: { kind: "period", year: 2023, month: 6 } },
 };
 
+/**
+ * A recent book: the years stop at 2019, one before publication, for the
+ * reader who got an advance copy.
+ */
+export const BoundedByPublication: Story = {
+  args: { value: { kind: "period", year: 2021, month: null }, publishedYear: 2020 },
+};
+
 export const Light: Story = {
   ...Interactive,
   globals: { theme: "light" },
