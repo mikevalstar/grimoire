@@ -5,6 +5,7 @@ import {
   HcInsertUserBookResponseSchema,
   HcLibraryResponseSchema,
   HcMeResponseSchema,
+  HcReadingHistoryResponseSchema,
   HcSearchResponseSchema,
   HcUpdateUserBookReadResponseSchema,
   HcUpdateUserBookResponseSchema,
@@ -393,6 +394,38 @@ const USER_BOOK_READS_QUERY = `query Reads($id: Int!) {
     }
   }
 }`;
+
+const READING_HISTORY_QUERY = `query ReadingHistory($id: Int!) {
+  user_books(where: { id: { _eq: $id } }) {
+    user_book_reads(order_by: { id: desc }) {
+      id
+      finished_at
+      finished_at_precision
+    }
+  }
+}`;
+
+/**
+ * Every known finish date for a shelf entry, read live from Hardcover. Their
+ * precision is significant: the first of a month may mean only that month.
+ */
+export async function fetchReadingHistory(token: string, userBookId: number): Promise<string[]> {
+  const result = await hardcoverQuery(
+    token,
+    READING_HISTORY_QUERY,
+    { id: userBookId },
+    HcReadingHistoryResponseSchema,
+  );
+  if (!result.ok) throw new HardcoverError(result.error);
+
+  return (result.data.data?.user_books?.[0]?.user_book_reads ?? []).flatMap((read) => {
+    const date = read.finished_at?.slice(0, 10);
+    if (!date || read.finished_at_precision === 0) return [];
+    if (read.finished_at_precision === 3) return [date.slice(0, 4)];
+    if (read.finished_at_precision === 2) return [date.slice(0, 7)];
+    return [date];
+  });
+}
 
 /**
  * The reader told us they don't know when they finished — so the whole stamp

@@ -9,6 +9,7 @@ import {
 } from "@/components/book-duplicates";
 import { BookLinkPicker } from "@/components/book-link-picker";
 import { BookMarks } from "@/components/book-marks";
+import { BookReadDates } from "@/components/book-read-dates";
 import { StarRating } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,10 @@ export interface BookDetailsPanelProps {
    * cover is a picture rather than a stack that can be turned over.
    */
   onChooseCover?: (bookId: number) => void;
+  /** Known finish dates, newest read first, at their original precision. */
+  readDates?: string[];
+  readDatesPending?: boolean;
+  readDatesError?: Error | null;
   /**
    * The entries this book is made of and the ones that look like they belong
    * with it, with the answers to either (docs/features/resolving-duplicates.md).
@@ -74,6 +79,9 @@ export function BookDetailsPanel({
   rating = 0,
   onRate,
   onChooseCover,
+  readDates = [],
+  readDatesPending = false,
+  readDatesError,
   sameBook,
 }: BookDetailsPanelProps) {
   // The sheet slides out over a few hundred milliseconds, by which time the
@@ -212,6 +220,12 @@ export function BookDetailsPanel({
                       <BookDuplicates {...sameBook} duplicates={sameBook.duplicates} />
                     </Section>
                   )}
+
+                  <BookReadDates
+                    dates={readDates}
+                    isPending={readDatesPending}
+                    error={readDatesError}
+                  />
 
                   <Section title="Details">
                     <dl className="grid grid-cols-[92px_1fr] items-baseline gap-y-1.5 text-[12.5px]">

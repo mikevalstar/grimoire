@@ -51,6 +51,16 @@ type Story = StoryObj<typeof meta>;
 /** Storybook has no Calibre behind it, so the cover falls back to its placeholder. */
 export const Default: Story = {};
 
+/** Hardcover keeps each completion, so rereads remain separate dates. */
+export const ReadTwice: Story = {
+  args: { readDates: ["2026-07-19", "2021-03"] },
+};
+
+/** The history comes directly from Hardcover while the panel is open. */
+export const LoadingReadDates: Story = {
+  args: { readDatesPending: true },
+};
+
 export const Light: Story = { globals: { theme: "light" } };
 
 /** Given `onRate`, the stars commit — and here they start visible rather than on hover. */

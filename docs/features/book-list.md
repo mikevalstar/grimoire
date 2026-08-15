@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Book list
-description: The library screen — every book Grimoire knows about, shown either as a grid of covers or a dense table, with a toolbar that switches between them and holds the space filters will take.
+description: The library screen — every book Grimoire knows about, shown either as a grid of covers or a dense table, with search, ordering, read-status filtering, and view controls.
 tags: [frontend, ui, library, calibre]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-11 }
@@ -29,16 +29,20 @@ feel like?") wants covers, looking something up ("do I own this, and in what
 format?") wants columns. Building both off one book model keeps a third view
 (spines) and the filter/sort layer from needing a rewrite.
 
-Filters are deliberately *not* in scope; the toolbar reserves the space they
-will occupy so the layout does not shift when they land.
-
 ## Behavior
 
-**The toolbar.** One sticky row above the library: a labelled but empty filter
-region holding its height for later, the result count, and a view switcher
-marked in the user accent — which view you are in is your own state, not the
-library's. Lower breathing room and a quiet, center-weighted rule separate the
-controls from the scrolling shelf without turning them into a second panel.
+**The toolbar.** One sticky row above the library: text search, sort, and group
+controls on the left; a three-way **All / To read / Read** segmented filter and
+the view switcher on the right. The read filter replaces the former result
+count and shows the count for each state. Its counts reflect the text-filtered
+set before read status is applied, so switching status does not make the other
+choices disappear. Read state is the current reader's state; until a reader is
+selected, the control stays on All and is unavailable.
+
+The active read filter is immediate browser-side state and composes with text
+search, sorting, and grouping without refetching. Lower breathing room and a
+quiet, center-weighted rule separate the controls from the scrolling shelf
+without turning them into a second panel.
 
 **Covers view.** An auto-filling grid with no max width, reflowing from two
 columns on a phone to as many as the window allows. Each card is a cover, title,
@@ -124,6 +128,8 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] The chosen view survives a reload and is per-device.
 - [x] The toolbar carries the [quick filter](library-quick-filter.md), sort, and
       group controls without crowding the view switcher.
+- [x] The toolbar filters the current text-search result to All, To read, or
+      Read books, shows each option's count, and does not require a refetch.
 - [x] Covers load from Grimoire's own cache, and a missing or broken cover falls
       back to a readable placeholder.
 - [x] Both views are full-width; the grid reflows and the table scrolls
@@ -164,5 +170,3 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - **Reading.** Calibre's own web viewer can't be reached through the proxy, so
   there is nothing to point a "Read now" action at until Grimoire has a reader.
 - **Spines.** Latitude's third view is not built; nothing here blocks it.
-- **Read status.** Calibre exposes it as a custom column, which is not portable
-  across libraries, so no status glyph is shown yet.

@@ -6,6 +6,7 @@ import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { GroupMenu, SortMenu } from "@/components/library-order-menus";
 import { LibraryQuickFilter } from "@/components/library-quick-filter";
 import { LibraryToolbar } from "@/components/library-toolbar";
+import { ReadStatusFilter, type ReadStatusFilterValue } from "@/components/read-status-filter";
 import { Button } from "@/components/ui/button";
 import {
   ApiError,
@@ -35,6 +36,10 @@ export interface BookLibraryProps {
   /** The dog-ear (docs/features/marking-a-book-read.md) — see BookGrid. */
   isRead?: (book: LibraryBook) => boolean;
   onToggleRead?: (book: LibraryBook, read: boolean) => void;
+  /** Known finish dates for the book currently open in the details panel. */
+  openBookReadDates?: string[];
+  readDatesPending?: boolean;
+  readDatesError?: Error | null;
   /**
    * Show a different one of a work's covers, by member id — the details panel's
    * cover stack (docs/features/book-details-panel.md).
@@ -58,11 +63,15 @@ export function BookLibrary({
   ratable,
   isRead,
   onToggleRead,
+  openBookReadDates,
+  readDatesPending,
+  readDatesError,
   onChooseCover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
   const [order, setOrder] = useLibraryOrder();
   const [filter, setFilter] = useState("");
+  const [readFilter, setReadFilter] = useState<ReadStatusFilterValue>("all");
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
 
   // A query ranks every matching book. Keep the score beside the filtered
@@ -71,10 +80,23 @@ export function BookLibrary({
     () => (fold(filter) ? rankBooks(books ?? [], filter) : null),
     [books, filter],
   );
-  const shownBooks = useMemo(
+  const searchedBooks = useMemo(
     () => ranked?.map((entry) => entry.book) ?? books ?? [],
     [books, ranked],
   );
+  const effectiveReadFilter = isRead ? readFilter : "all";
+  const readStatusCounts = useMemo(
+    () => ({
+      all: searchedBooks.length,
+      "to-read": isRead ? searchedBooks.filter((book) => !isRead(book)).length : 0,
+      read: isRead ? searchedBooks.filter(isRead).length : 0,
+    }),
+    [searchedBooks, isRead],
+  );
+  const shownBooks = useMemo(() => {
+    if (!isRead || effectiveReadFilter === "all") return searchedBooks;
+    return searchedBooks.filter((book) => isRead(book) === (effectiveReadFilter === "read"));
+  }, [searchedBooks, isRead, effectiveReadFilter]);
   const relevance = useMemo(
     () => (ranked ? new Map(ranked.map((entry) => [entry.book.id, entry.score])) : null),
     [ranked],
@@ -110,9 +132,16 @@ export function BookLibrary({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <LibraryToolbar
-        bookCount={error || !books ? undefined : shownBooks.length}
         view={view}
         onViewChange={setView}
+        statusFilter={
+          <ReadStatusFilter
+            value={effectiveReadFilter}
+            onValueChange={setReadFilter}
+            counts={books && !error ? readStatusCounts : undefined}
+            disabled={!isRead}
+          />
+        }
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <LibraryQuickFilter value={filter} onChange={setFilter} />
@@ -143,7 +172,7 @@ export function BookLibrary({
         ) : books.length === 0 ? (
           <LibraryEmpty />
         ) : shownBooks.length === 0 ? (
-          <LibraryNoMatches query={filter} />
+          <LibraryNoMatches query={filter} readFilter={effectiveReadFilter} />
         ) : view === "covers" ? (
           <BookGrid
             sections={sections}
@@ -179,6 +208,9 @@ export function BookLibrary({
         onChooseCover={
           onChooseCover && openBook ? (bookId) => onChooseCover(openBook, bookId) : undefined
         }
+        readDates={openBookReadDates}
+        readDatesPending={readDatesPending}
+        readDatesError={readDatesError}
         sameBook={{
           duplicates,
           // A candidate names a work; the shelf already holds every one — which
@@ -194,12 +226,22 @@ export function BookLibrary({
 }
 
 /** A real library, but nothing satisfying all of the typed tokens. */
-function LibraryNoMatches({ query }: { query: string }) {
+function LibraryNoMatches({
+  query,
+  readFilter,
+}: {
+  query: string;
+  readFilter: ReadStatusFilterValue;
+}) {
+  const status = readFilter === "read" ? "read" : readFilter === "to-read" ? "to read" : null;
   return (
     <div className="py-24 text-center">
       <p className="text-foreground text-sm">No matching books.</p>
       <p className="text-muted-foreground mt-1 text-[13px]">
-        Nothing matched “{query.trim()}”. Try fewer words or a different spelling.
+        {query.trim()
+          ? `Nothing ${status ? `marked ${status} ` : ""}matched “${query.trim()}”.`
+          : `There are no books marked ${status}.`}{" "}
+        Try a different filter.
       </p>
     </div>
   );

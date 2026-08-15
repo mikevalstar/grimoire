@@ -7,9 +7,11 @@ import { HardcoverShelveDialog, type PendingShelve } from "@/components/hardcove
 import { type PendingReadState, ReadStateDialog } from "@/components/read-state-dialog";
 import { BOOK_SOURCE, bookIsRead, bookRating, type LibraryBook, searchHardcover } from "@/lib/api";
 import { useCurrentUser } from "@/lib/current-user";
+import { useOpenBookId } from "@/lib/open-book";
 import {
   booksQuery,
   hardcoverRatingsQuery,
+  hardcoverReadDatesQuery,
   ratingsQuery,
   readStatesQuery,
   useChooseCover,
@@ -56,6 +58,29 @@ function LibraryScreen() {
     readStatesQuery(readSource === "local" ? currentUser?.id : null),
   );
   const ratings = source === "hardcover" ? hardcoverRatings : localRatings;
+
+  // Unlike the shelf mirror, a book's complete reread history is asked for
+  // live — and only while that read book's panel is open.
+  const openBookId = useOpenBookId();
+  const openBook = books?.find((book) => book.id === openBookId);
+  const openBookIsRead = Boolean(
+    currentUser && openBook && bookIsRead(openBook, readSource, readStates, hardcoverRatings),
+  );
+  const readDatesQuery = useQuery(
+    hardcoverReadDatesQuery(
+      readSource === "hardcover" ? currentUser?.id : null,
+      openBookId,
+      readSource === "hardcover" && openBookIsRead,
+    ),
+  );
+  const localFinishedAt = openBookId == null ? null : readStates?.[String(openBookId)]?.finishedAt;
+  const openBookReadDates = !openBookIsRead
+    ? []
+    : readSource === "hardcover"
+      ? readDatesQuery.data?.dates
+      : localFinishedAt
+        ? [localFinishedAt]
+        : [];
 
   const queryClient = useQueryClient();
   const rate = useRateBook(currentUser?.id, source);
@@ -161,6 +186,9 @@ function LibraryScreen() {
             : undefined
         }
         onToggleRead={currentUser ? onToggleRead : undefined}
+        openBookReadDates={openBookReadDates}
+        readDatesPending={readSource === "hardcover" && openBookIsRead && readDatesQuery.isFetching}
+        readDatesError={readSource === "hardcover" && openBookIsRead ? readDatesQuery.error : null}
         onChooseCover={(book, bookId) => chooseCover.mutate({ workId: book.id, bookId })}
       />
 

@@ -24,7 +24,7 @@ const LARGE_LIBRARY = Array.from({ length: 2_000 }, (_, index) => {
 const meta = {
   title: "Library/BookLibrary",
   component: BookLibrary,
-  args: { books: SAMPLE_BOOKS },
+  args: { books: SAMPLE_BOOKS, isRead: (book) => book.id % 2 === 0 },
   parameters: { layout: "fullscreen" },
   decorators: [
     (Story) => (
