@@ -16,6 +16,7 @@ Add one with `okq new feature "<title>"`.
 | Book list | [book-list.md](book-list.md) |
 | Book matching | [book-matching.md](book-matching.md) |
 | Calibre sync | [calibre-sync.md](calibre-sync.md) |
+| Command palette | [command-palette.md](command-palette.md) |
 | First-run setup wizard | [first-run-setup-wizard.md](first-run-setup-wizard.md) |
 | Hardcover connection | [hardcover-connection.md](hardcover-connection.md) |
 | Hardcover sync | [hardcover-sync.md](hardcover-sync.md) |

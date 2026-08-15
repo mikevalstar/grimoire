@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BookDetailsPanel } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { searchBooks } from "@/lib/book-search";
 import { orderLibrary, useLibraryOrder } from "@/lib/library-order";
+import { setOpenBookId, useOpenBookId } from "@/lib/open-book";
 import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
 
@@ -74,15 +75,17 @@ export function BookLibrary({
 
   // Which book the details panel is showing, by id rather than by value, so a
   // refetch behind the panel updates it instead of pinning a stale copy — and
-  // so a book that leaves the library takes its panel with it.
-  const [openId, setOpenId] = useState<number | null>(null);
+  // so a book that leaves the library takes its panel with it. The id lives in
+  // a global store (lib/open-book.ts) so the command palette can open a book
+  // from the shell.
+  const openId = useOpenBookId();
   const openBook = books?.find((book) => book.id === openId) ?? null;
 
   // Duplicate resolution is about the book that is open, so it is fetched here
   // rather than by the route — and follows the reader through a merge, since
   // the surviving work is the older of the two
   // (docs/features/resolving-duplicates.md).
-  const { duplicates, ...sameBook } = useDuplicates(openId, (book) => setOpenId(book.id));
+  const { duplicates, ...sameBook } = useDuplicates(openId, (book) => setOpenBookId(book.id));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -123,7 +126,7 @@ export function BookLibrary({
             ratable={ratable}
             isRead={isRead}
             onToggleRead={onToggleRead}
-            onOpen={(book) => setOpenId(book.id)}
+            onOpen={(book) => setOpenBookId(book.id)}
           />
         ) : (
           <BookTable
@@ -131,14 +134,14 @@ export function BookLibrary({
             ratings={ratings}
             onRate={onRate}
             ratable={ratable}
-            onOpen={(book) => setOpenId(book.id)}
+            onOpen={(book) => setOpenBookId(book.id)}
           />
         )}
       </div>
 
       <BookDetailsPanel
         book={openBook}
-        onClose={() => setOpenId(null)}
+        onClose={() => setOpenBookId(null)}
         rating={openBook ? bookRating(openBook, ratings) : 0}
         onRate={
           onRate && openBook && (ratable?.(openBook) ?? true)

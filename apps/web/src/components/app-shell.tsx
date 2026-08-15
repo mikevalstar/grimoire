@@ -1,6 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { AppHeader, type AppHeaderProps } from "@/components/app-header";
+import { CommandMenu } from "@/components/command-menu";
 import { SettingsDialog, type SettingsSection } from "@/components/settings-dialog";
+import { setOpenBookId } from "@/lib/open-book";
+import { booksQuery } from "@/lib/queries";
 
 /**
  * The frame every screen renders inside: ambient backdrop, sticky header, and
@@ -21,6 +25,11 @@ export function AppShell({
     section: "calibre",
   });
 
+  // The command palette likewise — Cmd+K should work on every screen, and its
+  // book rows need the shelf, which the root loader has already prefetched.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const { data: books } = useQuery(booksQuery);
+
   return (
     <div className="bg-background text-foreground flex h-screen flex-col overflow-hidden font-sans">
       {/* you lighting the room from the top-left, the crowd from the bottom-right */}
@@ -36,11 +45,25 @@ export function AppShell({
       <div className="relative z-10 flex h-full min-h-0 flex-col">
         <AppHeader
           {...header}
+          onOpenSearch={() => setPaletteOpen(true)}
           onOpenSettings={onOpenSettings ?? (() => setSettings({ open: true, section: "calibre" }))}
           onAddReader={() => setSettings({ open: true, section: "readers" })}
         />
         <main className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">{children}</main>
       </div>
+
+      <CommandMenu
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        books={books}
+        bookCount={header.bookCount}
+        users={header.users}
+        currentUser={header.user}
+        onPickUser={header.onPickUser}
+        onSync={header.onSync}
+        onOpenSettings={(section) => setSettings({ open: true, section })}
+        onOpenBook={setOpenBookId}
+      />
 
       <SettingsDialog
         open={settings.open}

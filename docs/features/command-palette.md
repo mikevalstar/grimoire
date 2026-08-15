@@ -1,0 +1,75 @@
+---
+type: feature
+title: Command palette
+description: A Cmd+K menu that drops down from the header search trigger — find and open a book, or run any global action, without leaving the keyboard.
+tags: [frontend, ui, library, navigation]
+status: draft
+generated: { by: okq/0.8.0, at: 2026-08-15 }
+---
+
+# Command palette
+
+## Summary
+
+Pressing Cmd+K (or clicking the header's search trigger) opens a panel that
+drops down beneath the trigger. Typing searches the library and the app's
+commands at once: pick a book to open its
+[details panel](book-details-panel.md), or run an action — switch view, sort,
+group, change reader, sync, open a settings section, flip the theme — and the
+panel closes.
+
+## Motivation
+
+The [application shell](application-shell.md) has carried an inert search
+trigger since it landed; this makes it real. Everything the palette does is
+already reachable through toolbar menus and header buttons — the palette's job
+is speed: one keystroke, a few characters, Enter. It is also the only way to
+search the library by text until a filter bar exists.
+
+## Behavior
+
+**A dropdown, not a takeover.** The panel hangs under the header search
+trigger rather than floating over a dimmed screen — the library stays fully
+visible behind it. Structurally it is still a dialog (focus moves into it,
+Esc and clicking elsewhere dismiss it), but the overlay is transparent, so it
+reads as the trigger expanding rather than a mode switch.
+
+**Opening.** Cmd+K or Ctrl+K from anywhere — pressing it again closes. Both
+header triggers (the wide bar and the narrow-screen icon) open it. Focus lands
+in the input; the query resets on close.
+
+**Empty query.** The full command list, grouped: view (covers/list), sort
+(one entry per [sort key](library-sort-and-group.md), re-running the active
+one flips direction, same as the toolbar menu), group, readers (switch to each
+other reader, add one), sync now, settings by section, theme. Dynamic commands
+name their target ("Switch to list view"), not their category.
+
+**Typing.** Book matches come first — the same ranked, accent-folded matching
+as [duplicate resolution](resolving-duplicates.md) uses, capped at six —
+followed by commands whose label or keywords match. Enter runs the highlighted
+row; arrow keys move; a footer strip shows the key hints. No matches shows a
+plain empty state.
+
+**Out of scope for now.** A "filter the library for this text" row — that
+belongs to the future filter bar, and the palette should hand its query over
+rather than grow its own filtering. Per-command shortcut keys and
+recently-opened books are also deferred until wanted.
+
+## Acceptance criteria
+
+- [ ] Cmd+K / Ctrl+K toggles the palette from anywhere in the app; the header
+      search trigger (both widths) opens it.
+- [ ] The panel drops down under the trigger with no dimmed backdrop; the
+      library remains visible behind it.
+- [ ] Typing a title, author, or series surfaces the book; Enter opens its
+      details panel.
+- [ ] Every command visible in the empty state does what its toolbar/header
+      equivalent does, including the flip-direction re-sort behaviour.
+- [ ] Esc and clicking outside dismiss it; reopening starts with a clean query.
+- [ ] The palette has a Storybook story covering both themes and a populated
+      query.
+
+## Open questions
+
+- Whether the palette should also search authors/series as first-class rows
+  (jumping to a filtered view) once the filter bar exists.
