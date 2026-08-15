@@ -52,8 +52,7 @@ const CALIBRE_GONE: BookMark = {
 const HARDCOVER: BookMark = {
   id: "hardcover",
   label: "Hardcover",
-  title:
-    "This book is on a reader's hardcover.app shelves. A copy in Calibre too shows as one book carrying both marks.",
+  title: "This book is on a reader's hardcover.app shelves.",
   icon: HardcoverIcon,
 };
 
