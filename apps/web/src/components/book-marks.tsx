@@ -8,11 +8,10 @@ import { cn } from "@/lib/utils";
 /**
  * One small statement about a book, drawn in the corner of its cover.
  *
- * A book has a *list* of these rather than one, because it is about to have
- * more than one source: matching Calibre against Hardcover turns two rows into
- * one row that came from both, and that book wants both marks
- * (docs/features/hardcover-sync.md). Everything here is already plural, so that
- * day changes what `bookMarks` returns and nothing else.
+ * A book has a *list* of these rather than one, because a book can have more
+ * than one source: matching groups a Calibre row and a Hardcover row under one
+ * work, and the card for that work wears both marks
+ * (docs/features/book-matching.md).
  */
 export interface BookMark {
   /** Stable across renders — the React key, and what a test would name. */
@@ -54,7 +53,7 @@ const HARDCOVER: BookMark = {
   id: "hardcover",
   label: "Hardcover",
   title:
-    "This book is on a reader's hardcover.app shelves. Grimoire does not match sources yet, so a book in both libraries appears twice.",
+    "This book is on a reader's hardcover.app shelves. A copy in Calibre too shows as one book carrying both marks.",
   icon: HardcoverIcon,
 };
 

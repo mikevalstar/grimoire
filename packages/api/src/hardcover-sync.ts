@@ -13,9 +13,9 @@ import { cacheRemoteCover, REMOTE_COVER_CONCURRENCY } from "./remote-covers.ts";
  * The Hardcover sync (docs/features/hardcover-sync.md): pull every book on a
  * linked reader's shelves into the mirror, then fold the books into `books`.
  *
- * **Nothing is matched against Calibre.** A book in both libraries gets two
- * rows and appears twice, on purpose — matching is the next design, and this
- * exists so it can be designed against real data.
+ * **This sync matches nothing itself.** A book in both libraries keeps two
+ * rows; the matcher runs once the sweep has written them and groups the pair
+ * under one work (docs/features/book-matching.md), so the shelf shows one card.
  *
  * One instance per Grimoire process; one sync at a time per reader.
  */
