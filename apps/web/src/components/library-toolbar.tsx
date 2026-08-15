@@ -25,7 +25,7 @@ export function LibraryToolbar({
   className,
 }: LibraryToolbarProps) {
   return (
-    <div className={cn("flex h-9 shrink-0 items-center gap-3", className)}>
+    <div className={cn("relative flex h-11 shrink-0 items-start gap-3", className)}>
       {children ?? (
         // Deliberately empty, but present: filters land here, and the library
         // shouldn't jump down the page when they do.
@@ -41,6 +41,13 @@ export function LibraryToolbar({
       )}
 
       <ViewSwitcher view={view} onViewChange={onViewChange} className="shrink-0" />
+
+      {/* A quiet boundary rather than a full-width hard rule: the controls
+          belong to the shelf, but the first row should not crowd them. */}
+      <span
+        aria-hidden="true"
+        className="via-line-strong/60 pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent to-transparent"
+      />
     </div>
   );
 }

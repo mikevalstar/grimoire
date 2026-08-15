@@ -37,7 +37,8 @@ will occupy so the layout does not shift when they land.
 **The toolbar.** One sticky row above the library: a labelled but empty filter
 region holding its height for later, the result count, and a view switcher
 marked in the user accent — which view you are in is your own state, not the
-library's.
+library's. Lower breathing room and a quiet, center-weighted rule separate the
+controls from the scrolling shelf without turning them into a second panel.
 
 **Covers view.** An auto-filling grid with no max width, reflowing from two
 columns on a phone to as many as the window allows. Each card is a cover, title,
@@ -103,6 +104,15 @@ images.
 **View persistence.** Which view you are in is per-device, kept in
 `localStorage` alongside the theme, not in Grimoire's database.
 
+**Scale.** The client keeps the complete library so quick search, sort and
+grouping remain immediate, but each view mounts only the rows in and just
+outside the scrollport. The table virtualizes book and group-heading rows. The
+responsive cover shelf virtualizes visual grid rows, recalculating how many
+cards fit when its width changes. See
+[ADR 0015](../adrs/0015-virtualize-library-views-with-tanstack-virtual.md).
+Programmatic moves within that scrollport use the browser's CSS-native smooth
+scrolling, except when the reader has requested reduced motion.
+
 **States.** Loading is a skeleton in the shape of the active view, so switching
 does not change the page's silhouette. Empty points at the content server rather
 than at Grimoire. Error shows the API's own message and hint, with a retry.
@@ -118,6 +128,8 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
       back to a readable placeholder.
 - [x] Both views are full-width; the grid reflows and the table scrolls
       horizontally instead of crushing columns.
+- [x] Both views virtualize off-screen rows while preserving grouped headings
+      and one continuous scrollbar.
 - [x] Loading, empty and error states are handled in both views.
 - [x] Every hover affordance is reachable — and visible — from the keyboard, and
       hovering never reflows the library.
@@ -141,11 +153,10 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   [sort and group](library-sort-and-group.md). Author, tag, format, and rating
   pills are still to come, with the table's column headers as a second sort
   entry point.
-- **Scale.** The whole library is returned in one pass and rendered without
-  virtualization — fine for a few thousand books, not for a hundred thousand.
-  Paging or windowing is the same decision as whether filtering happens on the
-  server, and it is now Grimoire's decision to make in SQL rather than one
-  inherited from Calibre's query vocabulary.
+- **Server-side scale.** The whole library is still returned in one pass and
+  searched and sorted in the browser. Virtualization removes the DOM cost, but
+  a hundred-thousand-book library may still justify server-side querying and
+  paging later.
 - **Selection and detail.** Clicking a book opens the
   [details panel](book-details-panel.md). Keyboard roving through the grid is
   still missing, and would fix a tab order that currently stops at every
