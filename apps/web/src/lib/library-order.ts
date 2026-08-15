@@ -121,6 +121,8 @@ export interface BookSection {
 export interface OrderContext {
   rating?: (book: LibraryBook) => number;
   isRead?: (book: LibraryBook) => boolean;
+  /** Search relevance is the primary order while the quick filter is active. */
+  relevance?: (book: LibraryBook) => number;
 }
 
 /**
@@ -213,6 +215,9 @@ function compareBooks(
   order: LibraryOrder,
   context: OrderContext,
 ): number {
+  const relevance = (context.relevance?.(a) ?? 0) - (context.relevance?.(b) ?? 0);
+  if (relevance !== 0) return relevance;
+
   const av = sortValue(a, order.sort, context);
   const bv = sortValue(b, order.sort, context);
   // Missing values last, regardless of direction.

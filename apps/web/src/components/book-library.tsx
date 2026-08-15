@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { fold } from "@grimoire/core/matching";
+import { useMemo, useState } from "react";
 import { BookDetailsPanel } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { GroupMenu, SortMenu } from "@/components/library-order-menus";
+import { LibraryQuickFilter } from "@/components/library-quick-filter";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +14,7 @@ import {
   type LibraryBook,
   type Ratings,
 } from "@/lib/api";
-import { searchBooks } from "@/lib/book-search";
+import { rankBooks, searchBooks } from "@/lib/book-search";
 import { orderLibrary, useLibraryOrder } from "@/lib/library-order";
 import { setOpenBookId, useOpenBookId } from "@/lib/open-book";
 import { useDuplicates } from "@/lib/queries";
@@ -60,17 +62,34 @@ export function BookLibrary({
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
   const [order, setOrder] = useLibraryOrder();
+  const [filter, setFilter] = useState("");
+
+  // A query ranks every matching book. Keep the score beside the filtered
+  // list so the chosen library sort can break relevance ties.
+  const ranked = useMemo(
+    () => (fold(filter) ? rankBooks(books ?? [], filter) : null),
+    [books, filter],
+  );
+  const shownBooks = useMemo(
+    () => ranked?.map((entry) => entry.book) ?? books ?? [],
+    [books, ranked],
+  );
+  const relevance = useMemo(
+    () => (ranked ? new Map(ranked.map((entry) => [entry.book.id, entry.score])) : null),
+    [ranked],
+  );
 
   // The shelf as held: sorted, and split into sections when grouped
   // (docs/features/library-sort-and-group.md). Rating and read state are
   // per-reader, so the order recomputes when either map changes hands.
   const sections = useMemo(
     () =>
-      orderLibrary(books ?? [], order, {
+      orderLibrary(shownBooks, order, {
         rating: (book) => bookRating(book, ratings),
         isRead,
+        relevance: relevance ? (book) => relevance.get(book.id) ?? 0 : undefined,
       }),
-    [books, order, ratings, isRead],
+    [shownBooks, order, ratings, isRead, relevance],
   );
 
   // Which book the details panel is showing, by id rather than by value, so a
@@ -90,11 +109,12 @@ export function BookLibrary({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <LibraryToolbar
-        bookCount={error ? undefined : books?.length}
+        bookCount={error || !books ? undefined : shownBooks.length}
         view={view}
         onViewChange={setView}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          <LibraryQuickFilter value={filter} onChange={setFilter} />
           <SortMenu order={order} onOrder={setOrder} />
           {/* Read-status grouping means nothing until someone's marks exist. */}
           <GroupMenu order={order} onOrder={setOrder} readStatusAvailable={isRead !== undefined} />
@@ -118,6 +138,8 @@ export function BookLibrary({
           )
         ) : books.length === 0 ? (
           <LibraryEmpty />
+        ) : shownBooks.length === 0 ? (
+          <LibraryNoMatches query={filter} />
         ) : view === "covers" ? (
           <BookGrid
             sections={sections}
@@ -161,6 +183,18 @@ export function BookLibrary({
           ...sameBook,
         }}
       />
+    </div>
+  );
+}
+
+/** A real library, but nothing satisfying all of the typed tokens. */
+function LibraryNoMatches({ query }: { query: string }) {
+  return (
+    <div className="py-24 text-center">
+      <p className="text-foreground text-sm">No matching books.</p>
+      <p className="text-muted-foreground mt-1 text-[13px]">
+        Nothing matched “{query.trim()}”. Try fewer words or a different spelling.
+      </p>
     </div>
   );
 }

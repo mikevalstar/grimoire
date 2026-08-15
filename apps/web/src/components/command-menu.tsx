@@ -25,7 +25,7 @@ import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from "@/components/u
 import { Kbd } from "@/components/ui/kbd";
 import { UserAvatar } from "@/components/user-avatar";
 import type { LibraryBook, User } from "@/lib/api";
-import { searchBooks } from "@/lib/book-search";
+import { rankBooks } from "@/lib/book-search";
 import { chooseSort, GROUP_OPTIONS, SORT_OPTIONS, useLibraryOrder } from "@/lib/library-order";
 import { useTheme } from "@/lib/theme";
 import { useViewMode } from "@/lib/view-mode";
@@ -69,9 +69,9 @@ export interface CommandMenuProps {
  *
  * Structurally it is still a dialog (focus trap, Esc, outside-click), and cmdk
  * supplies the keyboard nav — but with `shouldFilter` off: books go through
- * the same ranked search as the duplicate picker (lib/book-search.ts), and
- * commands through the same accent-folding, so both agree with the rest of
- * the app about what matches.
+ * the exact same ranked search as the library quick filter
+ * (lib/book-search.ts), and commands through the same accent-folding, so both
+ * agree with the rest of the app about what matches.
  */
 export function CommandMenu({
   open,
@@ -234,7 +234,11 @@ export function CommandMenu({
         });
 
   const bookMatches =
-    queryWords.length > 0 && books ? searchBooks(books, query).slice(0, MAX_BOOKS) : [];
+    queryWords.length > 0 && books
+      ? rankBooks(books, query)
+          .slice(0, MAX_BOOKS)
+          .map((entry) => entry.book)
+      : [];
 
   // Bucket into sections while keeping the build order.
   const sections: { title: string; commands: PaletteCommand[] }[] = [];
