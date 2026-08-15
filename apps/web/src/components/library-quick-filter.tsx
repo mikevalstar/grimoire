@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
 import { useRef } from "react";
 import { Input } from "@/components/ui/input";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface LibraryQuickFilterProps {
@@ -35,7 +36,7 @@ export function LibraryQuickFilter({ value, onChange, className }: LibraryQuickF
         <button
           type="button"
           aria-label="Clear quick filter"
-          title="Clear quick filter"
+          {...tooltipProps("Clear quick filter")}
           onClick={() => {
             onChange("");
             input.current?.focus();

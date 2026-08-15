@@ -62,6 +62,15 @@ runs full width with no max-width clamp, so screens render their own content
 without re-establishing a layout. The [book list](book-list.md) is the first
 screen to fill it.
 
+**Tooltips.** The shell mounts the app's one and only tooltip
+([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)). Anything that
+wants a hover explanation — a source mark in the
+[book list](book-list.md), a control in the
+[details panel](book-details-panel.md), the sync indicator — opts in with data
+attributes rather than wrapping itself in a tooltip component. It portals to the
+body and sits above the sheet, so a tooltip inside the details panel is neither
+clipped nor underneath it.
+
 **Setup gate.** The [first-run setup wizard](first-run-setup-wizard.md) renders
 *above* the shell, not inside it: until preferences are configured there is no
 library to frame.
@@ -82,6 +91,8 @@ library to frame.
 - [ ] The avatar opens a menu that switches reader, adds one, and opens
       settings.
 - [x] The search trigger opens the [command palette](command-palette.md).
+- [x] One tooltip instance serves every screen, follows the theme, and renders
+      above the details panel's sheet without being clipped.
 
 ## Open questions
 

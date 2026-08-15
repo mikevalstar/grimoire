@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,6 +31,7 @@ export function ReadCorner({
       <span
         role="img"
         aria-label={`${label ?? "This book"} is read`}
+        {...tooltipProps("You've read this")}
         className={cn(corner, "bg-you", className)}
       >
         <Check size={13} strokeWidth={3} className="absolute right-0.5 bottom-0.5 text-white" />
@@ -42,6 +44,9 @@ export function ReadCorner({
       type="button"
       aria-pressed={read}
       aria-label={read ? `Mark${forBook} as unread` : `Mark${forBook} as read`}
+      // Without the book's name: the tooltip is already pointing at the cover
+      // it belongs to, and the label under it is the one the reader can see.
+      {...tooltipProps(read ? "Mark as unread" : "Mark as read", "left")}
       onClick={(event) => {
         // In the grid the cover behind opens the book; the corner shouldn't.
         event.stopPropagation();

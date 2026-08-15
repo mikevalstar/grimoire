@@ -74,7 +74,8 @@ people already recognise on sight ([brand-icons.tsx](../../apps/web/src/componen
 Marks about what happened to a book rather than where it came from — Calibre
 dropped it — stay generic icons, since there is no logo for an absence.
 
-Icons only, with the name in the tooltip and in the accessible name. Nearly
+Icons only, with the short name as the accessible name and the longer
+explanation in the tooltip. Nearly
 every book in a Calibre library carries the same mark, and a list of two hundred
 rows each spelling out "Calibre" is a word repeated until it stops being read,
 while the icons still separate the handful saying something else. Books with no
@@ -92,6 +93,14 @@ together, and they apply to every hover affordance Grimoire adds:
 - **Hover never moves anything a click is aimed at.** Revealed controls occupy
   their space from the start and only fade in; the actions column holds its
   width; motion is `motion-safe` only.
+- **A tooltip explains, it never names.** The small marks and icon buttons on a
+  book — source marks, the cover stack, the download chip, the dog-ear, the
+  clear-rating × — all point at the app's one shared tooltip
+  ([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)), and all
+  keep their own accessible name underneath it. One instance for the whole
+  screen is what makes this free in a virtualized shelf
+  ([ADR 0015](../adrs/0015-virtualize-library-views-with-tanstack-virtual.md)):
+  a row scrolling past mounts data attributes, not a tooltip.
 
 **Downloading.** The download button hands over the file straight from Calibre
 through the `/api/cs` proxy, which names it. This is the one thing on the shelf
