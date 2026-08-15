@@ -38,6 +38,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import {
   clearReadDates,
+  fetchReadingHistory,
   fetchUserBook,
   HardcoverError,
   insertUserBook,
@@ -641,6 +642,36 @@ export function createApi(options: ApiOptions = {}) {
   app.get("/api/ratings/hardcover", (c) =>
     c.json(getHardcoverBooks().ratingsByWork(requireUser(c))),
   );
+
+  /**
+   * A read book's full reread history. This deliberately bypasses the mirror:
+   * it is only requested for an open panel, and should be current at that
+   * moment without making every shelf sync wider.
+   */
+  app.get("/api/books/:bookId/read-dates/hardcover", async (c) => {
+    const userId = requireUser(c);
+    const bookId = Number(c.req.param("bookId"));
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+      return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+    }
+    if (!getBooks().get(bookId)) {
+      return c.json({ error: `No book with id ${bookId}.` }, 404);
+    }
+
+    const account = getUsers().hardcoverAccount(userId);
+    if (!account) {
+      return c.json({ error: "This reader has no Hardcover account linked." }, 400);
+    }
+    const entry = getHardcoverBooks().shelfEntryForWork(userId, bookId);
+    if (!entry?.userBookId) return c.json({ dates: [] });
+
+    try {
+      return c.json({ dates: await fetchReadingHistory(account.token, entry.userBookId) });
+    } catch (err) {
+      if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+      throw err;
+    }
+  });
 
   app.put("/api/ratings/:bookId", zValidator("json", RatingUpdateSchema, invalid), async (c) => {
     const userId = requireUser(c);

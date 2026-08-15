@@ -1,12 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
 import { useState } from "react";
+import { ReadStatusFilter } from "@/components/read-status-filter";
 import type { ViewMode } from "@/lib/view-mode";
 import { LibraryToolbar } from "./library-toolbar";
 
 const meta = {
   title: "Library/LibraryToolbar",
   component: LibraryToolbar,
-  args: { bookCount: 255, view: "covers", onViewChange: () => {} },
+  args: {
+    view: "covers",
+    onViewChange: () => {},
+    statusFilter: (
+      <ReadStatusFilter
+        value="all"
+        onValueChange={() => {}}
+        counts={{ all: 255, "to-read": 163, read: 92 }}
+      />
+    ),
+  },
   decorators: [
     (Story) => (
       <div className="w-full max-w-4xl">
@@ -22,9 +33,6 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const Light: Story = { globals: { theme: "light" } };
-
-/** While the library is loading there's no count to show yet. */
-export const Loading: Story = { args: { bookCount: undefined } };
 
 /** What it becomes once filters exist and take the reserved space. */
 export const WithFilters: Story = {

@@ -8,6 +8,7 @@ import {
   fetchBooks,
   fetchDuplicates,
   fetchHardcoverRatings,
+  fetchHardcoverReadDates,
   fetchPendingDuplicates,
   fetchPreferences,
   fetchRatings,
@@ -88,6 +89,23 @@ export function hardcoverRatingsQuery(userId: number | null | undefined) {
     queryKey: ["hardcover-ratings", userId],
     queryFn: () => fetchHardcoverRatings(userId as number),
     enabled: userId != null,
+  });
+}
+
+/**
+ * Rereads are intentionally live rather than part of the Hardcover mirror.
+ * Disabling this while the panel is closed makes reopening a stale query fetch
+ * again with TanStack Query's default zero stale time.
+ */
+export function hardcoverReadDatesQuery(
+  userId: number | null | undefined,
+  bookId: number | null,
+  enabled: boolean,
+) {
+  return queryOptions({
+    queryKey: ["hardcover-read-dates", userId, bookId],
+    queryFn: () => fetchHardcoverReadDates(userId as number, bookId as number),
+    enabled: enabled && userId != null && bookId != null,
   });
 }
 

@@ -253,6 +253,28 @@ export const HcUserBookReadsResponseSchema = z.object({
   ...hcErrors,
 });
 
+/** The complete reread history requested live when a details panel opens. */
+export const HcReadingHistoryResponseSchema = z.object({
+  data: z
+    .object({
+      user_books: z.array(
+        z.object({
+          user_book_reads: z
+            .array(
+              z.object({
+                id: z.number(),
+                finished_at: z.string().nullish(),
+                finished_at_precision: z.number().nullish(),
+              }),
+            )
+            .default([]),
+        }),
+      ),
+    })
+    .nullish(),
+  ...hcErrors,
+});
+
 /** What their user_book_read mutations answer with — same envelope as the rest. */
 const HcUserBookReadMutationSchema = z.object({
   error: z.string().nullish(),
@@ -361,6 +383,10 @@ export const FinishedAtSchema = z
       (day === undefined || (day >= 1 && day <= 31))
     );
   }, "Not a real date");
+
+/** Known finish dates for one book, newest read first. */
+export const ReadDatesSchema = z.object({ dates: z.array(FinishedAtSchema) });
+export type ReadDates = z.infer<typeof ReadDatesSchema>;
 
 /**
  * Body of PUT /api/ratings/:bookId. Zero clears the rating. With

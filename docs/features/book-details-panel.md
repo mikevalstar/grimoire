@@ -13,13 +13,14 @@ generated: { by: okq/0.8.0, at: 2026-08-14 }
 
 Clicking a card in the grid or a row in the table opens a panel from the right
 edge holding one book: its cover, title, authors and series, the marks saying
-where it came from, your stars, the download, and the metadata neither view has
-room to show — publisher, publication date, languages, page count, identifiers,
-tags and the description.
+where it came from, your stars, the dates you read it, the download, and the
+metadata neither view has room to show — publisher, publication date,
+languages, page count, identifiers, tags and the description.
 
-Everything on it is data Grimoire already stores
+Most of it is data Grimoire already stores
 ([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md)),
-and nothing on it writes to Calibre.
+while Hardcover reading history is fetched live only when a read book's panel
+opens. Nothing on it writes to Calibre.
 
 ## Motivation
 
@@ -71,6 +72,13 @@ Its contents, in order:
   they belong in it, with a click to say either way. Absent for a book with one
   entry and no candidates, which is nearly all of them. See
   [resolving duplicates](resolving-duplicates.md).
+- **Date read** — after Same book and before Details, for a book the current
+  reader has read. Every known finish date is shown, newest first, so rereads
+  are not flattened into one date. In Hardcover mode the panel requests the
+  reading history live when it opens rather than waiting for or extending the
+  shelf mirror. Reduced-precision dates retain their meaning: a year remains a
+  year and a known month is not presented as an invented first day. The section
+  is absent for unread books and for reads with no known finish date.
 - **Details** — publisher, published, added, languages, pages, formats, and any
   identifiers (ISBN and friends). A field Grimoire has no value for is left out
   rather than shown as a dash; the panel is not a form.
@@ -147,6 +155,9 @@ that puts filters and sorting in the URL.
 - [x] The choice survives a reload and a sync, applies to every reader, and
       falls back to the rule if the chosen member loses its cover.
 - [x] A book with one cover shows no stack and offers nothing to click.
+- [x] A read book shows every known finish date between Same book and Details,
+      fetched live from Hardcover when that is the reader's read-state source;
+      unread books show no date section.
 - [x] The turn animates, replays on a second click, and does neither under
       reduced motion.
 - [x] The cover routes refuse a member that is not part of the work.
@@ -161,6 +172,11 @@ cached file) and `coverBookId` (the one being shown).
 404 for a book that is not a member of the work or has no cover. Both payloads
 are shared Zod schemas
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
+
+`GET /api/books/:id/read-dates/hardcover` is reader-scoped and resolves the
+work to that reader's Hardcover shelf entry, then asks Hardcover for its full
+`user_book_reads` history. It returns only known finish dates at their stored
+precision and does not write them into Grimoire's mirror.
 
 ## Open questions
 
@@ -177,8 +193,7 @@ are shared Zod schemas
 - **Crowd data.** Ratings, reader counts and the "you vs the crowd" line in the
   design idea wait on [Hardcover sync](hardcover-sync.md) storing per-book
   aggregates, which it does not yet.
-- **Reading and read status.** Both are absent from the panel because they are
-  absent from Grimoire; a "Read now" button needs a reader, and status needs a
-  portable place to store it.
+- **Reading.** A "Read now" button still needs a reader. Read status and finish
+  dates are present, but there is no in-browser reading surface yet.
 - **Notes and shelves.** Per-reader data the panel is the obvious home for, once
   either exists.

@@ -27,6 +27,8 @@ import {
   type RatingSource,
   type Ratings,
   RatingsSchema,
+  type ReadDates,
+  ReadDatesSchema,
   type ReadStateResult,
   ReadStateResultSchema,
   type ReadStates,
@@ -70,6 +72,7 @@ export type {
   RatingResult,
   RatingSource,
   Ratings,
+  ReadDates,
   ReadStateResult,
   ReadStates,
   SyncStatus,
@@ -230,6 +233,14 @@ export function fetchRatings(userId: number) {
  */
 export function fetchHardcoverRatings(userId: number) {
   return request("/api/ratings/hardcover", HardcoverRatingsSchema, { method: "GET", userId });
+}
+
+/** One book's full reading history, requested live from Hardcover. */
+export function fetchHardcoverReadDates(userId: number, bookId: number) {
+  return request(`/api/books/${bookId}/read-dates/hardcover`, ReadDatesSchema, {
+    method: "GET",
+    userId,
+  });
 }
 
 /**

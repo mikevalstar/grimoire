@@ -88,6 +88,10 @@ or **Remove it as well**; a book with no rating just confirms.
 - [ ] The read-state toggle in settings is real: stored per reader, applied
       immediately, only shown on linked cards.
 - [ ] The corner and both modal states have Storybook stories.
+- [x] The library toolbar can filter the current reader's shelf to All, To
+      read, or Read books without refetching.
+- [x] A read book's details panel shows its known finish dates; Hardcover
+      rereads are fetched live when the panel opens rather than mirrored.
 
 ## Open questions
 
@@ -98,5 +102,3 @@ or **Remove it as well**; a book with no rating just confirms.
   want their own affordance, probably a column and a button.
 - Local read states and Hardcover shelves don't sync into each other on a
   source switch; like ratings, each source is its own truth.
-- Filtering the shelf by read/unread is the obvious next step, and needs the
-  read state on the book list query.

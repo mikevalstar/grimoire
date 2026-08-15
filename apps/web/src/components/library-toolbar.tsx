@@ -4,24 +4,24 @@ import { cn } from "@/lib/utils";
 import type { ViewMode } from "@/lib/view-mode";
 
 export interface LibraryToolbarProps {
-  /** Books currently shown. Omitted while the library is still loading. */
-  bookCount?: number;
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
   /** The filter and ordering controls shown on the left. */
   children?: ReactNode;
+  /** The read-state filter shown before the view switcher on the right. */
+  statusFilter?: ReactNode;
   className?: string;
 }
 
 /**
- * The row above the library: filters on the left, the count and the view
- * switcher on the right. See docs/features/book-list.md.
+ * The row above the library: search and ordering on the left, read state and
+ * the view switcher on the right. See docs/features/book-list.md.
  */
 export function LibraryToolbar({
-  bookCount,
   view,
   onViewChange,
   children,
+  statusFilter,
   className,
 }: LibraryToolbarProps) {
   return (
@@ -34,11 +34,7 @@ export function LibraryToolbar({
         </div>
       )}
 
-      {bookCount !== undefined && (
-        <p className="text-muted-foreground shrink-0 text-[11px] tracking-wide tabular-nums uppercase">
-          {bookCount.toLocaleString()} {bookCount === 1 ? "book" : "books"}
-        </p>
-      )}
+      {statusFilter}
 
       <ViewSwitcher view={view} onViewChange={onViewChange} className="shrink-0" />
 
