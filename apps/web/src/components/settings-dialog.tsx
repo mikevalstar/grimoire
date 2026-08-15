@@ -1,7 +1,8 @@
 import { nextUserColor, USER_NAME_MAX_LENGTH, type UserColorId } from "@grimoire/core/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Globe, Loader2, Plus, Server, Users } from "lucide-react";
+import { Copy, Loader2, Plus, Users } from "lucide-react";
 import { useId, useState } from "react";
+import { CalibreIcon, HardcoverIcon } from "@/components/brand-icons";
 import { CalibreTestResult } from "@/components/calibre-test-result";
 import { DuplicateQueue } from "@/components/duplicate-queue";
 import { HardcoverAccountCard } from "@/components/hardcover-account-card";
@@ -53,8 +54,8 @@ import { cn } from "@/lib/utils";
  * the command palette lists one command per section.
  */
 export const SECTIONS = [
-  { id: "calibre", label: "Calibre", icon: Server },
-  { id: "hardcover", label: "Hardcover", icon: Globe },
+  { id: "calibre", label: "Calibre", icon: CalibreIcon },
+  { id: "hardcover", label: "Hardcover", icon: HardcoverIcon },
   { id: "readers", label: "Readers", icon: Users },
   { id: "duplicates", label: "Duplicates", icon: Copy },
 ] as const;

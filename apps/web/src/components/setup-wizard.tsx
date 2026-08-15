@@ -1,17 +1,7 @@
 import { nextUserColor, USER_NAME_MAX_LENGTH, type UserColorId } from "@grimoire/core/types";
-import {
-  ArrowLeft,
-  BookOpen,
-  CheckCircle2,
-  Globe,
-  Loader2,
-  Plus,
-  Server,
-  Sparkles,
-  Users,
-  X,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Loader2, Plus, Sparkles, Users, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { CalibreIcon, HardcoverIcon } from "@/components/brand-icons";
 import { CalibreTestResult } from "@/components/calibre-test-result";
 import { HardcoverAccountCard } from "@/components/hardcover-account-card";
 import { Button } from "@/components/ui/button";
@@ -232,7 +222,7 @@ export function SetupWizard({
         {step === 1 && (
           <>
             <StepHeader
-              icon={<Server size={18} />}
+              icon={<CalibreIcon size={18} />}
               title="Connect to Calibre"
               description="Turn on Calibre's content server — Preferences → Sharing over the net — then enter its address."
             />
@@ -332,7 +322,7 @@ export function SetupWizard({
         {step === 3 && (
           <>
             <StepHeader
-              icon={<Globe size={18} />}
+              icon={<HardcoverIcon size={18} />}
               title="Link Hardcover"
               description="Optional — connect each reader's own hardcover.app account to bring their shelves and ratings across. Anyone skipped can link later in settings."
             />
@@ -423,7 +413,7 @@ function WelcomeStep() {
       </DialogHeader>
 
       <ul className="grid gap-2.5">
-        <WelcomePoint icon={<Server size={15} />}>Reads Calibre Data.</WelcomePoint>
+        <WelcomePoint icon={<CalibreIcon size={15} />}>Reads Calibre Data.</WelcomePoint>
         <WelcomePoint icon={<Users size={15} />}>
           Keep track of multiple readers and better organize your books.
         </WelcomePoint>

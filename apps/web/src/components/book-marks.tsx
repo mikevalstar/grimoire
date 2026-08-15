@@ -1,6 +1,7 @@
-import type { LucideIcon } from "lucide-react";
-import { Bookmark, LibraryBig, Unlink } from "lucide-react";
+import { Unlink } from "lucide-react";
+import type { ComponentType } from "react";
 import { BookBadge, type BookBadgeProps } from "@/components/book-badge";
+import { CalibreIcon, HardcoverIcon } from "@/components/brand-icons";
 import { BOOK_SOURCE, type LibraryBook } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -20,14 +21,25 @@ export interface BookMark {
   label: string;
   /** The longer version, on hover. A nine-pixel mark cannot explain itself. */
   title: string;
-  icon: LucideIcon;
+  /**
+   * Anything drawn like a lucide icon — which the real Calibre and Hardcover
+   * marks are (`@/components/brand-icons`), so a source can wear its own logo.
+   */
+  icon: MarkIcon;
 }
+
+/** The shape both lucide icons and the brand marks satisfy. */
+export type MarkIcon = ComponentType<{
+  size?: number;
+  className?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+}>;
 
 const CALIBRE: BookMark = {
   id: "calibre",
   label: "Calibre",
   title: "This book is in the connected Calibre library.",
-  icon: LibraryBig,
+  icon: CalibreIcon,
 };
 
 const CALIBRE_GONE: BookMark = {
@@ -43,7 +55,7 @@ const HARDCOVER: BookMark = {
   label: "Hardcover",
   title:
     "This book is on a reader's hardcover.app shelves. Grimoire does not match sources yet, so a book in both libraries appears twice.",
-  icon: Bookmark,
+  icon: HardcoverIcon,
 };
 
 /**
@@ -83,8 +95,9 @@ export interface BookMarksProps {
 /**
  * Where a book came from, and what has happened to it since.
  *
- * Icons only, everywhere. Nearly every book in a Calibre library carries the
- * same mark, and a list of two hundred rows each spelling out "Calibre" is a
+ * Icons only, everywhere — and for a source, its own logo rather than a stand-in
+ * glyph, because the thing being named is an application people recognise on
+ * sight. Nearly every book in a Calibre library carries the same mark, and a list of two hundred rows each spelling out "Calibre" is a
  * word repeated until it stops being read — while the icons still separate the
  * handful that say something else. The names live in the tooltip and in the
  * accessible name, which is where the explanation was always going to be.

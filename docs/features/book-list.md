@@ -68,6 +68,12 @@ libraries shows both marks
 where anything else worth stating about a book — owned, borrowed, unmatched —
 would go.
 
+A source wears its own logo — calibre's shelf of books, Hardcover's bookmark,
+each the real mark rather than a stand-in glyph, because these name applications
+people already recognise on sight ([brand-icons.tsx](../../apps/web/src/components/brand-icons.tsx)).
+Marks about what happened to a book rather than where it came from — Calibre
+dropped it — stay generic icons, since there is no logo for an absence.
+
 Icons only, with the name in the tooltip and in the accessible name. Nearly
 every book in a Calibre library carries the same mark, and a list of two hundred
 rows each spelling out "Calibre" is a word repeated until it stops being read,
