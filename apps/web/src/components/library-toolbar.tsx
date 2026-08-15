@@ -8,7 +8,7 @@ export interface LibraryToolbarProps {
   bookCount?: number;
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
-  /** The filter controls, once they exist. Until then a placeholder holds the space. */
+  /** The filter and ordering controls shown on the left. */
   children?: ReactNode;
   className?: string;
 }

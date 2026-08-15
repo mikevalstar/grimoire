@@ -112,7 +112,8 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] The library renders in either a cover grid or a table, and the toolbar
       switches between them without refetching.
 - [x] The chosen view survives a reload and is per-device.
-- [x] The toolbar reserves a labelled, empty region for filters.
+- [x] The toolbar carries the [quick filter](library-quick-filter.md), sort, and
+      group controls without crowding the view switcher.
 - [x] Covers load from Grimoire's own cache, and a missing or broken cover falls
       back to a readable placeholder.
 - [x] Both views are full-width; the grid reflows and the table scrolls
@@ -135,8 +136,9 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   [matching](book-matching.md) can't tell they are the same book, in which case
   it is two, and stays two until manual resolution exists.
 
-- **Filters and sorting.** The toolbar's reserved region is being filled left
-  to right: [sort and group](library-sort-and-group.md) landed first; filter
+- **Structured filters.** The toolbar now has the text
+  [quick filter](library-quick-filter.md) plus
+  [sort and group](library-sort-and-group.md). Author, tag, format, and rating
   pills are still to come, with the table's column headers as a second sort
   entry point.
 - **Scale.** The whole library is returned in one pass and rendered without

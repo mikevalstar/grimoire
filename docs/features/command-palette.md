@@ -23,8 +23,9 @@ panel closes.
 The [application shell](application-shell.md) has carried an inert search
 trigger since it landed; this makes it real. Everything the palette does is
 already reachable through toolbar menus and header buttons — the palette's job
-is speed: one keystroke, a few characters, Enter. It is also the only way to
-search the library by text until a filter bar exists.
+is speed: one keystroke, a few characters, Enter. It is also a keyboard-first
+entry point to the same search used by the
+[library quick filter](library-quick-filter.md).
 
 ## Behavior
 
@@ -44,15 +45,16 @@ one flips direction, same as the toolbar menu), group, readers (switch to each
 other reader, add one), sync now, settings by section, theme. Dynamic commands
 name their target ("Switch to list view"), not their category.
 
-**Typing.** Book matches come first — the same ranked, accent-folded matching
-as [duplicate resolution](resolving-duplicates.md) uses, capped at six —
-followed by commands whose label or keywords match. Enter runs the highlighted
-row; arrow keys move; a footer strip shows the key hints. No matches shows a
-plain empty state.
+**Typing.** Book matches come first. The palette and the
+[library quick filter](library-quick-filter.md) call the same ranked matcher,
+so title, author, series, Amazon, ISBN, Google, multi-token, accent, and typo
+behavior cannot drift between the two surfaces. The palette only caps that
+shared ranked result at six. Commands whose label or keywords match follow;
+Enter runs the highlighted row, arrow keys move, and a footer strip shows the
+key hints. No matches shows a plain empty state.
 
-**Out of scope for now.** A "filter the library for this text" row — that
-belongs to the future filter bar, and the palette should hand its query over
-rather than grow its own filtering. Per-command shortcut keys and
+**Out of scope for now.** A "filter the library for this text" row that hands
+the palette query into the toolbar filter. Per-command shortcut keys and
 recently-opened books are also deferred until wanted.
 
 ## Acceptance criteria
@@ -61,8 +63,9 @@ recently-opened books are also deferred until wanted.
       search trigger (both widths) opens it.
 - [ ] The panel drops down under the trigger with no dimmed backdrop; the
       library remains visible behind it.
-- [ ] Typing a title, author, or series surfaces the book; Enter opens its
-      details panel.
+- [x] Book search uses the same ranked matcher as the library quick filter;
+      typing a title, author, series, or identifier surfaces the book and Enter
+      opens its details panel.
 - [ ] Every command visible in the empty state does what its toolbar/header
       equivalent does, including the flip-direction re-sort behaviour.
 - [ ] Esc and clicking outside dismiss it; reopening starts with a clean query.
