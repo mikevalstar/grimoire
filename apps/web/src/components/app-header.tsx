@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Moon, Search, Settings, Sun } from "lucide-react";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { Kbd } from "@/components/ui/kbd";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
 import { UserMenu } from "@/components/user-menu";
 import type { SyncStatus, User } from "@/lib/api";
@@ -45,10 +46,17 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { theme, toggle } = useTheme();
 
-  const searchLabel =
+  // The wide trigger says this out loud; below `sm` it collapses to an icon and
+  // the same sentence becomes the tooltip.
+  const searchAction =
     bookCount === undefined
-      ? "Search your library or run a command…"
-      : `Search ${bookCount.toLocaleString()} books or run a command…`;
+      ? "Search your library or run a command"
+      : `Search ${bookCount.toLocaleString()} books or run a command`;
+  const searchLabel = `${searchAction}…`;
+
+  // A two-way flip with no "follow the system" state, so the label can always
+  // name the theme the click moves to rather than the one you are in.
+  const themeAction = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <header
@@ -81,6 +89,7 @@ export function AppHeader({
           type="button"
           onClick={onOpenSearch}
           aria-label="Search"
+          {...tooltipProps(searchAction, "bottom")}
           className={cn(iconButton, "ml-auto sm:hidden")}
         >
           <Search size={14} />
@@ -94,7 +103,8 @@ export function AppHeader({
           <button
             type="button"
             onClick={toggle}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={themeAction}
+            {...tooltipProps(themeAction, "bottom")}
             className={iconButton}
           >
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
@@ -104,6 +114,10 @@ export function AppHeader({
             type="button"
             onClick={onOpenSettings}
             aria-label="Settings"
+            {...tooltipProps(
+              "Settings — the Calibre server, Hardcover, readers and duplicates",
+              "bottom",
+            )}
             className={cn(iconButton, "hidden sm:flex")}
           >
             <Settings size={14} />

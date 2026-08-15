@@ -71,6 +71,14 @@ attributes rather than wrapping itself in a tooltip component. It portals to the
 body and sits above the sheet, so a tooltip inside the details panel is neither
 clipped nor underneath it.
 
+Every icon-only control in the header carries one, and it explains rather than
+names: the theme toggle says which theme the click moves *to*, the gear names
+what settings holds, and the avatar names the current reader and what the menu
+offers — which, with a single reader, is adding another rather than switching.
+The avatar's tooltip is dropped while its menu is open, so it never sits on top
+of the menu it just opened. Every one of them keeps its `aria-label`
+underneath.
+
 **Setup gate.** The [first-run setup wizard](first-run-setup-wizard.md) renders
 *above* the shell, not inside it: until preferences are configured there is no
 library to frame.
@@ -93,6 +101,8 @@ library to frame.
 - [x] The search trigger opens the [command palette](command-palette.md).
 - [x] One tooltip instance serves every screen, follows the theme, and renders
       above the details panel's sheet without being clipped.
+- [x] Every icon-only header control explains itself on hover without losing its
+      accessible name.
 
 ## Open questions
 
