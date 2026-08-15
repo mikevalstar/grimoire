@@ -5,6 +5,8 @@ import {
   BooksSchema,
   type CalibreServerTest,
   CalibreServerTestSchema,
+  type CoverRefetch,
+  CoverRefetchSchema,
   type DuplicateCandidate,
   type DuplicateReason,
   type Duplicates,
@@ -400,10 +402,21 @@ export type LibraryBook = Book;
  * Passing the chosen member is what makes the URL change when a reader swaps
  * covers — the file is served with a year-long max-age, so an unchanged URL
  * would go on showing the old cover (docs/features/book-details-panel.md).
+ *
+ * `version` is the same trick for the file changing under a fixed member:
+ * re-fetching a cover rewrites it in place (docs/features/book-actions.md).
  */
-export function bookCoverUrl(id: number, size: CoverSize, member?: number | null): string {
-  const url = `${API_BASE}/api/books/${id}/cover/${size}`;
-  return member == null ? url : `${url}?member=${member}`;
+export function bookCoverUrl(
+  id: number,
+  size: CoverSize,
+  member?: number | null,
+  version?: string | null,
+): string {
+  const query = new URLSearchParams();
+  if (member != null) query.set("member", String(member));
+  if (version) query.set("v", version);
+  const search = query.toString();
+  return `${API_BASE}/api/books/${id}/cover/${size}${search ? `?${search}` : ""}`;
 }
 
 /** The cached size to ask for when a cover will be drawn about `width` CSS px wide. */
@@ -444,11 +457,11 @@ export function isInLibrary(book: Pick<LibraryBook, "calibreId">): boolean {
  */
 export function bookImageUrl(
   book: Pick<LibraryBook, "id" | "coverState"> &
-    Partial<Pick<LibraryBook, "coverUrl" | "coverBookId">>,
+    Partial<Pick<LibraryBook, "coverUrl" | "coverBookId" | "coverVersion">>,
   width: number,
 ): string {
   if (book.coverState !== "cached" && book.coverUrl) return book.coverUrl;
-  return bookCoverUrl(book.id, coverSizeFor(width), book.coverBookId);
+  return bookCoverUrl(book.id, coverSizeFor(width), book.coverBookId, book.coverVersion);
 }
 
 /** Most portable first — the order a book's formats are offered in. */
@@ -486,6 +499,16 @@ export function chooseBookCover(workId: number, bookId: number): Promise<Library
     method: "PUT",
     body: { bookId },
   });
+}
+
+/**
+ * Fetch this book's covers again from every source it has and overwrite what is
+ * cached (docs/features/book-actions.md). Answers with the book — whose
+ * `coverVersion` has moved, which is what makes the new image visible — and
+ * with how the run went, so a fetch that found nothing can say so.
+ */
+export function refetchBookCover(workId: number): Promise<CoverRefetch> {
+  return request(`/api/books/${workId}/cover/refetch`, CoverRefetchSchema, { method: "POST" });
 }
 
 /**

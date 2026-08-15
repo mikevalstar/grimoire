@@ -25,6 +25,7 @@ import {
   readStatesQuery,
   useChooseCover,
   useRateBook,
+  useRefetchCover,
   useSetReadState,
 } from "@/lib/queries";
 
@@ -199,6 +200,9 @@ function LibraryScreen() {
   // Which cover a work shows is the library's, not a reader's, so this needs
   // nobody to be chosen first (docs/features/book-details-panel.md).
   const chooseCover = useChooseCover();
+  // Same reasoning: re-fetching a cover changes what the library looks like,
+  // not what a reader thinks of it (docs/features/book-actions.md).
+  const refetchCover = useRefetchCover();
 
   return (
     <>
@@ -223,6 +227,7 @@ function LibraryScreen() {
         readDatesError={readSource === "hardcover" && openBookIsRead ? readDatesQuery.error : null}
         openBookHardcover={openBookHardcover}
         onChooseCover={(book, bookId) => chooseCover.mutate({ workId: book.id, bookId })}
+        onRefetchCover={(book) => refetchCover.mutateAsync(book.id)}
       />
 
       <HardcoverFindDialog

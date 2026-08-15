@@ -87,6 +87,8 @@ Its contents, in order:
 - **About** — the description.
 - **View on Hardcover** — a link to the book's page on hardcover.app, for a book
   Hardcover has a side of.
+- **The footer** — linking a duplicate on the left, and the gear holding the
+  [book actions](book-actions.md) on the right.
 
 ### Hardcover's writing about the book
 
@@ -171,7 +173,8 @@ Two consequences worth stating:
   secret and would have shifted under a sync while a panel was open.
 - **The chosen member is stamped on the cover URL.** Covers are served with a
   year-long `max-age`, so an unchanged URL would go on showing the old cover
-  after a swap.
+  after a swap. The book's `coverVersion` is stamped alongside it, for the same
+  reason, when the file itself changes ([book actions](book-actions.md)).
 
 **The description is text, not markup.** Calibre stores comments as HTML, and
 Grimoire mirrors it verbatim. The panel renders it as plain paragraphs: tags are

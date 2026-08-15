@@ -35,6 +35,8 @@ function book(fixture: Fixture): LibraryBook {
     description: null,
     pages: null,
     coverUrl: null,
+    // No re-fetch has happened in a fixture, so nothing to stamp on the URL.
+    coverVersion: null,
     ...fixture,
   };
 }

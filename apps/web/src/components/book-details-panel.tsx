@@ -1,5 +1,6 @@
 import { ExternalLink, Link2 } from "lucide-react";
 import { type ReactNode, useMemo, useRef, useState } from "react";
+import { BookActionsMenu } from "@/components/book-actions-menu";
 import { BookCoverStack } from "@/components/book-cover-stack";
 import { BookDownloadButton } from "@/components/book-download-button";
 import {
@@ -37,6 +38,12 @@ export interface BookDetailsPanelProps {
    * cover is a picture rather than a stack that can be turned over.
    */
   onChooseCover?: (bookId: number) => void;
+  /**
+   * Fetch this book's covers again and overwrite them — the gear in the footer
+   * (docs/features/book-actions.md). Without it the gear still opens and the
+   * action is shown disabled — the menu holds more than this one thing.
+   */
+  onRefetchCover?: () => Promise<{ attempted: number; fetched: number }>;
   /** Known finish dates, newest read first, at their original precision. */
   readDates?: string[];
   readDatesPending?: boolean;
@@ -106,6 +113,7 @@ export function BookDetailsPanel({
   rating = 0,
   onRate,
   onChooseCover,
+  onRefetchCover,
   readDates = [],
   readDatesPending = false,
   readDatesError,
@@ -362,20 +370,23 @@ export function BookDetailsPanel({
 
                   {/* Last, and quiet. Suggestions are information and sit high;
                   going looking for a duplicate yourself is deliberate, and this
-                  is where you look (docs/features/resolving-duplicates.md). */}
-                  {search && onLinkWork && (
-                    <div className="border-line mt-6 border-t pt-3">
+                  is where you look (docs/features/resolving-duplicates.md).
+                  The gear on the right holds the actions that act on the book
+                  itself (docs/features/book-actions.md). */}
+                  <div className="border-line mt-6 flex items-center gap-2 border-t pt-3">
+                    {search && onLinkWork && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setLinking(true)}
-                        className="text-muted-foreground w-full justify-start"
+                        className="text-muted-foreground flex-1 justify-start"
                       >
                         <Link2 size={14} aria-hidden="true" />
                         Link a duplicate
                       </Button>
-                    </div>
-                  )}
+                    )}
+                    <BookActionsMenu onRefetchCover={onRefetchCover} className="ml-auto" />
+                  </div>
                 </>
               )}
             </div>

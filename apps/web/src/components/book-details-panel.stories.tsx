@@ -40,7 +40,18 @@ function PanelStory({ book, ...props }: BookDetailsPanelProps) {
 const meta = {
   title: "Library/BookDetailsPanel",
   component: BookDetailsPanel,
-  args: { book: RICH, rating: 4, onClose: () => {} },
+  args: {
+    book: RICH,
+    rating: 4,
+    onClose: () => {},
+    // The footer's gear (docs/features/book-actions.md). Storybook has no
+    // Calibre behind it, so the run takes a beat and then reports what a book
+    // with nothing to fetch from reports.
+    onRefetchCover: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      return { attempted: 0, fetched: 0 };
+    },
+  },
   parameters: { layout: "fullscreen" },
   render: (args) => <PanelStory {...args} />,
 } satisfies Meta<typeof BookDetailsPanel>;

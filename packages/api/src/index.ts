@@ -38,6 +38,7 @@ import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { refetchWorkCovers } from "./covers.ts";
 import {
   clearReadDates,
   fetchHardcoverBook,
@@ -357,6 +358,29 @@ export function createApi(options: ApiOptions = {}) {
       return c.json({ error: "That book has no cover to show for this work." }, 404);
     }
     return c.json(book);
+  });
+
+  /**
+   * Re-fetch this work's covers from every source its members have and
+   * overwrite what is cached (docs/features/book-actions.md) — the first of the
+   * panel's actions, and the only cover path that ignores what sync believes.
+   *
+   * Answers with the book as it now is: its `coverVersion` has moved, which is
+   * what gets the new image past the year-long `max-age` above.
+   */
+  app.post("/api/books/:id/cover/refetch", async (c) => {
+    const workId = workIdFromPath(c);
+    const books = getBooks();
+    if (!books.get(workId)) return c.json({ error: "No book with that id." }, 404);
+
+    const result = await refetchWorkCovers(
+      { books, covers, calibreServerUrl: resolveCalibreServerUrl() || null },
+      workId,
+    );
+
+    const book = books.get(workId);
+    if (!book) return c.json({ error: "No book with that id." }, 404);
+    return c.json({ book, ...result });
   });
 
   /**

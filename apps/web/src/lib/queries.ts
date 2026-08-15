@@ -22,6 +22,7 @@ import {
   type RatingSource,
   type Ratings,
   type ReadStates,
+  refetchBookCover,
   saveRating,
   saveReadState,
   saveSyncInterval,
@@ -227,6 +228,27 @@ export function useChooseCover() {
 
     onError(_error, _variables, context) {
       if (context?.previous) queryClient.setQueryData(booksQuery.queryKey, context.previous);
+    },
+  });
+}
+
+/**
+ * Fetch one book's covers again and overwrite them
+ * (docs/features/book-actions.md). Not optimistic — there is nothing to show
+ * until the files are actually on disk — and the answer is patched into the
+ * cached library so the panel and the shelf both pick up the new
+ * `coverVersion` without refetching every book.
+ */
+export function useRefetchCover() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (workId: number) => refetchBookCover(workId),
+
+    onSuccess(result) {
+      queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
+        books?.map((book) => (book.id === result.book.id ? result.book : book)),
+      );
     },
   });
 }

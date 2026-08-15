@@ -46,6 +46,11 @@ export interface BookLibraryProps {
    */
   onChooseCover?: (book: LibraryBook, bookId: number) => void;
   /**
+   * Fetch the open book's covers again, overwriting them — the details panel's
+   * actions menu (docs/features/book-actions.md).
+   */
+  onRefetchCover?: (book: LibraryBook) => Promise<{ attempted: number; fetched: number }>;
+  /**
    * Hardcover's about, tags and moods for the open book, where the instance
    * asked for them (docs/features/book-details-panel.md). The panel falls back
    * to Calibre's for anything missing.
@@ -73,6 +78,7 @@ export function BookLibrary({
   readDatesPending,
   readDatesError,
   onChooseCover,
+  onRefetchCover,
   openBookHardcover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
@@ -215,6 +221,10 @@ export function BookLibrary({
         onChooseCover={
           onChooseCover && openBook ? (bookId) => onChooseCover(openBook, bookId) : undefined
         }
+        // Always offered for a book that is open: which of its *members* have a
+        // source to ask is server-side knowledge, and the run says so when the
+        // answer is none (docs/features/book-actions.md).
+        onRefetchCover={onRefetchCover && openBook ? () => onRefetchCover(openBook) : undefined}
         readDates={openBookReadDates}
         readDatesPending={readDatesPending}
         readDatesError={readDatesError}
