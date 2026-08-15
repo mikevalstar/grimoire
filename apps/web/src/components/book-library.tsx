@@ -63,6 +63,7 @@ export function BookLibrary({
   const [view, setView] = useViewMode();
   const [order, setOrder] = useLibraryOrder();
   const [filter, setFilter] = useState("");
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
 
   // A query ranks every matching book. Keep the score beside the filtered
   // list so the chosen library sort can break relevance ties.
@@ -127,7 +128,10 @@ export function BookLibrary({
           padding itself and gives it back with a matching negative margin:
           books sit exactly where they did, but now with room inside the
           scroller for the hover to bleed into. */}
-      <div className="-mx-3 min-h-0 flex-1 overflow-auto px-3 pt-4 sm:-mx-5 sm:px-5">
+      <div
+        ref={setScrollElement}
+        className="-mx-3 min-h-0 flex-1 scroll-smooth overflow-auto px-3 pt-5 motion-reduce:scroll-auto sm:-mx-5 sm:px-5"
+      >
         {error ? (
           <LibraryError error={error} onRetry={onRetry} />
         ) : isPending || !books ? (
@@ -143,6 +147,7 @@ export function BookLibrary({
         ) : view === "covers" ? (
           <BookGrid
             sections={sections}
+            scrollElement={scrollElement}
             ratings={ratings}
             onRate={onRate}
             ratable={ratable}
@@ -153,6 +158,7 @@ export function BookLibrary({
         ) : (
           <BookTable
             sections={sections}
+            scrollElement={scrollElement}
             ratings={ratings}
             onRate={onRate}
             ratable={ratable}
