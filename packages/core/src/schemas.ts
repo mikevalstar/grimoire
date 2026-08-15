@@ -401,6 +401,12 @@ export const HardcoverContentSchema = z.object({
   tags: z.array(z.string()).default([]),
   /** Their Mood category, which Calibre has no equivalent for. */
   moods: z.array(z.string()).default([]),
+  /**
+   * The book's page on hardcover.app, built from the mirrored slug. Unlike the
+   * three above it needs no token and survives a failed request — it is the
+   * one field here that comes out of the mirror rather than their API.
+   */
+  url: z.url().nullable().default(null),
 });
 export type HardcoverContent = z.infer<typeof HardcoverContentSchema>;
 

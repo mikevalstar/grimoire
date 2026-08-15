@@ -70,6 +70,7 @@ export const LoadingReadDates: Story = {
 export const FromHardcover: Story = {
   args: {
     hardcover: {
+      url: "https://hardcover.app/books/excession",
       about:
         "Two and a half millennia ago, the artifact appeared in a remote corner of space, beside a trillion-year-old dying sun from a different universe.\r\n\r\nIt was a perfect black-body sphere, and it did nothing. Then it disappeared.",
       tags: ["Science Fiction", "Space Opera", "Diverse Characters"],
@@ -81,6 +82,15 @@ export const FromHardcover: Story = {
 /** Moods alone, with about and tags switched back to Calibre's. */
 export const MoodsOnly: Story = {
   args: { hardcover: { moods: ["hopeful", "mysterious", "slow-paced"] } },
+};
+
+/**
+ * A matched book with all three switches off: Calibre's writing throughout, and
+ * still a way through to the book on hardcover.app. `Default` above is the
+ * other half of the pair — no match, so no link at all.
+ */
+export const HardcoverLinkOnly: Story = {
+  args: { hardcover: { url: "https://hardcover.app/books/excession" } },
 };
 
 export const Light: Story = { globals: { theme: "light" } };

@@ -1,4 +1,4 @@
-import { Link2 } from "lucide-react";
+import { ExternalLink, Link2 } from "lucide-react";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { BookCoverStack } from "@/components/book-cover-stack";
 import { BookDownloadButton } from "@/components/book-download-button";
@@ -10,6 +10,7 @@ import {
 import { BookLinkPicker } from "@/components/book-link-picker";
 import { BookMarks } from "@/components/book-marks";
 import { BookReadDates } from "@/components/book-read-dates";
+import { HardcoverIcon } from "@/components/brand-icons";
 import { StarRating } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
 import { publicationYear } from "@/lib/publication";
 
@@ -63,6 +65,12 @@ export interface HardcoverContentProps {
   about?: string | null;
   tags?: string[];
   moods?: string[];
+  /**
+   * The book's page on hardcover.app. Independent of the three switches above —
+   * it says the book *is* matched, not whose writing won — and absent for a
+   * book Hardcover has no side of, which is the whole condition for the link.
+   */
+  url?: string | null;
 }
 
 /**
@@ -321,6 +329,35 @@ export function BookDetailsPanel({
                         ))}
                       </div>
                     </Section>
+                  )}
+
+                  {/* Under everything Hardcover supplied, because it is where
+                  that writing came from. Only for a matched book: an unmatched
+                  one has no page there to point at
+                  (docs/features/book-details-panel.md). */}
+                  {hardcover?.url && (
+                    <div className="mt-5">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground -ml-2"
+                      >
+                        <a
+                          href={hardcover.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          // The visible text says where, not which book — the
+                          // panel's heading is a long way up the reading order.
+                          aria-label={`View "${shown.title}" on hardcover.app`}
+                          {...tooltipProps("Open this book's page on hardcover.app", "top")}
+                        >
+                          <HardcoverIcon size={14} />
+                          View on Hardcover
+                          <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      </Button>
+                    </div>
                   )}
 
                   {/* Last, and quiet. Suggestions are information and sit high;

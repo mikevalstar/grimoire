@@ -143,6 +143,16 @@ function hardcoverRating(value: number | string | null | undefined): number | nu
 }
 
 /**
+ * A mirrored book's page on hardcover.app. Their public URLs are keyed by the
+ * slug, never the numeric id, which is why `hardcover_books.slug` is mirrored
+ * at all (docs/features/hardcover-sync.md). No slug, no link.
+ */
+export function hardcoverBookUrl(slug: string | null | undefined): string | null {
+  const trimmed = slug?.trim();
+  return trimmed ? `https://hardcover.app/books/${encodeURIComponent(trimmed)}` : null;
+}
+
+/**
  * The verbatim mirror of a reader's hardcover.app library
  * (docs/features/hardcover-sync.md). Nothing here reconciles or interprets —
  * that is `BooksStore`'s job.
@@ -280,6 +290,18 @@ export class HardcoverBooksStore {
       ratings[String(row.workId)] = { rating: row.rating, statusId: row.statusId };
     }
     return ratings;
+  }
+
+  /**
+   * The slug of one mirrored book — what {@link hardcoverBookUrl} turns into a
+   * link out. Read from the mirror rather than their API so a book stays
+   * linkable for a reader with no token of their own.
+   */
+  slug(hardcoverBookId: number): string | null {
+    const row = this.db
+      .query("SELECT slug FROM hardcover_books WHERE hardcover_id = $id")
+      .get({ $id: hardcoverBookId }) as { slug: string | null } | null;
+    return row?.slug ?? null;
   }
 
   /**

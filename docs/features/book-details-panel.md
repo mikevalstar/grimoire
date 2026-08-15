@@ -85,6 +85,8 @@ Its contents, in order:
 - **Tags** — as plain chips. They are not filters yet.
 - **Moods** — Hardcover's mood tags, when there are any and the switch is on.
 - **About** — the description.
+- **View on Hardcover** — a link to the book's page on hardcover.app, for a book
+  Hardcover has a side of.
 
 ### Hardcover's writing about the book
 
@@ -109,6 +111,24 @@ categories — Genre, Tag, Mood and Content Warning — and folding moods
 ("emotional", "slow-paced") into the same chip row as genres reads as noise.
 Grimoire shows Genre and Tag as **Tags**, Mood as **Moods**, and leaves content
 warnings alone until there is a decision about how to present them.
+
+**Linking back to them.** A book Hardcover has a side of also gets a **View on
+Hardcover** link, under the About section and above the duplicate footer, marked
+with their logo. It opens `https://hardcover.app/books/<slug>` — the slug
+[sync](hardcover-sync.md) already mirrors alongside every book — in a new tab,
+and is absent entirely for a Calibre-only book. Unlike the three switches above,
+it does not depend on a linked reader account or on any preference: the slug
+comes from the mirror rather than from their API, so the link is there for any
+matched book.
+
+In the desktop shell ([ADR 0003](../adrs/0003-electrobun-for-the-desktop-shell.md))
+`target="_blank"` alone does nothing — the system webview offers the request to
+the host and drops it if nobody takes it. `apps/desktop` takes it: every
+new-window request the webview raises is handed to the operating system's
+default browser instead. That keeps the link one plain anchor in `apps/web` that
+behaves the same in all three delivery targets
+([ADR 0002](../adrs/0002-one-http-api-three-delivery-targets.md)), and covers
+every external link added after this one.
 
 **Their description is text, not markup either.** Hardcover's `description` is
 plain text as often as not — paragraphs separated by newlines — with the
@@ -190,6 +210,9 @@ that puts filters and sorting in the URL.
 - [x] With the switches on, a book Hardcover knows shows their about, tags and
       moods; with them off, or for a book or reader Hardcover has nothing for,
       the panel shows Calibre's and no moods section.
+- [x] A book Hardcover knows offers a link to its page on hardcover.app, which
+      opens in the reader's real browser in every delivery target; a
+      Calibre-only book offers none.
 - [x] A book with no Calibre id offers no download and says why.
 - [x] Escape, the close button and the scrim all close it, and focus returns to
       whatever opened it.
@@ -218,9 +241,11 @@ are shared Zod schemas
 
 `GET /api/books/:id/hardcover` is reader-scoped and answers with one book's
 Hardcover description, tags and moods, read live from their API and never
-stored. A book with no Hardcover side, or a reader with no linked account,
-answers with empties rather than an error — the panel has something to fall back
-to either way.
+stored, plus the `url` of its page on hardcover.app. A book with no Hardcover
+side, or a reader with no linked account, answers with empties rather than an
+error — the panel has something to fall back to either way. The `url` is the
+exception that needs no token: it is built from the slug in the mirror, so it
+survives an unlinked reader and a failed request.
 
 `GET /api/books/:id/read-dates/hardcover` is reader-scoped and resolves the
 work to that reader's Hardcover shelf entry, then asks Hardcover for its full

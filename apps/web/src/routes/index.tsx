@@ -94,22 +94,24 @@ function LibraryScreen() {
   // Which of Hardcover's writing about a book to prefer over Calibre's is one
   // instance-wide answer, not a per-reader one (docs/features/settings.md) —
   // but it is fetched with the reading reader's token, so a reader with no
-  // linked account keeps Calibre's whatever the switches say. Only asked for
-  // books Hardcover actually has a side of.
+  // linked account keeps Calibre's whatever the switches say.
+  //
+  // Asked for every book Hardcover has a side of, whatever the switches and
+  // whether or not this reader is linked: the same answer carries the link out
+  // to hardcover.app, which is about the match rather than about whose writing
+  // wins (docs/features/book-details-panel.md).
   const { data: preferences } = useQuery(preferencesQuery);
   const contentPrefs = hardcoverContentPrefs(preferences);
-  const wantsHardcoverContent =
-    (contentPrefs.about || contentPrefs.tags || contentPrefs.moods) &&
-    Boolean(currentUser?.hardcoverUsername) &&
-    Boolean(openBook?.sources.includes(BOOK_SOURCE.hardcover));
+  const openBookOnHardcover = Boolean(openBook?.sources.includes(BOOK_SOURCE.hardcover));
   const contentQuery = useQuery(
-    hardcoverContentQuery(currentUser?.id, openBookId, wantsHardcoverContent),
+    hardcoverContentQuery(currentUser?.id, openBookId, openBookOnHardcover),
   );
   const content = contentQuery.data;
   const openBookHardcover = {
     about: contentPrefs.about ? content?.about : undefined,
     tags: contentPrefs.tags ? content?.tags : undefined,
     moods: contentPrefs.moods ? content?.moods : undefined,
+    url: content?.url,
   };
 
   const queryClient = useQueryClient();

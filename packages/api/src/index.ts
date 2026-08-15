@@ -14,6 +14,7 @@ import {
   HardcoverSearchRequestSchema,
   HardcoverTestRequestSchema,
   hardcoverAuthors,
+  hardcoverBookUrl,
   hardcoverCoverUrl,
   hardcoverTagsByCategory,
   isCoverSize,
@@ -666,12 +667,18 @@ export function createApi(options: ApiOptions = {}) {
       return c.json({ error: `No book with id ${bookId}.` }, 404);
     }
 
-    const empty: HardcoverContent = { about: null, tags: [], moods: [] };
     const account = getUsers().hardcoverAccount(userId);
     // `shelfEntryForWork` names the work's Hardcover book whether or not this
     // reader shelved it — which is what this needs; the writing about a book
     // is the catalogue's, not theirs.
     const hardcoverBookId = getHardcoverBooks().shelfEntryForWork(userId, bookId)?.hardcoverBookId;
+    // The link out rides on the mirrored slug, so it is answered for a matched
+    // book whether or not this reader has a token and whether or not the live
+    // request below gets anywhere (docs/features/book-details-panel.md).
+    const url = hardcoverBookId
+      ? hardcoverBookUrl(getHardcoverBooks().slug(hardcoverBookId))
+      : null;
+    const empty: HardcoverContent = { about: null, tags: [], moods: [], url };
     if (!account || !hardcoverBookId) return c.json(empty);
 
     try {
@@ -686,6 +693,9 @@ export function createApi(options: ApiOptions = {}) {
         // decision about how to present them.
         tags: [...(byCategory.Genre ?? []), ...(byCategory.Tag ?? [])],
         moods: byCategory.Mood ?? [],
+        // Their freshest slug where they answered with one; the mirror's
+        // otherwise, since a slug they renamed still redirects.
+        url: hardcoverBookUrl(book.slug) ?? url,
       } satisfies HardcoverContent);
     } catch (err) {
       if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
