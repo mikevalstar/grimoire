@@ -1,4 +1,4 @@
-import type { CalibreServerTest, User } from "@grimoire/core";
+import type { CalibreServerTest, HardcoverContent, User } from "@grimoire/core";
 import {
   BooksStore,
   CalibreTestRequestSchema,
@@ -14,7 +14,9 @@ import {
   HardcoverSearchRequestSchema,
   HardcoverTestRequestSchema,
   hardcoverAuthors,
+  hardcoverBookUrl,
   hardcoverCoverUrl,
+  hardcoverTagsByCategory,
   isCoverSize,
   openDatabase,
   PREF_KEYS,
@@ -38,6 +40,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import {
   clearReadDates,
+  fetchHardcoverBook,
   fetchReadingHistory,
   fetchUserBook,
   HardcoverError,
@@ -642,6 +645,63 @@ export function createApi(options: ApiOptions = {}) {
   app.get("/api/ratings/hardcover", (c) =>
     c.json(getHardcoverBooks().ratingsByWork(requireUser(c))),
   );
+
+  /**
+   * What Hardcover has written about one book — description, tags and moods —
+   * for an open details panel (docs/features/book-details-panel.md). Live for
+   * the same reason the history below is, and stored nowhere.
+   *
+   * Which of the three the panel actually shows is an instance-wide preference
+   * it applies itself; this route always answers with all of them. A book
+   * Hardcover has nothing for, or a reader with no linked account, answers
+   * empty rather than 400: the panel has Calibre's text to fall back to, and a
+   * read-out is no place for an error nobody can act on.
+   */
+  app.get("/api/books/:bookId/hardcover", async (c) => {
+    const userId = requireUser(c);
+    const bookId = Number(c.req.param("bookId"));
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+      return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+    }
+    if (!getBooks().get(bookId)) {
+      return c.json({ error: `No book with id ${bookId}.` }, 404);
+    }
+
+    const account = getUsers().hardcoverAccount(userId);
+    // `shelfEntryForWork` names the work's Hardcover book whether or not this
+    // reader shelved it — which is what this needs; the writing about a book
+    // is the catalogue's, not theirs.
+    const hardcoverBookId = getHardcoverBooks().shelfEntryForWork(userId, bookId)?.hardcoverBookId;
+    // The link out rides on the mirrored slug, so it is answered for a matched
+    // book whether or not this reader has a token and whether or not the live
+    // request below gets anywhere (docs/features/book-details-panel.md).
+    const url = hardcoverBookId
+      ? hardcoverBookUrl(getHardcoverBooks().slug(hardcoverBookId))
+      : null;
+    const empty: HardcoverContent = { about: null, tags: [], moods: [], url };
+    if (!account || !hardcoverBookId) return c.json(empty);
+
+    try {
+      const book = await fetchHardcoverBook(account.token, hardcoverBookId);
+      if (!book) return c.json(empty);
+
+      const byCategory = hardcoverTagsByCategory(book.cached_tags);
+      return c.json({
+        about: book.description?.trim() || null,
+        // Genres first: they say what the book *is*, where a tag says what it
+        // was like. Content warnings are deliberately left out until there is a
+        // decision about how to present them.
+        tags: [...(byCategory.Genre ?? []), ...(byCategory.Tag ?? [])],
+        moods: byCategory.Mood ?? [],
+        // Their freshest slug where they answered with one; the mirror's
+        // otherwise, since a slug they renamed still redirects.
+        url: hardcoverBookUrl(book.slug) ?? url,
+      } satisfies HardcoverContent);
+    } catch (err) {
+      if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+      throw err;
+    }
+  });
 
   /**
    * A read book's full reread history. This deliberately bypasses the mirror:

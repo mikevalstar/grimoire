@@ -57,6 +57,19 @@ export const CountUnknown: Story = {
   args: { bookCount: undefined },
 };
 
+/**
+ * One reader, so the avatar's tooltip offers adding another rather than
+ * promising a switch there is nothing to switch to.
+ */
+export const SingleReader: Story = {
+  args: { users: [READERS[0]!], user: READERS[0] },
+};
+
+/** Nobody picked yet — the avatar is a prompt, not a name. */
+export const NoCurrentReader: Story = {
+  args: { user: undefined },
+};
+
 /** Without a reader list the avatar is a plain chip, not a menu. */
 export const NoReaderList: Story = {
   args: { users: undefined },

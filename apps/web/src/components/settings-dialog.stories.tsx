@@ -54,11 +54,17 @@ const SYNC_STATUS = {
 
 /** Answer the API calls the dialog makes — there's no server behind Storybook. */
 const withStubbedApi =
-  (users: typeof READERS): Decorator =>
+  (users: typeof READERS, initialPreferences: Record<string, string> = {}): Decorator =>
   (Story) => {
     useEffect(() => {
       const real = globalThis.fetch;
       let nextUserId = 100;
+      // Held rather than recomputed so the book-content switches stay where
+      // they were flipped — PUT /api/preferences is a merge-update.
+      const preferences: Record<string, string> = {
+        [PREF_KEYS.calibreServerUrl]: "http://localhost:8080",
+        ...initialPreferences,
+      };
 
       const respond = (path: string, method: string, body: unknown): unknown => {
         // Hardcover is per reader, so its paths carry the reader's id
@@ -93,7 +99,11 @@ const withStubbedApi =
           };
         }
         if (path.endsWith("/api/books")) return SAMPLE_BOOKS;
-        return { [PREF_KEYS.calibreServerUrl]: "http://localhost:8080" };
+        if (path.endsWith("/api/preferences")) {
+          if (method === "PUT") Object.assign(preferences, body as Record<string, string>);
+          return preferences;
+        }
+        return preferences;
       };
 
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -127,9 +137,25 @@ type Story = StoryObj<typeof meta>;
 /** Opens on Calibre: the connection, the sync stat tiles, and Sync now. */
 export const Default: Story = {};
 
-/** A card per reader — linked ones get stats and the source toggles. */
+/**
+ * A card per reader — linked ones get stats and the source toggles — and below
+ * them the instance-wide book-content switches, all on because nothing was ever
+ * saved (docs/features/settings.md).
+ */
 export const Hardcover: Story = {
   args: { section: "hardcover" },
+};
+
+/** The same section with the book content switched back to Calibre's. */
+export const HardcoverContentOff: Story = {
+  args: { section: "hardcover" },
+  decorators: [
+    withStubbedApi(READERS, {
+      [PREF_KEYS.hardcoverAbout]: "false",
+      [PREF_KEYS.hardcoverTags]: "false",
+      [PREF_KEYS.hardcoverMoods]: "false",
+    }),
+  ],
 };
 
 /** Listing and adding only — switching moved to the header avatar menu. */

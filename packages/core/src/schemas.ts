@@ -7,7 +7,7 @@
 // client, and Calibre's extras don't break us.
 
 import { z } from "zod";
-import { isUserColorId, SYNC_INTERVAL_CHOICES, USER_NAME_MAX_LENGTH } from "./types.ts";
+import { isUserColorId, PREF_KEYS, SYNC_INTERVAL_CHOICES, USER_NAME_MAX_LENGTH } from "./types.ts";
 
 /** Every preference is stored as text; callers coerce as needed. */
 export const PreferencesSchema = z.record(z.string(), z.string());
@@ -387,6 +387,57 @@ export const FinishedAtSchema = z
 /** Known finish dates for one book, newest read first. */
 export const ReadDatesSchema = z.object({ dates: z.array(FinishedAtSchema) });
 export type ReadDates = z.infer<typeof ReadDatesSchema>;
+
+/**
+ * What Hardcover has written about one book, read live for an open details
+ * panel (docs/features/book-details-panel.md) and never mirrored. Empty
+ * throughout for a book Hardcover has nothing for, or a reader with no linked
+ * account — the panel falls back to Calibre either way, so this is not an error.
+ */
+export const HardcoverContentSchema = z.object({
+  /** Their description — plain text as often as not, occasionally HTML. */
+  about: z.string().nullable().default(null),
+  /** Their Genre and Tag categories, in that order. */
+  tags: z.array(z.string()).default([]),
+  /** Their Mood category, which Calibre has no equivalent for. */
+  moods: z.array(z.string()).default([]),
+  /**
+   * The book's page on hardcover.app, built from the mirrored slug. Unlike the
+   * three above it needs no token and survives a failed request — it is the
+   * one field here that comes out of the mirror rather than their API.
+   */
+  url: z.url().nullable().default(null),
+});
+export type HardcoverContent = z.infer<typeof HardcoverContentSchema>;
+
+/**
+ * A stored preference that reads as a boolean. Absent means **on**: these were
+ * added to libraries that already existed, and asking everyone to opt back in
+ * to a default is a migration nobody wanted. Anything unparseable reads as on
+ * too, for the same reason.
+ */
+const prefOn = z.stringbool().catch(true).default(true);
+
+/**
+ * Which of Hardcover's writing about a book wins over Calibre's — instance-wide
+ * (docs/features/settings.md), unlike the per-reader source toggles above:
+ * these say what a *book* looks like, not whose account an answer comes from.
+ */
+export const HardcoverContentPrefsSchema = z.object({
+  about: prefOn,
+  tags: prefOn,
+  moods: prefOn,
+});
+export type HardcoverContentPrefs = z.infer<typeof HardcoverContentPrefsSchema>;
+
+/** Read those three out of the flat preferences record. Never throws. */
+export function hardcoverContentPrefs(preferences: Preferences | undefined): HardcoverContentPrefs {
+  return HardcoverContentPrefsSchema.parse({
+    about: preferences?.[PREF_KEYS.hardcoverAbout],
+    tags: preferences?.[PREF_KEYS.hardcoverTags],
+    moods: preferences?.[PREF_KEYS.hardcoverMoods],
+  });
+}
 
 /**
  * Body of PUT /api/ratings/:bookId. Zero clears the rating. With

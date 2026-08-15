@@ -9,12 +9,16 @@ import {
   type DuplicateReason,
   type Duplicates,
   DuplicatesSchema,
+  type HardcoverContent,
+  type HardcoverContentPrefs,
+  HardcoverContentSchema,
   type HardcoverRatings,
   HardcoverRatingsSchema,
   type HardcoverSearchResult,
   HardcoverSearchResultsSchema,
   type HardcoverTest,
   HardcoverTestSchema,
+  hardcoverContentPrefs,
   type MatchOutcome,
   MatchOutcomeSchema,
   type PendingDuplicate,
@@ -62,6 +66,8 @@ export type {
   DuplicateCandidate,
   DuplicateReason,
   Duplicates,
+  HardcoverContent,
+  HardcoverContentPrefs,
   HardcoverRatings,
   HardcoverSearchResult,
   HardcoverTest,
@@ -85,6 +91,7 @@ export {
   BOOK_SOURCE,
   COVER_SIZES,
   DEFAULT_SYNC_INTERVAL_MINUTES,
+  hardcoverContentPrefs,
   hardcoverStatusLabel,
   PREF_KEYS,
   PREFERENCES_VERSION,
@@ -238,6 +245,18 @@ export function fetchHardcoverRatings(userId: number) {
 /** One book's full reading history, requested live from Hardcover. */
 export function fetchHardcoverReadDates(userId: number, bookId: number) {
   return request(`/api/books/${bookId}/read-dates/hardcover`, ReadDatesSchema, {
+    method: "GET",
+    userId,
+  });
+}
+
+/**
+ * What Hardcover has written about one book — description, tags and moods —
+ * requested live for an open panel and never stored
+ * (docs/features/book-details-panel.md).
+ */
+export function fetchHardcoverContent(userId: number, bookId: number) {
+  return request(`/api/books/${bookId}/hardcover`, HardcoverContentSchema, {
     method: "GET",
     userId,
   });

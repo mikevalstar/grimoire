@@ -98,6 +98,32 @@ export function hardcoverTags(cached: unknown): string[] {
   return [...new Set(names)];
 }
 
+/**
+ * The same names, kept under the categories Hardcover files them by — "Genre",
+ * "Tag", "Mood", "Content Warning". The details panel shows genres and tags as
+ * tags and moods on their own (docs/features/book-details-panel.md), which the
+ * flattened list above cannot tell apart. A flat array — the other shape their
+ * blob has been seen in — has no categories to report, so it yields nothing
+ * rather than a made-up one.
+ */
+export function hardcoverTagsByCategory(cached: unknown): Record<string, string[]> {
+  const value = parseJson(cached);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  const byCategory: Record<string, string[]> = {};
+  for (const [category, group] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(group)) continue;
+    const names = group.flatMap((entry) => {
+      if (typeof entry === "string") return [entry];
+      if (!entry || typeof entry !== "object") return [];
+      const tag = (entry as Record<string, unknown>).tag;
+      return typeof tag === "string" && tag.trim() ? [tag.trim()] : [];
+    });
+    if (names.length > 0) byCategory[category] = [...new Set(names)];
+  }
+  return byCategory;
+}
+
 /** The cover URL out of `cached_image`, which is `{ url, width, height, color }`. */
 export function hardcoverCoverUrl(cached: unknown): string | null {
   const value = parseJson(cached);
@@ -114,6 +140,16 @@ export function hardcoverCoverUrl(cached: unknown): string | null {
 function hardcoverRating(value: number | string | null | undefined): number | null {
   const rating = typeof value === "string" ? Number(value) : value;
   return typeof rating === "number" && Number.isFinite(rating) ? rating : null;
+}
+
+/**
+ * A mirrored book's page on hardcover.app. Their public URLs are keyed by the
+ * slug, never the numeric id, which is why `hardcover_books.slug` is mirrored
+ * at all (docs/features/hardcover-sync.md). No slug, no link.
+ */
+export function hardcoverBookUrl(slug: string | null | undefined): string | null {
+  const trimmed = slug?.trim();
+  return trimmed ? `https://hardcover.app/books/${encodeURIComponent(trimmed)}` : null;
 }
 
 /**
@@ -254,6 +290,18 @@ export class HardcoverBooksStore {
       ratings[String(row.workId)] = { rating: row.rating, statusId: row.statusId };
     }
     return ratings;
+  }
+
+  /**
+   * The slug of one mirrored book — what {@link hardcoverBookUrl} turns into a
+   * link out. Read from the mirror rather than their API so a book stays
+   * linkable for a reader with no token of their own.
+   */
+  slug(hardcoverBookId: number): string | null {
+    const row = this.db
+      .query("SELECT slug FROM hardcover_books WHERE hardcover_id = $id")
+      .get({ $id: hardcoverBookId }) as { slug: string | null } | null;
+    return row?.slug ?? null;
   }
 
   /**

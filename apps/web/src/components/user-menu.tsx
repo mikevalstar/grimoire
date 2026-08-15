@@ -1,4 +1,5 @@
 import { Check, Plus, Settings } from "lucide-react";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,8 +8,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
 import type { User } from "@/lib/api";
+
+/**
+ * What the avatar says on hover. Initials alone don't say whose they are, and
+ * with a single reader "switch reader" would be a lie — so the label names the
+ * current reader and then whatever the menu actually offers.
+ */
+export function userMenuTooltip(users: User[], currentUser?: User): string {
+  if (!currentUser) return "Choose which reader this device is";
+  if (users.length > 1) return `Reading as ${currentUser.name} — switch reader`;
+  return `Reading as ${currentUser.name} — add another reader or open settings`;
+}
 
 /**
  * The header avatar as a menu: every reader, with the current one marked —
@@ -32,10 +45,17 @@ export function UserMenu({
   onAddReader?: () => void;
   onOpenSettings?: () => void;
 }) {
+  // The tooltip is dropped while the menu is open rather than left to a
+  // mouseleave that may never come: react-tooltip closes as soon as its active
+  // anchor stops matching, so removing the attributes hides the box instead of
+  // parking it on top of the menu it just opened.
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         aria-label={currentUser ? `Reading as ${currentUser.name}` : "Choose a reader"}
+        {...tooltipProps(open ? null : userMenuTooltip(users, currentUser), "bottom")}
         className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <UserAvatar

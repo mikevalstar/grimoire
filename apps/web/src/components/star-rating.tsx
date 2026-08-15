@@ -1,5 +1,6 @@
 import { Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface StarRatingProps {
@@ -195,7 +196,7 @@ export function StarRating({
           <button
             type="button"
             aria-label={`Clear the rating${label ? ` for ${label}` : ""}`}
-            title="Clear rating"
+            {...tooltipProps("Clear rating")}
             onClick={(event) => {
               event.stopPropagation();
               onRate(0);

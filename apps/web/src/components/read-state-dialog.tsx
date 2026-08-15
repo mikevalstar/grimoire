@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { LibraryBook } from "@/lib/api";
+import { publicationYear } from "@/lib/publication";
 
 /** What the corner's confirm is holding (docs/features/marking-a-book-read.md). */
 export interface PendingReadState {
@@ -109,7 +110,11 @@ function Body({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <ReadDatePicker value={readDate} onChange={setReadDate} />
+        <ReadDatePicker
+          value={readDate}
+          onChange={setReadDate}
+          publishedYear={publicationYear(book.published)}
+        />
 
         {/* Only when the stars would land in the same store, and only for a
             book they haven't already rated — this is a shortcut, not an edit. */}

@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { AppHeader, type AppHeaderProps } from "@/components/app-header";
 import { CommandMenu } from "@/components/command-menu";
 import { SettingsDialog, type SettingsSection } from "@/components/settings-dialog";
+import { TooltipHost } from "@/components/ui/tooltip";
 import { setOpenBookId } from "@/lib/open-book";
 import { booksQuery } from "@/lib/queries";
 
@@ -70,6 +71,11 @@ export function AppShell({
         section={settings.section}
         onOpenChange={(open) => setSettings((current) => ({ ...current, open }))}
       />
+
+      {/* One tooltip for every screen, rather than one per target — the shelf
+          is virtualized, so a per-row tooltip would mount and unmount with the
+          row (ADR 0016). */}
+      <TooltipHost />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   dismissDuplicate,
   fetchBooks,
   fetchDuplicates,
+  fetchHardcoverContent,
   fetchHardcoverRatings,
   fetchHardcoverReadDates,
   fetchPendingDuplicates,
@@ -105,6 +106,24 @@ export function hardcoverReadDatesQuery(
   return queryOptions({
     queryKey: ["hardcover-read-dates", userId, bookId],
     queryFn: () => fetchHardcoverReadDates(userId as number, bookId as number),
+    enabled: enabled && userId != null && bookId != null,
+  });
+}
+
+/**
+ * What Hardcover says about the open book — about, tags and moods
+ * (docs/features/book-details-panel.md). Live like the reading history above,
+ * and disabled while the panel is closed for the same reason: reopening a
+ * stale query fetches again.
+ */
+export function hardcoverContentQuery(
+  userId: number | null | undefined,
+  bookId: number | null,
+  enabled: boolean,
+) {
+  return queryOptions({
+    queryKey: ["hardcover-content", userId, bookId],
+    queryFn: () => fetchHardcoverContent(userId as number, bookId as number),
     enabled: enabled && userId != null && bookId != null,
   });
 }

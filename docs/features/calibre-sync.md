@@ -144,7 +144,9 @@ A button in the header, in three states: **idle**, with the last sync time in
 its tooltip; **syncing**, with the phase and progress; and **failed**, in
 destructive red, carrying the actual error and the proxy's hint when the content
 server is unreachable. The failed state persists until the next successful sync,
-so a failure at 3am is still visible at 9am.
+so a failure at 3am is still visible at 9am. The tooltip is the shell's shared
+one ([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)); the same
+text is also the button's accessible name, so the error is never hover-only.
 
 Clicking starts a sync. Clicking during one does nothing rather than queueing a
 second, but the button stays hoverable so its progress is still readable. Motion

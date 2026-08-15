@@ -385,8 +385,9 @@ export class BooksStore {
   /**
    * Fold the Hardcover mirror into `books`, matched on **Hardcover's own book
    * id and nothing else** — not title, not ISBN. A book that is also in Calibre
-   * therefore gets a second row and appears twice, which is this step's whole
-   * point: see docs/features/hardcover-sync.md.
+   * therefore gets a second row, in its own work; deciding that the two rows
+   * are one book belongs to the matcher, which runs after this
+   * (docs/features/book-matching.md).
    *
    * Same two rules as the Calibre reconcile: one transaction, and no deletes.
    */

@@ -26,4 +26,5 @@ Add one with `okq new adr "<title>"`.
 | Group duplicate books into works | [0013-group-duplicate-books-into-works.md](0013-group-duplicate-books-into-works.md) |
 | Per-reader rating source with Hardcover write-back | [0014-per-reader-rating-source-with-hardcover-write-back.md](0014-per-reader-rating-source-with-hardcover-write-back.md) |
 | Virtualize library views with TanStack Virtual | [0015-virtualize-library-views-with-tanstack-virtual.md](0015-virtualize-library-views-with-tanstack-virtual.md) |
+| react-tooltip for hover affordances | [0016-react-tooltip-for-hover-affordances.md](0016-react-tooltip-for-hover-affordances.md) |
 <!-- okq:index:end -->

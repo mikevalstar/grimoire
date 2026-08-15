@@ -1,6 +1,7 @@
 import { Layers2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { BookCover } from "@/components/book-cover";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { bookCoverUrl, coverSizeFor, type LibraryBook } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +85,7 @@ export function BookCoverStack({ book, width = 104, onChoose, className }: BookC
     <button
       type="button"
       onClick={choose}
-      title={`Show the ${sourceName(next?.source)} cover`}
+      {...tooltipProps(`Show the ${sourceName(next?.source)} cover`)}
       aria-label={`Show the ${sourceName(next?.source)} cover of ${book.title}`}
       className={cn(
         "group/stack focus-visible:ring-ring/50 relative block shrink-0 rounded-md focus-visible:ring-[3px] focus-visible:outline-none",

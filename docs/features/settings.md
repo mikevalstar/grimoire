@@ -82,6 +82,25 @@ setting ([ADR 0012](../adrs/0012-hardcover-as-a-second-source-with-per-reader-to
 An unlinked reader's card is the token form — paste, test, save — with a
 pointer to where a token comes from.
 
+Below the cards, **Book content from Hardcover**: three switches deciding which
+of Hardcover's writing about a book the
+[details panel](book-details-panel.md) shows instead of Calibre's —
+
+- **About** — Hardcover's description in place of Calibre's comments.
+- **Tags** — Hardcover's genres and tags in place of Calibre's.
+- **Moods** — Hardcover's mood tags, which Calibre has no equivalent for, as
+  their own section.
+
+All three are **on** by default, including for libraries that predate them: the
+absent key reads as on, so nothing has to be migrated or re-answered. These are
+instance-wide preferences rather than per-reader ones — unlike the source
+toggles above, they say what a *book* looks like, not whose account an answer
+comes from — and they are stored in the `preferences` table under
+`hardcover.about`, `hardcover.tags` and `hardcover.moods`. Each applies the
+moment it is flipped. The content itself is fetched with the *reading* reader's
+token, so a reader with no linked account keeps Calibre's text whatever the
+switches say.
+
 ### Readers
 
 Everyone in `grimoire.db`
@@ -121,6 +140,9 @@ the dialog and losing it.
 - [ ] The Hardcover section shows a card per reader: link/test/unlink and the
       token form for the unlinked, stats and the two source toggles for the
       linked.
+- [x] The Hardcover section offers the three book-content switches, they read
+      as on where nothing was ever saved, and flipping one changes what the
+      details panel shows without a reload.
 - [ ] The Readers section lists everyone, marks this device's reader, and adds
       a reader with a colour.
 - [ ] Find duplicates runs a matching pass and reports what it grouped and what

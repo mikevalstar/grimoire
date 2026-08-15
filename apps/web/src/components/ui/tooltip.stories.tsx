@@ -1,29 +1,33 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
 import { Button } from "./button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
+import { TooltipHost, tooltipProps } from "./tooltip";
 
 /**
- * Radix tooltip, restyled to the app's tokens. A `TooltipProvider` has to sit
- * above every tooltip — the app puts one in `main.tsx`, Storybook one in
- * `.storybook/preview.tsx`, so stories only need the three parts below.
+ * One tooltip serves the whole app
+ * ([ADR 0016](/docs/adrs/0016-react-tooltip-for-hover-affordances.md)): a
+ * single `<TooltipHost />` lives in the app shell — and, for stories, in
+ * `.storybook/preview.tsx` — while targets opt in by spreading
+ * `tooltipProps(text)` onto themselves.
+ *
+ * That is what makes tooltips free in the virtualized library views: a row
+ * scrolling past mounts three data attributes, not a tooltip component. It also
+ * means a tooltip is never a target's accessible name — every target below
+ * keeps its own.
  */
 const meta = {
   title: "UI/Tooltip",
-  component: Tooltip,
+  component: TooltipHost,
   parameters: { layout: "centered" },
-} satisfies Meta<typeof Tooltip>;
+} satisfies Meta<typeof TooltipHost>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="outline">Hover me</Button>
-      </TooltipTrigger>
-      <TooltipContent>Sync with Calibre</TooltipContent>
-    </Tooltip>
+    <Button variant="outline" {...tooltipProps("Sync with Calibre")}>
+      Hover me
+    </Button>
   ),
 };
 
@@ -32,37 +36,47 @@ export const DefaultLight: Story = {
   globals: { theme: "light" },
 };
 
-/** Each side, to check the arrow follows the box. */
-export const Sides: Story = {
+/** Each side, off the one instance — the place travels with the target. */
+export const Places: Story = {
   render: () => (
-    <div className="flex gap-3">
-      {(["top", "right", "bottom", "left"] as const).map((side) => (
-        <Tooltip key={side}>
-          <TooltipTrigger asChild>
-            <Button variant="outline">{side}</Button>
-          </TooltipTrigger>
-          <TooltipContent side={side}>Opens {side}</TooltipContent>
-        </Tooltip>
+    <div className="flex gap-3 p-16">
+      {(["top", "right", "bottom", "left"] as const).map((place) => (
+        <Button key={place} variant="outline" {...tooltipProps(`Opens ${place}`, place)}>
+          {place}
+        </Button>
       ))}
     </div>
   ),
 };
 
 /**
- * Long, multi-paragraph text — the shape the sync indicator uses for a failure.
- * Needs both a width cap and `whitespace-pre-line` for the blank line to survive.
+ * Long, two-paragraph text — the shape the sync indicator uses for a failure.
+ * The host caps the width and keeps the blank line, so call sites pass a plain
+ * string and get this for free.
  */
 export const MultiLine: Story = {
   render: () => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="outline">Failed sync</Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-72 whitespace-pre-line">
-        {
-          "Could not reach the Calibre content server at http://localhost:8080\n\nStart it with `calibre-server`, then check the content server URL in Grimoire's settings."
-        }
-      </TooltipContent>
-    </Tooltip>
+    <Button
+      variant="outline"
+      {...tooltipProps(
+        "Could not reach the Calibre content server at http://localhost:8080\n\nStart it with `calibre-server`, then check the content server URL in Grimoire's settings.",
+        "bottom",
+      )}
+    >
+      Failed sync
+    </Button>
+  ),
+};
+
+/** Many targets, one instance — the point of the whole arrangement. */
+export const ManyTargets: Story = {
+  render: () => (
+    <div className="grid grid-cols-6 gap-2">
+      {Array.from({ length: 24 }, (_, index) => index + 1).map((n) => (
+        <Button key={n} variant="outline" size="sm" {...tooltipProps(`Book ${n}`)}>
+          {n}
+        </Button>
+      ))}
+    </div>
   ),
 };

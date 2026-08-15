@@ -1,5 +1,5 @@
-import { Link2 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { ExternalLink, Link2 } from "lucide-react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { BookCoverStack } from "@/components/book-cover-stack";
 import { BookDownloadButton } from "@/components/book-download-button";
 import {
@@ -10,6 +10,7 @@ import {
 import { BookLinkPicker } from "@/components/book-link-picker";
 import { BookMarks } from "@/components/book-marks";
 import { BookReadDates } from "@/components/book-read-dates";
+import { HardcoverIcon } from "@/components/brand-icons";
 import { StarRating } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
+import { publicationYear } from "@/lib/publication";
 
 export interface BookDetailsPanelProps {
   /** The book to show. Null closes the panel. */
@@ -44,6 +47,30 @@ export interface BookDetailsPanelProps {
    * Omitted — or with nothing to say — the section isn't drawn at all.
    */
   sameBook?: SameBookProps;
+  /**
+   * What Hardcover has written about this book, for the parts of the panel
+   * the reader chose to take from there (docs/features/book-details-panel.md).
+   * Anything absent falls back to Calibre's — including the whole prop, which
+   * is what a book Hardcover knows nothing about looks like.
+   */
+  hardcover?: HardcoverContentProps;
+}
+
+/**
+ * Hardcover's about, tags and moods — each present only when its instance-wide
+ * switch is on *and* Hardcover answered with something. Moods have no Calibre
+ * equivalent, so an empty list means no section rather than a fallback.
+ */
+export interface HardcoverContentProps {
+  about?: string | null;
+  tags?: string[];
+  moods?: string[];
+  /**
+   * The book's page on hardcover.app. Independent of the three switches above —
+   * it says the book *is* matched, not whose writing won — and absent for a
+   * book Hardcover has no side of, which is the whole condition for the link.
+   */
+  url?: string | null;
 }
 
 /**
@@ -83,6 +110,7 @@ export function BookDetailsPanel({
   readDatesPending = false,
   readDatesError,
   sameBook,
+  hardcover,
 }: BookDetailsPanelProps) {
   // The sheet slides out over a few hundred milliseconds, by which time the
   // caller has already cleared its selection — so keep the last book around to
@@ -91,6 +119,7 @@ export function BookDetailsPanel({
   // Searching for a duplicate replaces the body of the panel rather than
   // opening a dialog over it (docs/features/resolving-duplicates.md).
   const [linking, setLinking] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   if (book && book !== lastBook) {
     // A different book, rather than the same one refetched: the search was
@@ -102,15 +131,32 @@ export function BookDetailsPanel({
   const search = sameBook?.search;
   const onLinkWork = sameBook?.onLinkWork;
 
+  // Hardcover's blurb where the reader asked for it and there is one, and
+  // Calibre's otherwise. Both go through the same renderer — neither source's
+  // markup is ever injected (docs/features/book-details-panel.md).
+  const description = hardcover?.about || shown?.description;
   const paragraphs = useMemo(
-    () => (shown?.description ? descriptionParagraphs(shown.description) : []),
-    [shown?.description],
+    () => (description ? descriptionParagraphs(description) : []),
+    [description],
   );
+
+  const tags = hardcover?.tags?.length ? hardcover.tags : (shown?.tags ?? []);
+  const moods = hardcover?.moods ?? [];
 
   return (
     <Sheet open={book !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
+        ref={panelRef}
         side="right"
+        // The sheet would otherwise focus its first tabbable child on open,
+        // which is usually the stars — and a focused half puts a phantom half
+        // star on an unrated book (the preview follows focus, by design) and
+        // aims the next keystroke at the rating. The panel is a read-out, so
+        // focus belongs on the panel itself; tab still walks in from the top.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          panelRef.current?.focus();
+        }}
         // Much wider than the shadcn default: this is a page's worth of
         // metadata, not a form, and it has more to hold yet. It takes a second
         // step up on a large screen, where 680px still leaves the shelf behind
@@ -230,7 +276,10 @@ export function BookDetailsPanel({
                   <Section title="Details">
                     <dl className="grid grid-cols-[92px_1fr] items-baseline gap-y-1.5 text-[12.5px]">
                       <Field label="Publisher" value={shown.publisher} />
-                      <Field label="Published" value={publicationYear(shown.published)} />
+                      <Field
+                        label="Published"
+                        value={publicationYear(shown.published)?.toString()}
+                      />
                       <Field label="Added" value={formatDate(shown.added)} />
                       <Field label="Languages" value={formatLanguages(shown.languages)} />
                       <Field label="Pages" value={shown.pages?.toLocaleString()} />
@@ -255,18 +304,17 @@ export function BookDetailsPanel({
                     </dl>
                   </Section>
 
-                  {shown.tags.length > 0 && (
+                  {tags.length > 0 && (
                     <Section title="Tags">
-                      <div className="flex flex-wrap gap-1.5">
-                        {shown.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                      <Chips values={tags} />
+                    </Section>
+                  )}
+
+                  {/* Hardcover's alone: what a book felt like to read is
+                      something Calibre has no field for. */}
+                  {moods.length > 0 && (
+                    <Section title="Moods">
+                      <Chips values={moods} />
                     </Section>
                   )}
 
@@ -281,6 +329,35 @@ export function BookDetailsPanel({
                         ))}
                       </div>
                     </Section>
+                  )}
+
+                  {/* Under everything Hardcover supplied, because it is where
+                  that writing came from. Only for a matched book: an unmatched
+                  one has no page there to point at
+                  (docs/features/book-details-panel.md). */}
+                  {hardcover?.url && (
+                    <div className="mt-5">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground -ml-2"
+                      >
+                        <a
+                          href={hardcover.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          // The visible text says where, not which book — the
+                          // panel's heading is a long way up the reading order.
+                          aria-label={`View "${shown.title}" on hardcover.app`}
+                          {...tooltipProps("Open this book's page on hardcover.app", "top")}
+                        >
+                          <HardcoverIcon size={14} />
+                          View on Hardcover
+                          <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      </Button>
+                    </div>
                   )}
 
                   {/* Last, and quiet. Suggestions are information and sit high;
@@ -306,6 +383,22 @@ export function BookDetailsPanel({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** A row of metadata chips — tags, moods, anything else that is a word list. */
+function Chips({ values }: { values: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {values.map((value) => (
+        <span
+          key={value}
+          className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
+        >
+          {value}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -342,19 +435,6 @@ function formatDate(iso: string | null): string | null {
 }
 
 /**
- * The year alone — a publication date is a year to a reader, and Calibre's day
- * and month are usually invented anyway. Calibre also writes year 101 for
- * "unknown", which is not a date worth printing.
- */
-function publicationYear(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const year = date.getFullYear();
-  return year > 1000 ? String(year) : null;
-}
-
-/**
  * Calibre stores ISO 639 codes; readers know language names. `Intl` handles the
  * three-letter ones, and anything it refuses is shown as stored rather than
  * dropped.
@@ -387,15 +467,20 @@ function identifierLabel(scheme: string): string {
 /**
  * A description as paragraphs of plain text.
  *
- * Calibre stores comments as HTML and Grimoire mirrors it verbatim, but the
- * panel never injects it: tags are stripped and block boundaries become
- * paragraph breaks. Rendering a library's stored markup for the sake of italics
- * is a hole, and a sanitizer is a dependency this doesn't need. Entities are
- * decoded by parsing the stripped text in a detached document — which runs
- * nothing, since it is never attached.
+ * Calibre stores comments as HTML and Grimoire mirrors it verbatim; Hardcover's
+ * is usually plain text with newlines and occasionally HTML. Neither is ever
+ * injected: tags are stripped and block boundaries become paragraph breaks.
+ * Rendering a library's stored markup for the sake of italics is a hole, and a
+ * sanitizer is a dependency this doesn't need. Entities are decoded by parsing
+ * the stripped text in a detached document — which runs nothing, since it is
+ * never attached.
  */
 function descriptionParagraphs(html: string): string[] {
   const text = html
+    // CRLF is how Hardcover's plain-text blurbs arrive, and a blank line
+    // between two of their paragraphs is \r\n\r\n — which the split below
+    // would otherwise miss, running the whole blurb into one paragraph.
+    .replace(/\r\n?/g, "\n")
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/\s*(p|div|li|tr|h[1-6]|blockquote)\s*>/gi, "\n\n")
     .replace(/<[^>]*>/g, "");

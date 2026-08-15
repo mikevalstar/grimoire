@@ -6,6 +6,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tooltipProps } from "@/components/ui/tooltip";
 import { bookDownloadUrl, type LibraryBook, orderedFormats } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +87,11 @@ export function BookDownloadButton({
     <span>{formats.length === 1 ? `Download ${formats[0]}` : "Download"}</span>
   );
 
+  // …which is also why it gets no tooltip: the panel's button already says it
+  // in the open. On a card or a row the button is an icon, and the tooltip is
+  // where the format names live.
+  const tip = (text: string) => (variant === "panel" ? {} : tooltipProps(text));
+
   // The card or row around this may itself be a target; downloading, or opening
   // the picker, is not the same as opening the book.
   const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
@@ -96,7 +102,7 @@ export function BookDownloadButton({
       <a
         href={bookDownloadUrl(calibreId, format)}
         download
-        title={`Download ${format}`}
+        {...tip(`Download ${format}`)}
         aria-label={`Download ${book.title} as ${format}`}
         onClick={stopPropagation}
         className={chrome}
@@ -110,7 +116,7 @@ export function BookDownloadButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        title={`Download — ${formats.join(", ")}`}
+        {...tip(`Download — ${formats.join(", ")}`)}
         aria-label={`Download ${book.title} — choose a format`}
         onClick={stopPropagation}
         className={chrome}

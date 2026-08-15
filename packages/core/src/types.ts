@@ -29,6 +29,14 @@ export const PREF_KEYS = {
   /** Newest Calibre `last_modified` ingested; where an incremental sweep stops. */
   syncWatermark: "sync.watermark",
   syncIntervalMinutes: "sync.intervalMinutes",
+
+  // Which of Hardcover's writing about a book the details panel prefers over
+  // Calibre's (docs/features/book-details-panel.md). Instance-wide, because
+  // they say what a book looks like rather than whose account an answer comes
+  // from — and all three read as on when absent, so no migration is owed.
+  hardcoverAbout: "hardcover.about",
+  hardcoverTags: "hardcover.tags",
+  hardcoverMoods: "hardcover.moods",
 } as const;
 
 /** What a book record was ingested from. `books.source` holds one of these. */
