@@ -1,5 +1,5 @@
 import { Link2 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { BookCoverStack } from "@/components/book-cover-stack";
 import { BookDownloadButton } from "@/components/book-download-button";
 import {
@@ -92,6 +92,7 @@ export function BookDetailsPanel({
   // Searching for a duplicate replaces the body of the panel rather than
   // opening a dialog over it (docs/features/resolving-duplicates.md).
   const [linking, setLinking] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   if (book && book !== lastBook) {
     // A different book, rather than the same one refetched: the search was
@@ -111,7 +112,17 @@ export function BookDetailsPanel({
   return (
     <Sheet open={book !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
+        ref={panelRef}
         side="right"
+        // The sheet would otherwise focus its first tabbable child on open,
+        // which is usually the stars — and a focused half puts a phantom half
+        // star on an unrated book (the preview follows focus, by design) and
+        // aims the next keystroke at the rating. The panel is a read-out, so
+        // focus belongs on the panel itself; tab still walks in from the top.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          panelRef.current?.focus();
+        }}
         // Much wider than the shadcn default: this is a page's worth of
         // metadata, not a form, and it has more to hold yet. It takes a second
         // step up on a large screen, where 680px still leaves the shelf behind

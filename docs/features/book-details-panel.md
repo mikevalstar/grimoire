@@ -126,6 +126,11 @@ HTML into the app is a hole for the sake of italics, and the alternative — a
 sanitizer — is a dependency and a maintenance surface this feature does not
 need.
 
+**Opening takes focus to the panel, not to a control in it.** The panel is a
+read-out; the sheet's default of focusing its first tabbable child would land on
+the stars, previewing a rating nobody asked for and aiming the next keystroke at
+it. Focus goes on the panel itself and tab walks in from the top.
+
 **Closing.** Escape, the close button, or clicking the scrim. Focus returns to
 the card or row that opened it.
 
