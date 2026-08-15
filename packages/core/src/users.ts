@@ -42,10 +42,9 @@ const toUser = (row: UserRow, hardcover?: HardcoverCounts): User => ({
   hardcoverStatusCounts: hardcover?.statusCounts ?? [],
   hardcoverSyncedAt: row.hardcover_synced_at,
   hardcoverSyncError: row.hardcover_sync_error || null,
-  // Anything unrecognised reads as local — same fallback the schema promises.
-  ratingsSource: row.ratings_source === "hardcover" ? "hardcover" : "local",
-  // The opposite fallback: read state defaults to the shelves it mirrors, and
-  // only takes effect for a linked reader anyway.
+  // Both sources fall back to hardcover — same as the schema promises — and
+  // both only take effect for a linked reader anyway.
+  ratingsSource: row.ratings_source === "local" ? "local" : "hardcover",
   readStateSource: row.read_state_source === "local" ? "local" : "hardcover",
 });
 
@@ -112,8 +111,11 @@ export class UsersStore {
     try {
       row = this.db
         .query(
-          "INSERT INTO users (name, color, created_at) VALUES ($name, $color, $createdAt) " +
-            `RETURNING ${USER_COLUMNS}`,
+          // Stars come from Hardcover by default, set here rather than left to
+          // the column default: databases migrated before the flip still carry
+          // DEFAULT 'local', and new readers should not inherit that.
+          "INSERT INTO users (name, color, created_at, ratings_source) " +
+            `VALUES ($name, $color, $createdAt, 'hardcover') RETURNING ${USER_COLUMNS}`,
         )
         .get({
           $name: name,

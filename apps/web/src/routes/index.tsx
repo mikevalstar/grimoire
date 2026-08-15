@@ -30,9 +30,13 @@ function LibraryScreen() {
   // Ratings and read state belong to whoever is using this device, each from
   // whichever source they chose (ADR 0014,
   // docs/features/marking-a-book-read.md), and follow them when any of that
-  // changes. Read state can only live on Hardcover for a linked reader.
+  // changes. Both sources default to Hardcover but only live there for a
+  // linked reader.
   const currentUser = useCurrentUser();
-  const source = currentUser?.ratingsSource ?? "local";
+  const source =
+    currentUser?.hardcoverUsername && currentUser.ratingsSource === "hardcover"
+      ? "hardcover"
+      : "local";
   const readSource =
     currentUser?.hardcoverUsername && currentUser.readStateSource === "hardcover"
       ? "hardcover"

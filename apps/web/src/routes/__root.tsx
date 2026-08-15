@@ -38,13 +38,14 @@ function RootLayout() {
       <SetupWizard
         preferences={preferences}
         existingUsers={users}
-        onFinished={({ preferences: saved, users: created }) => {
-          // Both responses are authoritative, so seed the cache rather than
+        onFinished={({ preferences: saved, users: everyone }) => {
+          // Both responses are authoritative — the wizard's list carries any
+          // Hardcover links made there — so seed the cache rather than
           // refetching straight into a render.
           queryClient.setQueryData(preferencesQuery.queryKey, saved);
-          queryClient.setQueryData(usersQuery.queryKey, [...(users ?? []), ...created]);
+          queryClient.setQueryData(usersQuery.queryKey, everyone);
           // Whoever set the app up is using it.
-          const first = users?.[0] ?? created[0];
+          const first = everyone[0];
           if (first) setCurrentUserId(first.id);
         }}
       />

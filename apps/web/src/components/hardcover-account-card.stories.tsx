@@ -13,7 +13,7 @@ const READER: User = {
   hardcoverStatusCounts: [],
   hardcoverSyncedAt: null,
   hardcoverSyncError: null,
-  ratingsSource: "local",
+  ratingsSource: "hardcover",
   readStateSource: "hardcover",
 };
 

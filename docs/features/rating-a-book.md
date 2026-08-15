@@ -104,11 +104,12 @@ behave differently per source.
 Each reader picks a **rating source** in the settings Hardcover section
 ([settings](settings.md), [ADR 0014](../adrs/0014-per-reader-rating-source-with-hardcover-write-back.md)):
 
-- **Local** (default) — the stars read and write `ratings` in `grimoire.db`,
-  exactly as above.
-- **Hardcover** — the stars show that reader's ratings from their Hardcover
-  shelves, and setting one writes to their hardcover.app account with their own
-  token, updating the local mirror in the same request. Three edges:
+- **Local** — the stars read and write `ratings` in `grimoire.db`, exactly as
+  above. Always the source for an unlinked reader, whatever is stored.
+- **Hardcover** (the default for a linked reader) — the stars show that
+  reader's ratings from their Hardcover shelves, and setting one writes to
+  their hardcover.app account with their own token, updating the local mirror
+  in the same request. Three edges:
   - A book on Hardcover but **not on their shelves** asks first: rating it adds
     the book to their shelves as **Read**, which is what rating means on
     hardcover.app.

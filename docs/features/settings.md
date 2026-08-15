@@ -71,8 +71,8 @@ setting ([ADR 0012](../adrs/0012-hardcover-as-a-second-source-with-per-reader-to
     ([ADR 0014](../adrs/0014-per-reader-rating-source-with-hardcover-write-back.md)).
     On, the shelf shows their Hardcover ratings and rating a book writes to
     their hardcover.app account; off, stars live in `grimoire.db`
-    ([rating a book](rating-a-book.md)). Stored on the reader, applied
-    immediately, and reset to local by unlinking.
+    ([rating a book](rating-a-book.md)). On by default, stored on the reader,
+    applied immediately, and reset to local by unlinking.
   - **Read state from Hardcover** — this reader's read-state source
     ([marking a book read](marking-a-book-read.md)). On, the cover's corner
     check reads and writes their Hardcover shelves; off, read state lives in

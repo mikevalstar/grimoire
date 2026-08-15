@@ -44,7 +44,9 @@ the part that actually matters.
 
 Linking opens a token field, with a link to
 [the page the token comes from](https://hardcover.app/account/api), a **Test**
-button, and **Save**.
+button, and **Save**. The [first-run wizard](first-run-setup-wizard.md) offers
+the same per-reader card as an optional step, so a household can link everyone
+during setup.
 
 - **Test** probes the token and reports back without storing anything.
 - **Save** probes it too, and stores it only if it answered. A token Grimoire
