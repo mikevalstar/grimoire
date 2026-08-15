@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   CheckCircle2,
+  Globe,
   Loader2,
   Plus,
   Server,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { CalibreTestResult } from "@/components/calibre-test-result";
+import { HardcoverAccountCard } from "@/components/hardcover-account-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,8 +40,8 @@ import {
 
 const DEFAULT_SERVER_URL = "http://localhost:8080";
 
-const STEPS = ["Welcome", "Calibre", "Readers", "Done"] as const;
-type Step = 0 | 1 | 2 | 3;
+const STEPS = ["Welcome", "Calibre", "Readers", "Hardcover", "Done"] as const;
+type Step = 0 | 1 | 2 | 3 | 4;
 
 /** A reader typed into the wizard but not yet written to grimoire.db. */
 interface DraftReader {
@@ -49,15 +51,20 @@ interface DraftReader {
 
 export interface SetupWizardResult {
   preferences: Preferences;
-  /** Everyone the wizard created, in the order they were added. */
+  /**
+   * Everyone in the database when the wizard finished — pre-existing readers
+   * included, carrying any Hardcover links made here.
+   */
   users: User[];
 }
 
 /**
  * First-run setup — see docs/features/first-run-setup-wizard.md. Shown while
  * the stored preferences version is behind PREFERENCES_VERSION; welcomes the
- * user, connects Calibre, and collects the people who read here. Nothing is
- * written until the last step, and the version stamp goes last of all.
+ * user, connects Calibre, collects the people who read here, and offers each
+ * of them a Hardcover link. Writes go in step order — readers on leaving their
+ * step, links as they're made — but the version stamp goes last of all, so an
+ * interrupted run comes back.
  */
 export function SetupWizard({
   preferences,
@@ -83,12 +90,14 @@ export function SetupWizard({
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Kept as state so a Hardcover link made on step 3 lands back in the list.
+  const [existing, setExisting] = useState<User[]>(existingUsers);
   const [created, setCreated] = useState<User[]>([]);
   const [saved, setSaved] = useState<Preferences>(preferences);
 
   // Readers that are in the database already — from a previous run, or from a
-  // finish that got halfway before failing. Shown, but not editable here.
-  const locked = [...existingUsers, ...created];
+  // continue that got halfway before failing. Shown, but not editable here.
+  const locked = [...existing, ...created];
   const takenNames = [...locked.map((u) => u.name), ...readers.map((r) => r.name)];
   const takenColors = [...locked.map((u) => u.color), ...readers.map((r) => r.color)];
 
@@ -141,12 +150,13 @@ export function SetupWizard({
   }
 
   /**
-   * The only write in the wizard: readers first, then preferences — so a
-   * failure halfway leaves setup incomplete and the wizard comes back rather
-   * than stranding a library with no readers.
+   * Leaving the readers step is what creates them — the Hardcover step needs
+   * real ids to link against. Setup stays incomplete until the version stamp
+   * on Finish, so a failure here brings the wizard back rather than stranding
+   * a library with no readers.
    */
-  async function finish() {
-    // Let someone who typed a name and pressed Finish keep that name.
+  async function continueFromReaders() {
+    // Let someone who typed a name and pressed Continue keep that name.
     const all = name.trim() ? addReader() : readers;
     if (all === null) return; // the name in the field is blank or a duplicate
     if (all.length === 0 && locked.length === 0) {
@@ -164,12 +174,6 @@ export function SetupWizard({
         done.push(await createUser({ name: reader.name, color: reader.color }));
         pending.shift();
       }
-      setSaved(
-        await savePreferences({
-          [PREF_KEYS.calibreServerUrl]: url.trim().replace(/\/+$/, ""),
-          [PREF_KEYS.version]: String(PREFERENCES_VERSION),
-        }),
-      );
       setStep(3);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -178,6 +182,36 @@ export function SetupWizard({
       // twice, so they move to the locked list and leave the drafts behind.
       setCreated(done);
       setReaders(pending);
+      setSaving(false);
+    }
+  }
+
+  /** Linking or unlinking on the Hardcover step comes back as a whole reader. */
+  function userUpdated(user: User) {
+    const swap = (list: User[]) => list.map((u) => (u.id === user.id ? user : u));
+    setExisting(swap);
+    setCreated(swap);
+  }
+
+  /**
+   * The last write: the content server URL and the version stamp that marks
+   * setup complete. Saving a changed URL is also what starts the first sync —
+   * the server re-arms and syncs immediately when it changes.
+   */
+  async function finish() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      setSaved(
+        await savePreferences({
+          [PREF_KEYS.calibreServerUrl]: url.trim().replace(/\/+$/, ""),
+          [PREF_KEYS.version]: String(PREFERENCES_VERSION),
+        }),
+      );
+      setStep(4);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
       setSaving(false);
     }
   }
@@ -296,6 +330,22 @@ export function SetupWizard({
         )}
 
         {step === 3 && (
+          <>
+            <StepHeader
+              icon={<Globe size={18} />}
+              title="Link Hardcover"
+              description="Optional — connect each reader's own hardcover.app account to bring their shelves and ratings across. Anyone skipped can link later in settings."
+            />
+            <div className="grid gap-3">
+              {locked.map((user) => (
+                <HardcoverAccountCard key={user.id} user={user} onChange={userUpdated} />
+              ))}
+            </div>
+            {saveError && <p className="text-destructive text-sm">{saveError}</p>}
+          </>
+        )}
+
+        {step === 4 && (
           <DoneStep bookCount={test?.ok ? test.bookCount : undefined} readers={locked} />
         )}
 
@@ -303,7 +353,7 @@ export function SetupWizard({
           <StepRail step={step} />
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            {step === 1 || step === 2 ? (
+            {step >= 1 && step <= 3 ? (
               <Button variant="ghost" onClick={() => setStep((step - 1) as Step)} disabled={saving}>
                 <ArrowLeft />
                 Back
@@ -334,16 +384,23 @@ export function SetupWizard({
 
             {step === 2 && (
               <Button
-                onClick={() => void finish()}
+                onClick={() => void continueFromReaders()}
                 disabled={saving || (readers.length === 0 && !name.trim() && locked.length === 0)}
               >
+                {saving && <Loader2 className="animate-spin" />}
+                Continue
+              </Button>
+            )}
+
+            {step === 3 && (
+              <Button onClick={() => void finish()} disabled={saving}>
                 {saving && <Loader2 className="animate-spin" />}
                 Finish
               </Button>
             )}
 
-            {step === 3 && (
-              <Button onClick={() => onFinished({ preferences: saved, users: created })}>
+            {step === 4 && (
+              <Button onClick={() => onFinished({ preferences: saved, users: locked })}>
                 Open library
               </Button>
             )}
@@ -452,7 +509,7 @@ function DoneStep({ bookCount, readers }: { bookCount?: number; readers: User[] 
         <DialogDescription>
           {bookCount === undefined
             ? "Start the content server and your books will appear."
-            : `${bookCount.toLocaleString()} books found.`}
+            : `${bookCount.toLocaleString()} books found — the first sync is already running.`}
         </DialogDescription>
       </DialogHeader>
 

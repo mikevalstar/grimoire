@@ -89,12 +89,14 @@ function migrate(db: Database): void {
   addColumn(db, "users", "hardcover_sync_error", "TEXT");
   // Where this reader's stars live — 'local' or 'hardcover' (ADR 0014). The
   // first per-reader preference; a column rather than a preferences row because
-  // the API needs it on every rating write.
-  addColumn(db, "users", "ratings_source", "TEXT NOT NULL DEFAULT 'local'");
-  // Same choice for read state (docs/features/marking-a-book-read.md).
-  // Defaulted to hardcover — unlike ratings there was no local store to stay
-  // loyal to — but it only takes effect for a linked reader; everyone else is
-  // local regardless.
+  // the API needs it on every rating write. Defaulted to hardcover like read
+  // state, but only a fresh database sees this default — one migrated before
+  // the flip keeps DEFAULT 'local', so reader creation sets the value
+  // explicitly (users.ts).
+  addColumn(db, "users", "ratings_source", "TEXT NOT NULL DEFAULT 'hardcover'");
+  // Same choice for read state (docs/features/marking-a-book-read.md). Both
+  // sources only take effect for a linked reader; everyone else is local
+  // regardless.
   addColumn(db, "users", "read_state_source", "TEXT NOT NULL DEFAULT 'hardcover'");
 
   // A verbatim mirror of hardcover.app, split the way the Calibre mirror is:

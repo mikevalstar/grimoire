@@ -8,8 +8,10 @@
  *
  * 2 — the setup wizard gained a "who's reading" step
  *     (docs/features/first-run-setup-wizard.md).
+ * 3 — the wizard gained an optional per-reader Hardcover step
+ *     (docs/features/hardcover-connection.md).
  */
-export const PREFERENCES_VERSION = 2;
+export const PREFERENCES_VERSION = 3;
 
 export const PREF_KEYS = {
   version: "preferences.version",

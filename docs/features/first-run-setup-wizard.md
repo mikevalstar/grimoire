@@ -1,8 +1,8 @@
 ---
 type: feature
 title: First-run setup wizard
-description: The welcome flow shown the first time Grimoire opens — introduce the app, connect the Calibre content server, and add the people who will read from this library.
-tags: [frontend, ui, onboarding, users, configuration]
+description: The welcome flow shown the first time Grimoire opens — introduce the app, connect the Calibre content server, add the people who will read from this library, and optionally link each of them to their hardcover.app account.
+tags: [frontend, ui, onboarding, users, configuration, hardcover]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-11 }
 ---
@@ -12,9 +12,10 @@ generated: { by: okq/0.8.0, at: 2026-08-11 }
 ## Summary
 
 The first time Grimoire opens it takes over the window with a short, stepped
-wizard: a welcome, the Calibre content server connection, and the readers who
-share this library. When it finishes, preferences are saved, the readers exist
-in `grimoire.db`, and the app is usable.
+wizard: a welcome, the Calibre content server connection, the readers who share
+this library, and — optionally — each reader's own hardcover.app account. When
+it finishes, preferences are saved, the readers exist in `grimoire.db`, any
+Hardcover links are stored, and the first library sync is already running.
 
 This is **not** the [settings dialog](settings.md). The wizard runs once, asks
 only for what is needed to start, and is written to welcome someone who has just
@@ -36,7 +37,7 @@ asks for a URL.
 
 ## Behavior
 
-Four steps in one non-dismissable modal, with a visible position indicator and a
+Five steps in one non-dismissable modal, with a visible position indicator and a
 **Back** that returns to any earlier step with the answers intact. There is no
 Escape, no click-outside and no close button — leaving mid-setup would land on
 an app that cannot render. Copy stays short and plain throughout; this is a
@@ -58,9 +59,9 @@ first one nobody has taken, so a household that just presses Enter four times
 still gets four distinguishable people. A first run cannot finish with no
 readers; a re-run can, since last time's readers are already there.
 
-Readers are held in local state and written only when the wizard finishes, so
-backing out leaves no half-made people. Anyone already in the database is listed
-but locked, and a retry creates only the ones still missing.
+Readers are held as removable drafts and written when the step is left with
+**Continue**, because the next step needs them to exist. Anyone already in the
+database is listed but locked, and a retry creates only the ones still missing.
 
 **Reader colours are their own plane.** The shell's rule — indigo marks what is
 yours, amber is reserved for other readers' data
@@ -68,15 +69,28 @@ yours, amber is reserved for other readers' data
 colour identifies a *person* and only ever appears on their avatar or chip; it
 never colours a rating, a progress bar or a selection.
 
-**4 — You're all set.** A confirmation rather than a form: the book count found,
-the readers as chips, and **Open library**. The first reader created becomes the
-current user — a per-device convenience, not a credential — so the header avatar
-shows a real person immediately.
+**4 — Link Hardcover.** Optional, and says so. One card per reader — the same
+card [settings](settings.md) shows in its Hardcover section, because the token
+is a person, not a setting
+([ADR 0012](../adrs/0012-hardcover-as-a-second-source-with-per-reader-tokens.md),
+[Hardcover connection](hardcover-connection.md)) — so a household pastes each
+person's token against the right face, and a linked reader can pull their
+shelves in before ever seeing the app. **Finish** works with none, some or all
+readers linked; anyone skipped links later in settings.
 
-**Ordering.** Finishing creates the readers first and stamps the preferences
-version last. If reader creation fails, setup has not been marked complete, so
-the wizard is still there on reload with the error shown against the reader that
-failed.
+**5 — You're all set.** A confirmation rather than a form: the book count found,
+the readers as chips, and **Open library**. The first reader becomes the current
+user — a per-device convenience, not a credential — so the header avatar shows a
+real person immediately.
+
+**Ordering.** The wizard writes in step order: readers when leaving their step,
+Hardcover links as they are made, and the preferences — the content server URL
+and, last of all, the version stamp — on **Finish**. Setup is only marked
+complete by that final stamp, so a failure anywhere earlier brings the wizard
+back on reload with everything already created shown as locked. Saving the URL
+is also what starts the first library sync
+([calibre-sync](calibre-sync.md)): the server re-arms and syncs immediately when
+the stored URL changes, so the shelf is filling by the time the library opens.
 
 ### Re-running the wizard
 
@@ -110,28 +124,33 @@ a duplicate name is refused. Adding a reader later happens in
 
 - [x] The wizard gates the whole app until preferences are current, and cannot
       be dismissed.
-- [x] Four steps — welcome, Calibre, readers, done — with a visible position
-      indicator and working Back.
+- [x] Five steps — welcome, Calibre, readers, Hardcover, done — with a visible
+      position indicator and working Back.
 - [x] Continue tests an untested URL, and a failed probe warns without trapping
       the user.
-- [x] A first run cannot finish with no readers; names are trimmed,
-      length-capped and rejected as duplicates case-insensitively.
+- [x] A first run cannot leave the readers step with no readers; names are
+      trimmed, length-capped and rejected as duplicates case-insensitively.
 - [x] Colours come from the fixed palette, pre-assigned to the first free one,
       and are stored as ids.
-- [x] Nothing is written until the wizard finishes, and the version stamp is
-      written last.
+- [x] Readers are created on leaving their step; the version stamp is written
+      last, so an interrupted run resumes with created readers locked.
+- [x] The Hardcover step shows the same per-reader card settings does, and
+      Finish works with none, some or all readers linked.
 - [x] The first reader becomes the current user and appears in the header avatar
       in their colour.
+- [x] Finishing starts the first library sync when the content server URL was
+      newly saved.
 - [x] `bun run db:wipe` restores a genuine first-run state.
 - [x] The wizard, the colour picker and the reader avatar each have Storybook
-      stories.
+      stories, including one on the Hardcover step.
 
 ## Open questions
 
 - Readers can be added — here or in [settings](settings.md) — but never renamed
-  or removed, so a typo made during setup survives.
-- Switching the current reader happens in [settings](settings.md); the header
-  avatar shows them but is not itself a picker.
+  or removed, so a typo that survives the draft list survives forever.
+- Switching the current reader happens from the header avatar menu
+  ([application shell](application-shell.md)); the wizard only picks the
+  starting one.
 - Colour uniqueness is not enforced; past the size of the palette it cannot be.
 - Nothing asks whether this instance is shared over a LAN, which is where
   [ADR 0008](../adrs/0008-multiple-users-without-authentication.md)'s "do not

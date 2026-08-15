@@ -56,10 +56,11 @@ export const UserSchema = z.object({
   hardcoverSyncError: z.string().nullable().default(null),
   /**
    * Where this reader's stars live (ADR 0014): their own `ratings` rows, or
-   * their Hardcover account. Defaulted so a response from an older server
-   * still parses; anything unrecognised reads as local.
+   * their Hardcover account. Defaulted to hardcover like read state below —
+   * and like it, only taking effect for a linked reader; everyone else reads
+   * and writes locally regardless.
    */
-  ratingsSource: z.enum(["local", "hardcover"]).catch("local").default("local"),
+  ratingsSource: z.enum(["local", "hardcover"]).catch("hardcover").default("hardcover"),
   /**
    * Same choice for read state (docs/features/marking-a-book-read.md).
    * Defaulted to hardcover, but it only takes effect for a linked reader —
