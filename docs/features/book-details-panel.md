@@ -82,8 +82,42 @@ Its contents, in order:
 - **Details** — publisher, published, added, languages, pages, formats, and any
   identifiers (ISBN and friends). A field Grimoire has no value for is left out
   rather than shown as a dash; the panel is not a form.
-- **Tags** — Calibre's, as plain chips. They are not filters yet.
+- **Tags** — as plain chips. They are not filters yet.
+- **Moods** — Hardcover's mood tags, when there are any and the switch is on.
 - **About** — the description.
+
+### Hardcover's writing about the book
+
+Three of the sections above — About, Tags and Moods — can come from
+[Hardcover](hardcover-sync.md) instead of Calibre. Which ones is answered once,
+instance-wide, by three switches in [settings](settings.md); all three are on by
+default.
+
+Where a switch is on, the panel asks Hardcover **live** when it opens, with the
+current reader's token, for exactly the book the panel is showing — the same
+bargain the reading history strikes: one request for an open panel is cheaper
+than widening every shelf sync, and it is current at the moment somebody is
+looking. Nothing fetched this way is written into the mirror.
+
+Anything that does not arrive falls back: a book with no Hardcover side, a
+reader with no linked account, an unanswered or failed request, or a switch that
+is off, all leave Calibre's description and tags exactly as they were. Moods
+have no Calibre equivalent, so their section is simply absent.
+
+Tags and moods are separate on purpose. Hardcover files its tags under four
+categories — Genre, Tag, Mood and Content Warning — and folding moods
+("emotional", "slow-paced") into the same chip row as genres reads as noise.
+Grimoire shows Genre and Tag as **Tags**, Mood as **Moods**, and leaves content
+warnings alone until there is a decision about how to present them.
+
+**Their description is text, not markup either.** Hardcover's `description` is
+plain text as often as not — paragraphs separated by newlines — with the
+occasional publisher blurb that arrived as HTML. It goes through the same
+renderer Calibre's comments do: tags stripped, block boundaries and blank lines
+become paragraph breaks, entities decoded by parsing in a detached document. So
+neither source can inject markup, and one code path covers both. No Markdown has
+been seen from them; if it ever is, this is the place to decide whether it is
+worth a renderer.
 
 ### Choosing a cover
 
@@ -151,7 +185,11 @@ that puts filters and sorting in the URL.
       value for.
 - [x] The rating in the panel is the same reader-scoped control as on the shelf,
       and setting it there updates the card behind it.
-- [x] The description renders as text; stored HTML is never injected.
+- [x] The description renders as text; stored HTML is never injected — from
+      Calibre or from Hardcover.
+- [x] With the switches on, a book Hardcover knows shows their about, tags and
+      moods; with them off, or for a book or reader Hardcover has nothing for,
+      the panel shows Calibre's and no moods section.
 - [x] A book with no Calibre id offers no download and says why.
 - [x] Escape, the close button and the scrim all close it, and focus returns to
       whatever opened it.
@@ -177,6 +215,12 @@ cached file) and `coverBookId` (the one being shown).
 404 for a book that is not a member of the work or has no cover. Both payloads
 are shared Zod schemas
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
+
+`GET /api/books/:id/hardcover` is reader-scoped and answers with one book's
+Hardcover description, tags and moods, read live from their API and never
+stored. A book with no Hardcover side, or a reader with no linked account,
+answers with empties rather than an error — the panel has something to fall back
+to either way.
 
 `GET /api/books/:id/read-dates/hardcover` is reader-scoped and resolves the
 work to that reader's Hardcover shelf entry, then asks Hardcover for its full

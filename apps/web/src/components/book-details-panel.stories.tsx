@@ -61,6 +61,28 @@ export const LoadingReadDates: Story = {
   args: { readDatesPending: true },
 };
 
+/**
+ * The three sections Hardcover can supply instead of Calibre
+ * (docs/features/book-details-panel.md). Their description arrives as plain
+ * text with CRLF paragraph breaks, which is the case worth having a story for —
+ * it renders as paragraphs, not one block.
+ */
+export const FromHardcover: Story = {
+  args: {
+    hardcover: {
+      about:
+        "Two and a half millennia ago, the artifact appeared in a remote corner of space, beside a trillion-year-old dying sun from a different universe.\r\n\r\nIt was a perfect black-body sphere, and it did nothing. Then it disappeared.",
+      tags: ["Science Fiction", "Space Opera", "Diverse Characters"],
+      moods: ["adventurous", "reflective", "tense"],
+    },
+  },
+};
+
+/** Moods alone, with about and tags switched back to Calibre's. */
+export const MoodsOnly: Story = {
+  args: { hardcover: { moods: ["hopeful", "mysterious", "slow-paced"] } },
+};
+
 export const Light: Story = { globals: { theme: "light" } };
 
 /** Given `onRate`, the stars commit — and here they start visible rather than on hover. */

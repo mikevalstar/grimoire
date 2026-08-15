@@ -81,6 +81,14 @@ The whole `user_books` entry is kept in a `raw` column as well, the same bet
 and keeping the payload means adding a field later is a re-derive rather than a
 re-sync of everyone's account.
 
+**Two things are read live rather than mirrored**: a book's reading history,
+and the writing about a book the
+[details panel](book-details-panel.md) can show in place of Calibre's —
+description, tags and moods. Both are asked for only when a panel is open, so
+they are current when somebody is looking without making every sweep wider, and
+neither is written back into the mirror. The mirror's own `description` and
+`tags` columns stay what reconcile uses.
+
 **Hardcover ratings do not become Grimoire ratings.** They land in the mirror and
 stop there. Stars in Grimoire are the reader's own verdict recorded here
 ([rating a book](rating-a-book.md)); silently importing another service's would

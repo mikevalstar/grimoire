@@ -1,7 +1,7 @@
 import { nextUserColor, USER_NAME_MAX_LENGTH, type UserColorId } from "@grimoire/core/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Globe, Loader2, Plus, Server, Users } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CalibreTestResult } from "@/components/calibre-test-result";
 import { DuplicateQueue } from "@/components/duplicate-queue";
 import { HardcoverAccountCard } from "@/components/hardcover-account-card";
@@ -18,11 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { UserAvatar } from "@/components/user-avatar";
 import { UserColorPicker } from "@/components/user-color-picker";
 import {
   type CalibreServerTest,
   createUser,
+  hardcoverContentPrefs,
   type MatchOutcome,
   matchBooks,
   PREF_KEYS,
@@ -363,7 +365,100 @@ function HardcoverPane() {
           <HardcoverAccountCard key={user.id} user={user} onChange={onUpdated} />
         ))}
       </div>
+      <BookContentSettings />
     </div>
+  );
+}
+
+/**
+ * Which of Hardcover's writing about a book the details panel shows instead of
+ * Calibre's (docs/features/book-details-panel.md). One answer for the whole
+ * instance, unlike the source toggles on the cards above: these say what a
+ * *book* looks like, not whose account an answer comes from. All three are on
+ * where nothing was ever saved, so an existing library gets them without being
+ * asked anything.
+ */
+function BookContentSettings() {
+  const queryClient = useQueryClient();
+  const { data: preferences } = useQuery(preferencesQuery);
+  const prefs = hardcoverContentPrefs(preferences);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const aboutId = useId();
+  const tagsId = useId();
+  const moodsId = useId();
+
+  async function save(key: string, on: boolean) {
+    setSaving(true);
+    setError(null);
+    try {
+      queryClient.setQueryData(
+        preferencesQuery.queryKey,
+        await savePreferences({ [key]: String(on) }),
+      );
+      // The panel reads these live per open book, so what's cached under the
+      // old answer is what has to go.
+      void queryClient.invalidateQueries({ queryKey: ["hardcover-content"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const rows: { id: string; key: string; title: string; description: string; on: boolean }[] = [
+    {
+      id: aboutId,
+      key: PREF_KEYS.hardcoverAbout,
+      title: "About",
+      description: "Hardcover's description of a book, instead of Calibre's comments.",
+      on: prefs.about,
+    },
+    {
+      id: tagsId,
+      key: PREF_KEYS.hardcoverTags,
+      title: "Tags",
+      description: "Their genres and tags, instead of Calibre's.",
+      on: prefs.tags,
+    },
+    {
+      id: moodsId,
+      key: PREF_KEYS.hardcoverMoods,
+      title: "Moods",
+      description: "How their readers say a book felt. Calibre has nothing like it.",
+      on: prefs.moods,
+    },
+  ];
+
+  return (
+    <section className="border-line grid gap-3 border-t pt-4">
+      <div className="grid gap-0.5">
+        <h4 className="text-[13px] font-semibold">Book content from Hardcover</h4>
+        <p className="text-muted-foreground text-[11px]">
+          What the details panel shows for a book Hardcover also knows. Fetched with the reading
+          reader's token, so a reader with no linked account sees Calibre's.
+        </p>
+      </div>
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-start justify-between gap-4">
+          <div className="grid gap-0.5">
+            <Label htmlFor={row.id} className="text-[13px]">
+              {row.title}
+            </Label>
+            <p className="text-muted-foreground text-[11px]">{row.description}</p>
+          </div>
+          <Switch
+            id={row.id}
+            checked={row.on}
+            disabled={saving}
+            onCheckedChange={(checked) => void save(row.key, checked)}
+          />
+        </div>
+      ))}
+      {error && <p className="text-destructive text-[11px]">{error}</p>}
+    </section>
   );
 }
 

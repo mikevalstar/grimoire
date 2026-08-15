@@ -5,13 +5,22 @@ import { BookLibrary } from "@/components/book-library";
 import { HardcoverFindDialog, type PendingFind } from "@/components/hardcover-find-dialog";
 import { HardcoverShelveDialog, type PendingShelve } from "@/components/hardcover-shelve-dialog";
 import { type PendingReadState, ReadStateDialog } from "@/components/read-state-dialog";
-import { BOOK_SOURCE, bookIsRead, bookRating, type LibraryBook, searchHardcover } from "@/lib/api";
+import {
+  BOOK_SOURCE,
+  bookIsRead,
+  bookRating,
+  hardcoverContentPrefs,
+  type LibraryBook,
+  searchHardcover,
+} from "@/lib/api";
 import { useCurrentUser } from "@/lib/current-user";
 import { useOpenBookId } from "@/lib/open-book";
 import {
   booksQuery,
+  hardcoverContentQuery,
   hardcoverRatingsQuery,
   hardcoverReadDatesQuery,
+  preferencesQuery,
   ratingsQuery,
   readStatesQuery,
   useChooseCover,
@@ -81,6 +90,27 @@ function LibraryScreen() {
       : localFinishedAt
         ? [localFinishedAt]
         : [];
+
+  // Which of Hardcover's writing about a book to prefer over Calibre's is one
+  // instance-wide answer, not a per-reader one (docs/features/settings.md) —
+  // but it is fetched with the reading reader's token, so a reader with no
+  // linked account keeps Calibre's whatever the switches say. Only asked for
+  // books Hardcover actually has a side of.
+  const { data: preferences } = useQuery(preferencesQuery);
+  const contentPrefs = hardcoverContentPrefs(preferences);
+  const wantsHardcoverContent =
+    (contentPrefs.about || contentPrefs.tags || contentPrefs.moods) &&
+    Boolean(currentUser?.hardcoverUsername) &&
+    Boolean(openBook?.sources.includes(BOOK_SOURCE.hardcover));
+  const contentQuery = useQuery(
+    hardcoverContentQuery(currentUser?.id, openBookId, wantsHardcoverContent),
+  );
+  const content = contentQuery.data;
+  const openBookHardcover = {
+    about: contentPrefs.about ? content?.about : undefined,
+    tags: contentPrefs.tags ? content?.tags : undefined,
+    moods: contentPrefs.moods ? content?.moods : undefined,
+  };
 
   const queryClient = useQueryClient();
   const rate = useRateBook(currentUser?.id, source);
@@ -189,6 +219,7 @@ function LibraryScreen() {
         openBookReadDates={openBookReadDates}
         readDatesPending={readSource === "hardcover" && openBookIsRead && readDatesQuery.isFetching}
         readDatesError={readSource === "hardcover" && openBookIsRead ? readDatesQuery.error : null}
+        openBookHardcover={openBookHardcover}
         onChooseCover={(book, bookId) => chooseCover.mutate({ workId: book.id, bookId })}
       />
 

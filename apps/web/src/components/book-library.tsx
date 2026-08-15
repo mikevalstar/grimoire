@@ -1,6 +1,6 @@
 import { fold } from "@grimoire/core/matching";
 import { useMemo, useState } from "react";
-import { BookDetailsPanel } from "@/components/book-details-panel";
+import { BookDetailsPanel, type HardcoverContentProps } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { GroupMenu, SortMenu } from "@/components/library-order-menus";
@@ -45,6 +45,12 @@ export interface BookLibraryProps {
    * cover stack (docs/features/book-details-panel.md).
    */
   onChooseCover?: (book: LibraryBook, bookId: number) => void;
+  /**
+   * Hardcover's about, tags and moods for the open book, where the instance
+   * asked for them (docs/features/book-details-panel.md). The panel falls back
+   * to Calibre's for anything missing.
+   */
+  openBookHardcover?: HardcoverContentProps;
 }
 
 /**
@@ -67,6 +73,7 @@ export function BookLibrary({
   readDatesPending,
   readDatesError,
   onChooseCover,
+  openBookHardcover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
   const [order, setOrder] = useLibraryOrder();
@@ -211,6 +218,7 @@ export function BookLibrary({
         readDates={openBookReadDates}
         readDatesPending={readDatesPending}
         readDatesError={readDatesError}
+        hardcover={openBookHardcover}
         sameBook={{
           duplicates,
           // A candidate names a work; the shelf already holds every one — which

@@ -549,6 +549,25 @@ export async function searchHardcoverBooks(token: string, query: string): Promis
 }
 
 /**
+ * One catalogue book by its id, read live — what an open details panel asks
+ * for when it wants Hardcover's description, tags or moods
+ * (docs/features/book-details-panel.md). The same hydrate query the finder
+ * uses, with one id: it already carries every field this needs.
+ * Null when Hardcover doesn't answer with the book; the panel falls back to
+ * Calibre, which is a better outcome than an error on a read-out.
+ */
+export async function fetchHardcoverBook(token: string, bookId: number): Promise<HcBook | null> {
+  const result = await hardcoverQuery(
+    token,
+    BOOKS_BY_IDS_QUERY,
+    { ids: [bookId] },
+    HcBooksResponseSchema,
+  );
+  if (!result.ok) throw new HardcoverError(result.error);
+  return result.data.data?.books?.[0] ?? null;
+}
+
+/**
  * One shelf entry by its id — fetched right after `insertUserBook` so the
  * mirror can hold the full row without waiting for the next sweep. Null when
  * Hardcover doesn't answer with it, which the caller treats as "the next sync

@@ -45,6 +45,24 @@ export interface BookDetailsPanelProps {
    * Omitted — or with nothing to say — the section isn't drawn at all.
    */
   sameBook?: SameBookProps;
+  /**
+   * What Hardcover has written about this book, for the parts of the panel
+   * the reader chose to take from there (docs/features/book-details-panel.md).
+   * Anything absent falls back to Calibre's — including the whole prop, which
+   * is what a book Hardcover knows nothing about looks like.
+   */
+  hardcover?: HardcoverContentProps;
+}
+
+/**
+ * Hardcover's about, tags and moods — each present only when its instance-wide
+ * switch is on *and* Hardcover answered with something. Moods have no Calibre
+ * equivalent, so an empty list means no section rather than a fallback.
+ */
+export interface HardcoverContentProps {
+  about?: string | null;
+  tags?: string[];
+  moods?: string[];
 }
 
 /**
@@ -84,6 +102,7 @@ export function BookDetailsPanel({
   readDatesPending = false,
   readDatesError,
   sameBook,
+  hardcover,
 }: BookDetailsPanelProps) {
   // The sheet slides out over a few hundred milliseconds, by which time the
   // caller has already cleared its selection — so keep the last book around to
@@ -104,10 +123,17 @@ export function BookDetailsPanel({
   const search = sameBook?.search;
   const onLinkWork = sameBook?.onLinkWork;
 
+  // Hardcover's blurb where the reader asked for it and there is one, and
+  // Calibre's otherwise. Both go through the same renderer — neither source's
+  // markup is ever injected (docs/features/book-details-panel.md).
+  const description = hardcover?.about || shown?.description;
   const paragraphs = useMemo(
-    () => (shown?.description ? descriptionParagraphs(shown.description) : []),
-    [shown?.description],
+    () => (description ? descriptionParagraphs(description) : []),
+    [description],
   );
+
+  const tags = hardcover?.tags?.length ? hardcover.tags : (shown?.tags ?? []);
+  const moods = hardcover?.moods ?? [];
 
   return (
     <Sheet open={book !== null} onOpenChange={(open) => !open && onClose()}>
@@ -270,18 +296,17 @@ export function BookDetailsPanel({
                     </dl>
                   </Section>
 
-                  {shown.tags.length > 0 && (
+                  {tags.length > 0 && (
                     <Section title="Tags">
-                      <div className="flex flex-wrap gap-1.5">
-                        {shown.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                      <Chips values={tags} />
+                    </Section>
+                  )}
+
+                  {/* Hardcover's alone: what a book felt like to read is
+                      something Calibre has no field for. */}
+                  {moods.length > 0 && (
+                    <Section title="Moods">
+                      <Chips values={moods} />
                     </Section>
                   )}
 
@@ -321,6 +346,22 @@ export function BookDetailsPanel({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** A row of metadata chips — tags, moods, anything else that is a word list. */
+function Chips({ values }: { values: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {values.map((value) => (
+        <span
+          key={value}
+          className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
+        >
+          {value}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -389,15 +430,20 @@ function identifierLabel(scheme: string): string {
 /**
  * A description as paragraphs of plain text.
  *
- * Calibre stores comments as HTML and Grimoire mirrors it verbatim, but the
- * panel never injects it: tags are stripped and block boundaries become
- * paragraph breaks. Rendering a library's stored markup for the sake of italics
- * is a hole, and a sanitizer is a dependency this doesn't need. Entities are
- * decoded by parsing the stripped text in a detached document — which runs
- * nothing, since it is never attached.
+ * Calibre stores comments as HTML and Grimoire mirrors it verbatim; Hardcover's
+ * is usually plain text with newlines and occasionally HTML. Neither is ever
+ * injected: tags are stripped and block boundaries become paragraph breaks.
+ * Rendering a library's stored markup for the sake of italics is a hole, and a
+ * sanitizer is a dependency this doesn't need. Entities are decoded by parsing
+ * the stripped text in a detached document — which runs nothing, since it is
+ * never attached.
  */
 function descriptionParagraphs(html: string): string[] {
   const text = html
+    // CRLF is how Hardcover's plain-text blurbs arrive, and a blank line
+    // between two of their paragraphs is \r\n\r\n — which the split below
+    // would otherwise miss, running the whole blurb into one paragraph.
+    .replace(/\r\n?/g, "\n")
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/\s*(p|div|li|tr|h[1-6]|blockquote)\s*>/gi, "\n\n")
     .replace(/<[^>]*>/g, "");
