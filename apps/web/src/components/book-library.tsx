@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BookDetailsPanel } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
+import { GroupMenu, SortMenu } from "@/components/library-order-menus";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
   type Ratings,
 } from "@/lib/api";
 import { searchBooks } from "@/lib/book-search";
+import { orderLibrary, useLibraryOrder } from "@/lib/library-order";
 import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
 
@@ -56,6 +58,19 @@ export function BookLibrary({
   onChooseCover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
+  const [order, setOrder] = useLibraryOrder();
+
+  // The shelf as held: sorted, and split into sections when grouped
+  // (docs/features/library-sort-and-group.md). Rating and read state are
+  // per-reader, so the order recomputes when either map changes hands.
+  const sections = useMemo(
+    () =>
+      orderLibrary(books ?? [], order, {
+        rating: (book) => bookRating(book, ratings),
+        isRead,
+      }),
+    [books, order, ratings, isRead],
+  );
 
   // Which book the details panel is showing, by id rather than by value, so a
   // refetch behind the panel updates it instead of pinning a stale copy — and
@@ -75,7 +90,13 @@ export function BookLibrary({
         bookCount={error ? undefined : books?.length}
         view={view}
         onViewChange={setView}
-      />
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SortMenu order={order} onOrder={setOrder} />
+          {/* Read-status grouping means nothing until someone's marks exist. */}
+          <GroupMenu order={order} onOrder={setOrder} readStatusAvailable={isRead !== undefined} />
+        </div>
+      </LibraryToolbar>
 
       {/* A hovered card spills outside its own box — a 2px ring and the indigo
           glow — and the scroll box clips anything past its edge, which shaved
@@ -96,7 +117,7 @@ export function BookLibrary({
           <LibraryEmpty />
         ) : view === "covers" ? (
           <BookGrid
-            books={books}
+            sections={sections}
             ratings={ratings}
             onRate={onRate}
             ratable={ratable}
@@ -106,7 +127,7 @@ export function BookLibrary({
           />
         ) : (
           <BookTable
-            books={books}
+            sections={sections}
             ratings={ratings}
             onRate={onRate}
             ratable={ratable}

@@ -135,9 +135,10 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   [matching](book-matching.md) can't tell they are the same book, in which case
   it is two, and stays two until manual resolution exists.
 
-- **Filters and sorting.** The toolbar's empty region and the fixed sort are
-  placeholders. Sorting probably belongs to the same feature as filtering, with
-  the table's column headers as a second entry point.
+- **Filters and sorting.** The toolbar's reserved region is being filled left
+  to right: [sort and group](library-sort-and-group.md) landed first; filter
+  pills are still to come, with the table's column headers as a second sort
+  entry point.
 - **Scale.** The whole library is returned in one pass and rendered without
   virtualization — fine for a few thousand books, not for a hundred thousand.
   Paging or windowing is the same decision as whether filtering happens on the

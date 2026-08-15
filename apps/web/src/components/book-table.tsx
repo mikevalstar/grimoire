@@ -1,13 +1,16 @@
+import { Fragment } from "react";
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
 import { BookMarks } from "@/components/book-marks";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bookRating, type HardcoverRatings, type LibraryBook, type Ratings } from "@/lib/api";
+import type { BookSection } from "@/lib/library-order";
 import { cn } from "@/lib/utils";
 
 export interface BookTableProps {
-  books: LibraryBook[];
+  /** The shelf in labelled runs — a single null-labelled section draws no headers. See BookGrid. */
+  sections: BookSection[];
   /** Opening a book. Rows are only clickable when this is given — see BookGrid. */
   onOpen?: (book: LibraryBook) => void;
   /** The reader's own ratings, which stand in front of Calibre's. */
@@ -30,7 +33,14 @@ const TH =
   "bg-background/95 text-muted-foreground sticky top-0 z-10 border-line border-b px-3 py-2 text-left text-[10px] font-semibold tracking-[0.08em] uppercase backdrop-blur";
 
 /** The dense view: one row per book, columns fixed until a column picker exists. */
-export function BookTable({ books, onOpen, ratings, onRate, ratable, className }: BookTableProps) {
+export function BookTable({
+  sections,
+  onOpen,
+  ratings,
+  onRate,
+  ratable,
+  className,
+}: BookTableProps) {
   return (
     <table className={cn("w-full min-w-[720px] border-collapse text-[13px]", className)}>
       <thead>
@@ -50,77 +60,100 @@ export function BookTable({ books, onOpen, ratings, onRate, ratable, className }
         </tr>
       </thead>
       <tbody>
-        {books.map((book) => (
-          <tr
-            key={book.id}
-            onClick={onOpen ? () => onOpen(book) : undefined}
-            className={cn(
-              "group/book border-line/60 hover:bg-fill border-b transition-colors",
-              onOpen && "cursor-pointer",
-            )}
-          >
-            <td className="py-1.5 pr-3 pl-3">
-              <BookCover book={book} width={28} className="w-7 rounded-[3px]" />
-            </td>
-            <td className="text-foreground max-w-[420px] px-3 py-1.5 font-medium">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate">{book.title}</span>
-                {/* Beside the title rather than over the thumbnail: a 28px
-                    cover has no corner to put a mark in. */}
-                <BookMarks book={book} className="shrink-0" />
-              </span>
-            </td>
-            <td className="text-muted-foreground max-w-[220px] truncate px-3 py-1.5">
-              {book.authors.length > 0 ? book.authors.join(", ") : "—"}
-            </td>
-            <td className="text-muted-foreground max-w-[200px] truncate px-3 py-1.5">
-              {book.series ? (
-                <>
-                  {book.series}
-                  {book.seriesIndex !== null && (
-                    <span className="text-muted-foreground/60"> #{book.seriesIndex}</span>
-                  )}
-                </>
-              ) : (
-                "—"
-              )}
-            </td>
-            {/* The stars stop their own clicks reaching the row, so rating a
-                book never also opens it. */}
-            <td className="px-3 py-1.5">
-              {onRate && (ratable?.(book) ?? true) ? (
-                <StarRating
-                  value={bookRating(book, ratings)}
-                  onRate={(rating) => onRate(book, rating)}
-                  label={book.title}
-                />
-              ) : bookRating(book, ratings) > 0 ? (
-                <StarRating value={bookRating(book, ratings)} />
-              ) : (
-                <span className="text-muted-foreground/50">—</span>
-              )}
-            </td>
-            <td className="px-3 py-1.5">
-              <span className="flex gap-1">
-                {book.formats.length === 0 && <span className="text-muted-foreground/50">—</span>}
-                {book.formats.map((format) => (
-                  <span
-                    key={format}
-                    className="border-line bg-fill text-muted-foreground rounded border px-1 py-px text-[9px] font-semibold tracking-wide"
-                  >
-                    {format}
+        {sections.map((section) => (
+          <Fragment key={section.label ?? ""}>
+            {section.label !== null && (
+              <tr>
+                {/* One cell across every column — under the sticky header, so
+                    it scrolls with its own books rather than fighting it. */}
+                <td colSpan={8} className="px-3 pt-4 pb-1.5">
+                  <span className="flex items-center gap-3">
+                    <h2 className="text-foreground/80 text-[11px] font-semibold tracking-[0.08em] uppercase">
+                      {section.label}
+                    </h2>
+                    <span className="text-muted-foreground text-[10px] tabular-nums">
+                      {section.books.length}
+                    </span>
+                    <span aria-hidden="true" className="border-line flex-1 border-t" />
                   </span>
-                ))}
-              </span>
-            </td>
-            <td className="text-muted-foreground px-3 py-1.5 text-xs whitespace-nowrap tabular-nums">
-              {formatDate(book.added)}
-            </td>
-            {/* Always this wide, empty or not, so rows don't shift as the pointer moves down. */}
-            <td className="w-12 px-3 py-1.5">
-              <BookDownloadButton book={book} className="size-6 rounded-md" />
-            </td>
-          </tr>
+                </td>
+              </tr>
+            )}
+            {section.books.map((book) => (
+              <tr
+                key={book.id}
+                onClick={onOpen ? () => onOpen(book) : undefined}
+                className={cn(
+                  "group/book border-line/60 hover:bg-fill border-b transition-colors",
+                  onOpen && "cursor-pointer",
+                )}
+              >
+                <td className="py-1.5 pr-3 pl-3">
+                  <BookCover book={book} width={28} className="w-7 rounded-[3px]" />
+                </td>
+                <td className="text-foreground max-w-[420px] px-3 py-1.5 font-medium">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate">{book.title}</span>
+                    {/* Beside the title rather than over the thumbnail: a 28px
+                    cover has no corner to put a mark in. */}
+                    <BookMarks book={book} className="shrink-0" />
+                  </span>
+                </td>
+                <td className="text-muted-foreground max-w-[220px] truncate px-3 py-1.5">
+                  {book.authors.length > 0 ? book.authors.join(", ") : "—"}
+                </td>
+                <td className="text-muted-foreground max-w-[200px] truncate px-3 py-1.5">
+                  {book.series ? (
+                    <>
+                      {book.series}
+                      {book.seriesIndex !== null && (
+                        <span className="text-muted-foreground/60"> #{book.seriesIndex}</span>
+                      )}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                {/* The stars stop their own clicks reaching the row, so rating a
+                book never also opens it. */}
+                <td className="px-3 py-1.5">
+                  {onRate && (ratable?.(book) ?? true) ? (
+                    <StarRating
+                      value={bookRating(book, ratings)}
+                      onRate={(rating) => onRate(book, rating)}
+                      label={book.title}
+                    />
+                  ) : bookRating(book, ratings) > 0 ? (
+                    <StarRating value={bookRating(book, ratings)} />
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span className="flex gap-1">
+                    {book.formats.length === 0 && (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                    {book.formats.map((format) => (
+                      <span
+                        key={format}
+                        className="border-line bg-fill text-muted-foreground rounded border px-1 py-px text-[9px] font-semibold tracking-wide"
+                      >
+                        {format}
+                      </span>
+                    ))}
+                  </span>
+                </td>
+                <td className="text-muted-foreground px-3 py-1.5 text-xs whitespace-nowrap tabular-nums">
+                  {formatDate(book.added)}
+                </td>
+                {/* Always this wide, empty or not, so rows don't shift as the pointer moves down. */}
+                <td className="w-12 px-3 py-1.5">
+                  <BookDownloadButton book={book} className="size-6 rounded-md" />
+                </td>
+              </tr>
+            ))}
+          </Fragment>
         ))}
       </tbody>
     </table>

@@ -1,0 +1,95 @@
+---
+type: feature
+title: Library sort and group
+description: The filter bar's first two controls — a sort dropdown and a group dropdown that splits either library view into labelled sections.
+tags: [frontend, ui, library]
+status: draft
+generated: { by: okq/0.8.0, at: 2026-08-15 }
+---
+
+# Library sort and group
+
+## Summary
+
+Two dropdowns in the [book list](book-list.md) toolbar's reserved filter
+region: **Sort** reorders the library, **Group** splits it into labelled
+sections. Both apply to whichever view is active and persist per device.
+
+This is the first slice of the filter bar; filter pills (author, tags, status,
+rating…) are later slices of the same row.
+
+## Motivation
+
+The library currently renders in the server's fixed title order. A shelf you
+can't reorder answers only one question; sorting answers "what did I add
+recently?" and "what do I rate highest?", and grouping turns a flat scroll into
+a browsable shelf — all of an author's books together, a series in one place.
+
+Everything happens client-side: the whole library is already in the browser in
+one call ([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md)),
+so ordering it is a pure presentation concern, and the server's title sort
+stays merely a stable default payload order.
+
+## Behavior
+
+**Sort.** One dropdown listing: Title, Author, Series, Date added, Published,
+My rating. Choosing a key sorts with its natural direction — text ascending,
+dates and rating descending — and choosing the active key again flips the
+direction, shown as an arrow on the control. Author sorts by first author;
+Series sorts by series name then series index; books without the key (no
+series, no publication date, unrated) always sort to the end, in both
+directions — "no value" is not "lowest value". "My rating" uses the current
+reader's stars from whichever source they chose
+([rating a book](rating-a-book.md)); with no reader chosen every book is
+unrated and the order falls back to title.
+
+Ties break invisibly, the way a shelf would be read: one author's books
+cluster into their series in reading order (standalones after them), a
+duplicate title keeps each author's copy together, a run of equal ratings
+reads by author, and everything ends at title A→Z. Secondary order never
+flips with the chosen direction — authors Z→A still read each series #1,
+#2, #3.
+
+**Group.** A second dropdown: None, Author, Series, Read status. Grouping
+splits the view into sections, each headed by a label and a count — a header
+row spanning the grid, a full-width row in the table. Sections are ordered by
+their own label (authors and series alphabetically; read status Unread first,
+then Read); the sort order applies *within* each section. Ungrouped leftovers
+("No series") form a final section. Read status uses the current reader's
+marks ([marking a book read](marking-a-book-read.md)); the option is disabled
+until a reader is chosen.
+
+A book can appear in only one section: author groups use the primary (first)
+author, matching how author sort works.
+
+**Persistence.** Per-device in `localStorage` alongside the
+[view choice](book-list.md) — sorting is how *you* hold the shelf, not a fact
+about the library.
+
+**Counts.** The toolbar's book count keeps counting books, not sections.
+
+## Acceptance criteria
+
+- [x] The toolbar's placeholder region is replaced by working Sort and Group
+      dropdowns; both views obey them without refetching.
+- [x] Re-choosing the active sort key flips direction, and the control shows
+      which key and direction are active.
+- [x] Books missing the sorted field land at the end in either direction.
+- [x] Grouping renders labelled, counted section headers in both the cover
+      grid and the table, ordered by section label with the sort applied
+      inside each section.
+- [x] Read-status grouping is disabled with no reader chosen; rating sort
+      degrades to title order rather than erroring.
+- [x] Sort and group choices survive a reload, per device.
+- [x] The dropdowns and grouped views have Storybook stories.
+
+## Open questions
+
+- **Filter pills.** The rest of the bar — author/series/tags/format/rating
+  filters — is unbuilt; this feature only claims the left edge of the row.
+- **Table column headers as a sort entry point.** Clicking a column header
+  should probably set the matching sort key; not wired yet.
+- **Series-aware sort inside author groups.** Sorting *by author* now reads
+  each author's series in order, but grouping by author while sorting by
+  title still interleaves them — the sort is the reader's explicit choice, so
+  it stands. Worth revisiting if it reads badly on real shelves.
