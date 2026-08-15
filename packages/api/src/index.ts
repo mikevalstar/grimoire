@@ -9,18 +9,25 @@ import {
   DuplicateLinkSchema,
   DuplicateUserError,
   defaultDataDir,
+  HardcoverBooksStore,
   HardcoverLinkSchema,
+  HardcoverSearchRequestSchema,
   HardcoverTestRequestSchema,
+  hardcoverAuthors,
+  hardcoverCoverUrl,
   isCoverSize,
   openDatabase,
   PREF_KEYS,
   PreferencesUpdateSchema,
   RatingsStore,
   RatingUpdateSchema,
+  ReadStatesStore,
+  ReadStateUpdateSchema,
   SettingsStore,
   SyncSettingsUpdateSchema,
   USER_HEADER,
   UserCreateSchema,
+  UserSettingsSchema,
   UsersStore,
   WorkSeparateSchema,
   WorksStore,
@@ -29,7 +36,17 @@ import { zValidator } from "@hono/zod-validator";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { probeHardcover } from "./hardcover.ts";
+import {
+  clearReadDates,
+  fetchUserBook,
+  HardcoverError,
+  insertUserBook,
+  markUserBookRead,
+  probeHardcover,
+  searchHardcoverBooks,
+  updateUserBookRating,
+  updateUserBookStatus,
+} from "./hardcover.ts";
 import { HardcoverSync } from "./hardcover-sync.ts";
 import { CalibreSync } from "./sync.ts";
 
@@ -56,6 +73,23 @@ export interface ApiOptions {
 }
 
 const CALIBRE_PROBE_TIMEOUT_MS = 5_000;
+
+/** The year out of Hardcover's `release_date` (ISO-ish), for the finder's rows. */
+function releaseYearOf(releaseDate: string | null | undefined): number | null {
+  const year = Number(releaseDate?.slice(0, 4));
+  return Number.isInteger(year) && year > 0 ? year : null;
+}
+
+/**
+ * The "I don't know" answer: clear the today their action stamps on the read
+ * entry it creates (docs/features/rating-a-book.md). A *known* date rides the
+ * shelve or mark-read write itself and needs no follow-up. Never fatal: by now
+ * the book is shelved, and failing the whole request over its dates would roll
+ * back a write that actually landed.
+ */
+async function clearDefaultReadDates(token: string, userBookId: number): Promise<void> {
+  await clearReadDates(token, userBookId).catch(() => {});
+}
 
 /**
  * zValidator hook: report a schema failure in our usual `{ error }` shape,
@@ -136,14 +170,17 @@ export function createApi(options: ApiOptions = {}) {
   let settings: SettingsStore | null = null;
   let users: UsersStore | null = null;
   let ratings: RatingsStore | null = null;
+  let readStates: ReadStatesStore | null = null;
   let books: BooksStore | null = null;
   let sync: CalibreSync | null = null;
   let hardcover: HardcoverSync | null = null;
+  let hardcoverBooks: HardcoverBooksStore | null = null;
   let works: WorksStore | null = null;
   const getDb = () => (db ??= openDatabase(options.databasePath));
   const getSettings = (): SettingsStore => (settings ??= new SettingsStore(getDb()));
   const getUsers = (): UsersStore => (users ??= new UsersStore(getDb()));
   const getRatings = (): RatingsStore => (ratings ??= new RatingsStore(getDb()));
+  const getReadStates = (): ReadStatesStore => (readStates ??= new ReadStatesStore(getDb()));
   const getBooks = (): BooksStore => (books ??= new BooksStore(getDb()));
 
   const dataDir = options.dataDir ?? defaultDataDir();
@@ -157,6 +194,8 @@ export function createApi(options: ApiOptions = {}) {
     }));
 
   const getHardcoverSync = (): HardcoverSync => (hardcover ??= new HardcoverSync(getDb(), dataDir));
+  const getHardcoverBooks = (): HardcoverBooksStore =>
+    (hardcoverBooks ??= new HardcoverBooksStore(getDb()));
   const getWorks = (): WorksStore => (works ??= new WorksStore(getDb()));
 
   /**
@@ -407,12 +446,38 @@ export function createApi(options: ApiOptions = {}) {
     }
   });
 
+  // A reader's own settings — the rating and read-state sources (ADR 0014,
+  // docs/features/marking-a-book-read.md).
+  app.patch("/api/users/:id", zValidator("json", UserSettingsSchema, invalid), (c) => {
+    const user = readerFromPath(c);
+    const { ratingsSource, readStateSource } = c.req.valid("json");
+
+    // A source that can't be read or written is not a choice to store — the
+    // toggles only show on linked cards, so this is belt over braces.
+    const wantsHardcover = ratingsSource === "hardcover" || readStateSource === "hardcover";
+    if (wantsHardcover && !getUsers().hardcoverAccount(user.id)) {
+      return c.json({ error: `${user.name} has no Hardcover account linked.` }, 400);
+    }
+
+    let updated = user;
+    if (ratingsSource) updated = getUsers().setRatingsSource(user.id, ratingsSource) ?? updated;
+    if (readStateSource) {
+      updated = getUsers().setReadStateSource(user.id, readStateSource) ?? updated;
+    }
+    return c.json(updated);
+  });
+
   /**
    * Look for duplicates across sources now (docs/features/book-matching.md).
    * Runs at startup too, so an existing library is grouped without anyone
    * asking — this is for after a re-sync, or for seeing what it does.
    */
   app.post("/api/match", (c) => c.json(getWorks().matchAll()));
+
+  // The library-wide review queue: every pair the matcher refused and nobody
+  // has answered (docs/features/resolving-duplicates.md). Answers go through
+  // the per-book routes below, which is what removes a pair from here.
+  app.get("/api/duplicates", (c) => c.json(getWorks().pendingDuplicates()));
 
   // A reader's link to hardcover.app (ADR 0012). Scoped by path rather than by
   // the user header for the reason above, and server-side because Hardcover's
@@ -486,12 +551,98 @@ export function createApi(options: ApiOptions = {}) {
     },
   );
 
-  // The current reader's own stars, kept here rather than pushed back to
-  // Calibre (docs/features/rating-a-book.md). User-scoped, so both routes
-  // insist on the header.
+  /**
+   * The finder's search (docs/features/rating-a-book.md): Hardcover's
+   * catalogue, with this reader's token — server-side, like everything that
+   * touches their API. Read-only; the pick comes back through the rating PUT.
+   */
+  app.post(
+    "/api/users/:id/hardcover/search",
+    zValidator("json", HardcoverSearchRequestSchema, invalid),
+    async (c) => {
+      const user = readerFromPath(c);
+      const account = getUsers().hardcoverAccount(user.id);
+      if (!account) {
+        return c.json({ error: `${user.name} has no Hardcover account linked.` }, 400);
+      }
+
+      try {
+        const books = await searchHardcoverBooks(account.token, c.req.valid("json").query);
+        return c.json({
+          results: books.map((book) => ({
+            id: book.id,
+            title: book.title ?? "Untitled",
+            authors: hardcoverAuthors(book.cached_contributors),
+            coverUrl: hardcoverCoverUrl(book.cached_image),
+            releaseYear: releaseYearOf(book.release_date),
+          })),
+        });
+      } catch (err) {
+        if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+        throw err;
+      }
+    },
+  );
+
+  /**
+   * Shelve a Hardcover catalogue book as **Read** for a reader — with an
+   * optional rating and finished-when — then mirror it, and where the pick was
+   * for a work with no Hardcover edition, join it into that work pinned, so
+   * the matcher never reconsiders a pairing a person made
+   * (docs/features/rating-a-book.md). A background sweep follows for the cover
+   * and the authoritative row.
+   */
+  const shelveOnHardcover = async (
+    userId: number,
+    token: string,
+    workId: number,
+    hardcoverBookId: number,
+    rating: number | null,
+    finishedAt: string | undefined,
+  ): Promise<void> => {
+    const now = new Date().toISOString();
+    const userBookId = await insertUserBook(token, hardcoverBookId, 3, {
+      rating: rating ?? undefined,
+      finishedAt,
+    });
+    if (!finishedAt) await clearDefaultReadDates(token, userBookId);
+
+    // Their read replica can lag the write that just made this entry — give
+    // it a few tries before settling for the minimal record.
+    let shelved = await fetchUserBook(token, userBookId);
+    for (let attempt = 0; !shelved && attempt < 3; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      shelved = await fetchUserBook(token, userBookId);
+    }
+    if (shelved) {
+      getHardcoverBooks().upsert(userId, shelved, now);
+      getBooks().reconcileFromHardcover(getHardcoverBooks().allBooks(), now);
+      const newWork = getBooks().workForHardcoverId(hardcoverBookId);
+      if (newWork && newWork !== workId) getWorks().link(workId, newWork);
+    } else {
+      // Hardcover accepted the writes but wouldn't answer with the entry;
+      // keep what we know and let the next sweep fill in the book.
+      getHardcoverBooks().recordShelfEntry(userId, hardcoverBookId, userBookId, 3, rating);
+    }
+
+    void getHardcoverSync()
+      .syncUser(userId)
+      .catch(() => {});
+  };
+
+  // The current reader's stars (docs/features/rating-a-book.md). Two sources
+  // since ADR 0014 — their own rows here, or their Hardcover shelves — and
+  // every route is user-scoped, so all of them insist on the header.
   app.get("/api/ratings", (c) => c.json(getRatings().forUser(requireUser(c))));
 
-  app.put("/api/ratings/:bookId", zValidator("json", RatingUpdateSchema, invalid), (c) => {
+  // Their Hardcover ratings by work id, from the mirror. An entry per shelved
+  // book, null where the shelf entry is unrated — presence is what tells the
+  // client rating a book won't need the add-to-shelf confirmation.
+  app.get("/api/ratings/hardcover", (c) =>
+    c.json(getHardcoverBooks().ratingsByWork(requireUser(c))),
+  );
+
+  app.put("/api/ratings/:bookId", zValidator("json", RatingUpdateSchema, invalid), async (c) => {
     const userId = requireUser(c);
     const bookId = Number(c.req.param("bookId"));
     if (!Number.isInteger(bookId) || bookId <= 0) {
@@ -505,9 +656,194 @@ export function createApi(options: ApiOptions = {}) {
       return c.json({ error: `No book with id ${bookId}.` }, 404);
     }
 
-    const rating = getRatings().set(userId, bookId, c.req.valid("json").rating);
-    return c.json({ bookId, rating });
+    const { rating, source, addToShelf, hardcoverBookId, finishedAt, markRead } =
+      c.req.valid("json");
+
+    if (source === "local") {
+      return c.json({ bookId, rating: getRatings().set(userId, bookId, rating) });
+    }
+
+    // Hardcover write-back (ADR 0014): the rating lands on the reader's own
+    // account, with their own token, and the mirror updates in step so the
+    // shelf shows it without waiting for the next sweep.
+    const account = getUsers().hardcoverAccount(userId);
+    if (!account) {
+      return c.json({ error: "This reader has no Hardcover account linked." }, 400);
+    }
+
+    const entry = getHardcoverBooks().shelfEntryForWork(userId, bookId);
+    const value = rating > 0 ? rating : null;
+    try {
+      if (!entry) {
+        // A Calibre-only book: only the finder's pick can rate it, and picking
+        // is the reader's confirmation. 409 rather than a silent fall back to
+        // local, which would scatter one reader's ratings across two stores.
+        if (!hardcoverBookId || !addToShelf) {
+          return c.json(
+            {
+              error: "This book has no Hardcover edition, so there's nowhere there to rate it.",
+              code: "no-hardcover-edition",
+            },
+            409,
+          );
+        }
+        await shelveOnHardcover(userId, account.token, bookId, hardcoverBookId, value, finishedAt);
+        return c.json({ bookId, rating: value });
+      }
+
+      if (entry.userBookId === null) {
+        // Not on their shelves. Adding a book is the reader's call, made in
+        // the client's confirmation — never a side effect of a star click.
+        if (!addToShelf) {
+          return c.json(
+            { error: "This book isn't on their Hardcover shelves.", code: "not-on-shelf" },
+            409,
+          );
+        }
+        // Shelve as Read — what rating a book means on hardcover.app — then rate.
+        await shelveOnHardcover(
+          userId,
+          account.token,
+          bookId,
+          entry.hardcoverBookId,
+          value,
+          finishedAt,
+        );
+      } else if (markRead) {
+        // The mark-as-read ask, granted: a shelved-but-unfinished book flips
+        // to Read with its rating and its finished-when in one write
+        // (docs/features/rating-a-book.md).
+        await markUserBookRead(account.token, entry.userBookId, {
+          rating: value ?? undefined,
+          finishedAt,
+        });
+        if (!finishedAt) await clearDefaultReadDates(account.token, entry.userBookId);
+        getHardcoverBooks().setRating(userId, entry.hardcoverBookId, value, 3);
+      } else {
+        await updateUserBookRating(account.token, entry.userBookId, value);
+        getHardcoverBooks().setRating(userId, entry.hardcoverBookId, value);
+      }
+    } catch (err) {
+      // Their refusal, worth relaying (an expired token, a rate limit) — the
+      // stars roll back client-side like any failed write.
+      if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+      throw err;
+    }
+
+    return c.json({ bookId, rating: value });
   });
+
+  // The corner check (docs/features/marking-a-book-read.md). This map is the
+  // *local* store; in Hardcover mode the client reads status 3 off
+  // /api/ratings/hardcover instead, the same map the stars use.
+  app.get("/api/read-states", (c) => c.json(getReadStates().forUser(requireUser(c))));
+
+  app.put(
+    "/api/read-states/:bookId",
+    zValidator("json", ReadStateUpdateSchema, invalid),
+    async (c) => {
+      const userId = requireUser(c);
+      const bookId = Number(c.req.param("bookId"));
+      if (!Number.isInteger(bookId) || bookId <= 0) {
+        return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+      }
+      if (!getBooks().get(bookId)) {
+        return c.json({ error: `No book with id ${bookId}.` }, 404);
+      }
+
+      const { read, finishedAt, rating, removeRating, source, addToShelf, hardcoverBookId } =
+        c.req.valid("json");
+
+      if (source === "local") {
+        // The optional rating rides along to the *same* store, so a modal
+        // shortcut can never scatter one reader's ratings across two.
+        if (read) {
+          getReadStates().set(userId, bookId, finishedAt ?? null);
+          if (rating !== undefined) getRatings().set(userId, bookId, rating);
+        } else {
+          getReadStates().clear(userId, bookId);
+          if (removeRating) getRatings().clear(userId, bookId);
+        }
+        return c.json({ bookId, read, finishedAt: read ? (finishedAt ?? null) : null });
+      }
+
+      // On Hardcover, read means status Read on their shelves.
+      const account = getUsers().hardcoverAccount(userId);
+      if (!account) {
+        return c.json({ error: "This reader has no Hardcover account linked." }, 400);
+      }
+
+      const entry = getHardcoverBooks().shelfEntryForWork(userId, bookId);
+      try {
+        if (read) {
+          if (!entry) {
+            // Calibre-only: the finder's pick is the confirmation, exactly as
+            // for a rating.
+            if (!hardcoverBookId || !addToShelf) {
+              return c.json(
+                {
+                  error:
+                    "This book has no Hardcover edition, so there's nowhere there to mark it read.",
+                  code: "no-hardcover-edition",
+                },
+                409,
+              );
+            }
+            await shelveOnHardcover(
+              userId,
+              account.token,
+              bookId,
+              hardcoverBookId,
+              rating ?? null,
+              finishedAt,
+            );
+          } else if (entry.userBookId === null) {
+            if (!addToShelf) {
+              return c.json(
+                { error: "This book isn't on their Hardcover shelves.", code: "not-on-shelf" },
+                409,
+              );
+            }
+            await shelveOnHardcover(
+              userId,
+              account.token,
+              bookId,
+              entry.hardcoverBookId,
+              rating ?? null,
+              finishedAt,
+            );
+          } else {
+            // Status, rating (when given) and finished-when land in one write.
+            await markUserBookRead(account.token, entry.userBookId, { rating, finishedAt });
+            if (!finishedAt) await clearDefaultReadDates(account.token, entry.userBookId);
+            if (rating !== undefined) {
+              getHardcoverBooks().setRating(userId, entry.hardcoverBookId, rating, 3);
+            } else {
+              getHardcoverBooks().setStatus(userId, entry.hardcoverBookId, 3);
+            }
+          }
+        } else if (entry?.userBookId != null) {
+          // Unmarking. Their model needs *some* status, so the book goes back
+          // to Want to Read — the modal said as much — optionally taking the
+          // rating with it. The read entries stay; that history isn't ours to
+          // erase. A book not on their shelves is already as unread as it gets.
+          await updateUserBookStatus(account.token, entry.userBookId, 1);
+          if (removeRating) {
+            await updateUserBookRating(account.token, entry.userBookId, null);
+            getHardcoverBooks().setRating(userId, entry.hardcoverBookId, null, 1);
+          } else {
+            getHardcoverBooks().setStatus(userId, entry.hardcoverBookId, 1);
+          }
+        }
+      } catch (err) {
+        // Their refusal, worth relaying — the corner rolls back client-side.
+        if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+        throw err;
+      }
+
+      return c.json({ bookId, read, finishedAt: read ? (finishedAt ?? null) : null });
+    },
+  );
 
   // Probe a candidate content server (from the setup wizard's Test button)
   // before the user commits to it. Runs server-side, so no CORS involved.

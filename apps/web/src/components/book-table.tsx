@@ -3,7 +3,7 @@ import { BookDownloadButton } from "@/components/book-download-button";
 import { BookMarks } from "@/components/book-marks";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
+import { bookRating, type HardcoverRatings, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookTableProps {
@@ -11,9 +11,11 @@ export interface BookTableProps {
   /** Opening a book. Rows are only clickable when this is given — see BookGrid. */
   onOpen?: (book: LibraryBook) => void;
   /** The reader's own ratings, which stand in front of Calibre's. */
-  ratings?: Ratings;
+  ratings?: Ratings | HardcoverRatings;
   /** Set a rating. Without it the stars stay a read-out. */
   onRate?: (book: LibraryBook, rating: number) => void;
+  /** Whether this book's stars are a control — see BookGrid (ADR 0014). */
+  ratable?: (book: LibraryBook) => boolean;
   className?: string;
 }
 
@@ -28,7 +30,7 @@ const TH =
   "bg-background/95 text-muted-foreground sticky top-0 z-10 border-line border-b px-3 py-2 text-left text-[10px] font-semibold tracking-[0.08em] uppercase backdrop-blur";
 
 /** The dense view: one row per book, columns fixed until a column picker exists. */
-export function BookTable({ books, onOpen, ratings, onRate, className }: BookTableProps) {
+export function BookTable({ books, onOpen, ratings, onRate, ratable, className }: BookTableProps) {
   return (
     <table className={cn("w-full min-w-[720px] border-collapse text-[13px]", className)}>
       <thead>
@@ -86,7 +88,7 @@ export function BookTable({ books, onOpen, ratings, onRate, className }: BookTab
             {/* The stars stop their own clicks reaching the row, so rating a
                 book never also opens it. */}
             <td className="px-3 py-1.5">
-              {onRate ? (
+              {onRate && (ratable?.(book) ?? true) ? (
                 <StarRating
                   value={bookRating(book, ratings)}
                   onRate={(rating) => onRate(book, rating)}

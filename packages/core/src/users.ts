@@ -19,6 +19,8 @@ interface UserRow {
   hardcover_username: string | null;
   hardcover_synced_at: string | null;
   hardcover_sync_error: string | null;
+  ratings_source: string;
+  read_state_source: string;
 }
 
 /**
@@ -27,7 +29,8 @@ interface UserRow {
  * no query grows a `SELECT *` that would quietly put it on the wire.
  */
 const USER_COLUMNS =
-  "id, name, color, created_at, hardcover_username, hardcover_synced_at, hardcover_sync_error";
+  "id, name, color, created_at, hardcover_username, hardcover_synced_at, hardcover_sync_error, " +
+  "ratings_source, read_state_source";
 
 const toUser = (row: UserRow, hardcover?: HardcoverCounts): User => ({
   id: row.id,
@@ -39,6 +42,11 @@ const toUser = (row: UserRow, hardcover?: HardcoverCounts): User => ({
   hardcoverStatusCounts: hardcover?.statusCounts ?? [],
   hardcoverSyncedAt: row.hardcover_synced_at,
   hardcoverSyncError: row.hardcover_sync_error || null,
+  // Anything unrecognised reads as local — same fallback the schema promises.
+  ratingsSource: row.ratings_source === "hardcover" ? "hardcover" : "local",
+  // The opposite fallback: read state defaults to the shelves it mirrors, and
+  // only takes effect for a linked reader anyway.
+  readStateSource: row.read_state_source === "local" ? "local" : "hardcover",
 });
 
 /** A reader's shelf totals, counted from the Hardcover mirror. */
@@ -123,6 +131,27 @@ export class UsersStore {
   }
 
   /**
+   * Where this reader's stars live (ADR 0014). Applied at once — a rating
+   * source is not something with half-typed state to protect.
+   */
+  setRatingsSource(id: number, source: "local" | "hardcover"): User | null {
+    const row = this.db
+      .query(`UPDATE users SET ratings_source = $source WHERE id = $id RETURNING ${USER_COLUMNS}`)
+      .get({ $id: id, $source: source }) as UserRow | null;
+    return row ? toUser(row, this.hardcoverCounts().get(id)) : null;
+  }
+
+  /** Same choice for read state (docs/features/marking-a-book-read.md). */
+  setReadStateSource(id: number, source: "local" | "hardcover"): User | null {
+    const row = this.db
+      .query(
+        `UPDATE users SET read_state_source = $source WHERE id = $id RETURNING ${USER_COLUMNS}`,
+      )
+      .get({ $id: id, $source: source }) as UserRow | null;
+    return row ? toUser(row, this.hardcoverCounts().get(id)) : null;
+  }
+
+  /**
    * This reader's Hardcover credential, for the server to authenticate and
    * query with. The only method that reads the token column, and nothing may
    * put it in a response (ADR 0012).
@@ -173,11 +202,13 @@ export class UsersStore {
   unlinkHardcover(id: number): User | null {
     const row = this.db.transaction(() => {
       this.db.query("DELETE FROM hardcover_user_books WHERE user_id = $id").run({ $id: id });
+      // The rating source goes back to local with the link: a source that can
+      // no longer be read or written isn't a choice worth remembering (ADR 0014).
       return this.db
         .query(
           "UPDATE users SET hardcover_token = NULL, hardcover_username = NULL, " +
-            "hardcover_user_id = NULL, hardcover_synced_at = NULL, hardcover_sync_error = NULL " +
-            `WHERE id = $id RETURNING ${USER_COLUMNS}`,
+            "hardcover_user_id = NULL, hardcover_synced_at = NULL, hardcover_sync_error = NULL, " +
+            `ratings_source = 'local' WHERE id = $id RETURNING ${USER_COLUMNS}`,
         )
         .get({ $id: id }) as UserRow | null;
     })();

@@ -54,6 +54,18 @@ export const UserSchema = z.object({
   hardcoverSyncedAt: z.string().nullable().default(null),
   /** Why the last Hardcover sync failed — an expired token, most likely. */
   hardcoverSyncError: z.string().nullable().default(null),
+  /**
+   * Where this reader's stars live (ADR 0014): their own `ratings` rows, or
+   * their Hardcover account. Defaulted so a response from an older server
+   * still parses; anything unrecognised reads as local.
+   */
+  ratingsSource: z.enum(["local", "hardcover"]).catch("local").default("local"),
+  /**
+   * Same choice for read state (docs/features/marking-a-book-read.md).
+   * Defaulted to hardcover, but it only takes effect for a linked reader —
+   * everyone else reads and writes locally regardless.
+   */
+  readStateSource: z.enum(["local", "hardcover"]).catch("hardcover").default("hardcover"),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -69,6 +81,16 @@ export const UserCreateSchema = z.object({
   color: z.string().refine(isUserColorId, "Not one of Grimoire's reader colours").optional(),
 });
 export type UserCreate = z.infer<typeof UserCreateSchema>;
+
+/**
+ * Body of PATCH /api/users/:id — the per-reader settings, each optional so a
+ * caller sends only what changed. Just one so far (ADR 0014).
+ */
+export const UserSettingsSchema = z.object({
+  ratingsSource: z.enum(["local", "hardcover"]).optional(),
+  readStateSource: z.enum(["local", "hardcover"]).optional(),
+});
+export type UserSettings = z.infer<typeof UserSettingsSchema>;
 
 // --- Hardcover -------------------------------------------------------------
 // A reader's link to hardcover.app (ADR 0012). Grimoire's own payloads first,
@@ -157,6 +179,8 @@ export const HcBookSchema = z.object({
   cached_tags: z.unknown().optional(),
 });
 
+export type HcBook = z.infer<typeof HcBookSchema>;
+
 /** One entry on a reader's shelves: the book, plus their relationship with it. */
 export const HcUserBookSchema = z.object({
   id: z.number(),
@@ -184,12 +208,115 @@ export const HcLibraryResponseSchema = z.object({
   ...hcErrors,
 });
 
+/**
+ * What their user_book mutations answer with (ADR 0014). Both wrap the row in
+ * a payload carrying its own `error` — a refusal their gateway reports with a
+ * 200 and no GraphQL `errors`, so it has to be read, not just the envelope.
+ */
+const HcUserBookMutationSchema = z.object({
+  error: z.string().nullish(),
+  user_book: z
+    .object({
+      id: z.number(),
+      status_id: z.number().nullish(),
+      rating: z.union([z.number(), z.string()]).nullish(),
+    })
+    .nullish(),
+});
+
+export const HcUpdateUserBookResponseSchema = z.object({
+  data: z.object({ update_user_book: HcUserBookMutationSchema.nullish() }).nullish(),
+  ...hcErrors,
+});
+
+export const HcInsertUserBookResponseSchema = z.object({
+  data: z.object({ insert_user_book: HcUserBookMutationSchema.nullish() }).nullish(),
+  ...hcErrors,
+});
+
+/**
+ * The read entries on one shelf entry — fetched after shelving so the
+ * finished-when answer can be written onto (or cleared from) the read their
+ * API auto-created (docs/features/rating-a-book.md).
+ */
+export const HcUserBookReadsResponseSchema = z.object({
+  data: z
+    .object({
+      user_books: z.array(
+        z.object({
+          user_book_reads: z.array(z.object({ id: z.number() })).default([]),
+        }),
+      ),
+    })
+    .nullish(),
+  ...hcErrors,
+});
+
+/** What their user_book_read mutations answer with — same envelope as the rest. */
+const HcUserBookReadMutationSchema = z.object({
+  error: z.string().nullish(),
+  user_book_read: z.object({ id: z.number() }).nullish(),
+});
+
+export const HcUpdateUserBookReadResponseSchema = z.object({
+  data: z.object({ update_user_book_read: HcUserBookReadMutationSchema.nullish() }).nullish(),
+  ...hcErrors,
+});
+
+export const HcInsertUserBookReadResponseSchema = z.object({
+  data: z.object({ insert_user_book_read: HcUserBookReadMutationSchema.nullish() }).nullish(),
+  ...hcErrors,
+});
+
+/**
+ * Their catalogue search answers ids only (Typesense behind GraphQL); a second
+ * query hydrates them. Ids have been seen as both numbers and strings.
+ */
+export const HcSearchResponseSchema = z.object({
+  data: z
+    .object({
+      search: z.object({ ids: z.array(z.union([z.number(), z.string()])) }).nullish(),
+    })
+    .nullish(),
+  ...hcErrors,
+});
+
+/** The hydration for those ids — plain catalogue books, no shelf entry. */
+export const HcBooksResponseSchema = z.object({
+  data: z.object({ books: z.array(HcBookSchema) }).nullish(),
+  ...hcErrors,
+});
+
+// The finder (docs/features/rating-a-book.md): searching Hardcover's catalogue
+// for the book a Calibre-only work is, so rating it can shelve it there.
+
+/** Body of POST /api/users/:id/hardcover/search. */
+export const HardcoverSearchRequestSchema = z.object({
+  query: z.string().trim().min(1, "Type something to search for"),
+});
+
+/** One catalogue book, flattened server-side from their cached_* blobs. */
+export const HardcoverSearchResultSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  authors: z.array(z.string()),
+  /** Their CDN URL, rendered directly — these books have no mirrored cover yet. */
+  coverUrl: z.string().nullable(),
+  releaseYear: z.number().nullable(),
+});
+export type HardcoverSearchResult = z.infer<typeof HardcoverSearchResultSchema>;
+
+export const HardcoverSearchResultsSchema = z.object({
+  results: z.array(HardcoverSearchResultSchema),
+});
+export type HardcoverSearchResults = z.infer<typeof HardcoverSearchResultsSchema>;
+
 // --- Ratings ---------------------------------------------------------------
 // A reader's own stars, kept in grimoire.db and never written back to Calibre.
 // See docs/features/rating-a-book.md.
 
-/** Whole stars, 1–5. Zero is not a rating — it's the absence of one. */
-export const RatingSchema = z.number().int().min(1).max(5);
+/** Half stars, 0.5–5 (ADR 0014). Zero is not a rating — it's the absence of one. */
+export const RatingSchema = z.number().min(0.5).max(5).multipleOf(0.5);
 
 /**
  * GET /api/ratings — book id to rating, for the reader in X-Grimoire-User.
@@ -198,9 +325,71 @@ export const RatingSchema = z.number().int().min(1).max(5);
 export const RatingsSchema = z.record(z.string(), RatingSchema);
 export type Ratings = z.infer<typeof RatingsSchema>;
 
-/** Body of PUT /api/ratings/:bookId. Zero clears the rating. */
+/**
+ * GET /api/ratings/hardcover — the same map from the reader's Hardcover
+ * mirror. An entry per *shelved* book: the rating (`null` where the shelf
+ * entry carries none) and its reading status, which decides whether rating it
+ * needs the mark-as-read ask. A key's presence doubles as "on their shelves",
+ * which is what decides the add-to-shelf confirmation instead (ADR 0014).
+ */
+export const HardcoverRatingsSchema = z.record(
+  z.string(),
+  z.object({
+    rating: RatingSchema.nullable(),
+    /** A HARDCOVER_STATUS id — their vocabulary, passed through. */
+    statusId: z.number(),
+  }),
+);
+export type HardcoverRatings = z.infer<typeof HardcoverRatingsSchema>;
+
+/** Where a rating write lands (ADR 0014). */
+export const RatingSourceSchema = z.enum(["local", "hardcover"]);
+export type RatingSource = z.infer<typeof RatingSourceSchema>;
+
+/**
+ * A finished-when at whatever precision the reader knows — "2023", "2023-06"
+ * or "2023-06-15" (docs/features/marking-a-book-read.md).
+ */
+export const FinishedAtSchema = z
+  .string()
+  .regex(/^\d{4}(-\d{2})?(-\d{2})?$/, "A date, like 2023, 2023-06 or 2023-06-15")
+  .refine((value) => {
+    const [, month, day] = value.split("-").map(Number);
+    return (
+      (month === undefined || (month >= 1 && month <= 12)) &&
+      (day === undefined || (day >= 1 && day <= 31))
+    );
+  }, "Not a real date");
+
+/**
+ * Body of PUT /api/ratings/:bookId. Zero clears the rating. With
+ * `source: "hardcover"` the write goes to the reader's hardcover.app account;
+ * `addToShelf` relays their confirmation that rating an unshelved book may add
+ * it to their shelves as Read — without it, that case answers 409.
+ */
 export const RatingUpdateSchema = z.object({
-  rating: z.number().int().min(0).max(5),
+  rating: z.number().min(0).max(5).multipleOf(0.5),
+  source: RatingSourceSchema.default("local"),
+  addToShelf: z.boolean().default(false),
+  /**
+   * For a work with no Hardcover edition: the catalogue book the reader picked
+   * in the finder. The API shelves it as Read, rates it, and links it into the
+   * work (docs/features/rating-a-book.md).
+   */
+  hardcoverBookId: z.number().int().positive().optional(),
+  /**
+   * The reader's confirmation that rating a shelved-but-unfinished book —
+   * Want to Read, Currently Reading, Paused — may flip its status to Read
+   * alongside the rating (docs/features/rating-a-book.md).
+   */
+  markRead: z.boolean().default(false),
+  /**
+   * When the reader finished the book being shelved, at whatever precision
+   * they know it — "2023", "2023-06", or "2023-06-15". Absent means "I don't
+   * know": the Hardcover read entry gets its dates *cleared*, rather than
+   * letting their API default them to today.
+   */
+  finishedAt: FinishedAtSchema.optional(),
 });
 export type RatingUpdate = z.infer<typeof RatingUpdateSchema>;
 
@@ -210,6 +399,45 @@ export const RatingResultSchema = z.object({
   rating: RatingSchema.nullable(),
 });
 export type RatingResult = z.infer<typeof RatingResultSchema>;
+
+// --- Read state --------------------------------------------------------------
+// The cover's corner check (docs/features/marking-a-book-read.md). Shaped like
+// ratings: a per-reader map keyed by work id, absence meaning unread.
+
+/**
+ * GET /api/read-states — the reader's *local* read states. In Hardcover mode
+ * the client reads status 3 off the Hardcover ratings map instead.
+ */
+export const ReadStatesSchema = z.record(
+  z.string(),
+  z.object({ finishedAt: FinishedAtSchema.nullable() }),
+);
+export type ReadStates = z.infer<typeof ReadStatesSchema>;
+
+/**
+ * Body of PUT /api/read-states/:bookId. Marking read takes the finished-when
+ * and an optional rating (written to the same source, so it can't scatter);
+ * unmarking takes `removeRating` — the modal's keep-or-remove answer. The
+ * Hardcover fields mean what they do on the ratings route (ADR 0014).
+ */
+export const ReadStateUpdateSchema = z.object({
+  read: z.boolean(),
+  finishedAt: FinishedAtSchema.optional(),
+  rating: RatingSchema.optional(),
+  removeRating: z.boolean().default(false),
+  source: RatingSourceSchema.default("local"),
+  addToShelf: z.boolean().default(false),
+  hardcoverBookId: z.number().int().positive().optional(),
+});
+export type ReadStateUpdate = z.infer<typeof ReadStateUpdateSchema>;
+
+/** What that PUT answers with — the stored state after the write. */
+export const ReadStateResultSchema = z.object({
+  bookId: z.number(),
+  read: z.boolean(),
+  finishedAt: FinishedAtSchema.nullable(),
+});
+export type ReadStateResult = z.infer<typeof ReadStateResultSchema>;
 
 export const ApiErrorSchema = z.object({
   error: z.string(),
@@ -342,6 +570,27 @@ export const DuplicatesSchema = z.object({
   candidates: z.array(DuplicateCandidateSchema).default([]),
 });
 export type Duplicates = z.infer<typeof DuplicatesSchema>;
+
+/**
+ * One unanswered pair in the library-wide review queue
+ * (docs/features/resolving-duplicates.md) — a candidate with the work it was
+ * found from, which is everything the panel's two answers need.
+ */
+export const PendingDuplicateSchema = z.object({
+  workId: z.number(),
+  otherWorkId: z.number(),
+  bookId: z.number(),
+  otherBookId: z.number(),
+  reason: DuplicateReasonSchema,
+});
+export type PendingDuplicate = z.infer<typeof PendingDuplicateSchema>;
+
+/** What GET /api/duplicates answers with. `total` counts past the cap. */
+export const PendingDuplicatesSchema = z.object({
+  pairs: z.array(PendingDuplicateSchema).default([]),
+  total: z.number(),
+});
+export type PendingDuplicates = z.infer<typeof PendingDuplicatesSchema>;
 
 /** Body of POST /api/books/:id/duplicates — the work that is the same book. */
 export const DuplicateLinkSchema = z.object({

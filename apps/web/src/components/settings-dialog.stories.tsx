@@ -1,6 +1,7 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/tanstack-react";
 import { useEffect } from "react";
 import { PREF_KEYS } from "@/lib/api";
+import { SAMPLE_BOOKS } from "@/lib/sample-books";
 import { SettingsDialog } from "./settings-dialog";
 
 const READERS = [
@@ -83,6 +84,15 @@ const withStubbedApi =
         }
         if (path.endsWith("/api/calibre/test")) return { ok: true, bookCount: 1284 };
         if (path.endsWith("/api/sync")) return SYNC_STATUS;
+        // The review queue and the shelf it names books from
+        // (docs/features/resolving-duplicates.md).
+        if (path.endsWith("/api/duplicates")) {
+          return {
+            pairs: [{ workId: 1, otherWorkId: 2, bookId: 11, otherBookId: 22, reason: "exact" }],
+            total: 1,
+          };
+        }
+        if (path.endsWith("/api/books")) return SAMPLE_BOOKS;
         return { [PREF_KEYS.calibreServerUrl]: "http://localhost:8080" };
       };
 
@@ -114,7 +124,22 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** Opens on Calibre: the connection, the sync stat tiles, and Sync now. */
 export const Default: Story = {};
+
+/** A card per reader — linked ones get stats and the source toggles. */
+export const Hardcover: Story = {
+  args: { section: "hardcover" },
+};
+
+/** Listing and adding only — switching moved to the header avatar menu. */
+export const Readers: Story = {
+  args: { section: "readers" },
+};
+
+export const Duplicates: Story = {
+  args: { section: "duplicates" },
+};
 
 export const Light: Story = {
   globals: { theme: "light" },
@@ -125,6 +150,7 @@ export const OneReader: Story = {
   decorators: [withStubbedApi(READERS.slice(0, 1))],
 };
 
+/** Below `sm` the section sidebar becomes a strip across the top. */
 export const Narrow: Story = {
   globals: { viewport: { value: "mobile1" } },
 };

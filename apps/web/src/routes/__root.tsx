@@ -54,6 +54,8 @@ function RootLayout() {
   return (
     <AppShell
       user={currentUser}
+      users={users}
+      onPickUser={(user) => setCurrentUserId(user.id)}
       syncStatus={syncStatus}
       onSync={() => startSync.mutate()}
       bookCount={syncStatus?.bookCount}

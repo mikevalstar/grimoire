@@ -49,6 +49,14 @@ for a command palette that does not exist yet; a theme toggle; the
 reader as an avatar chip. It sheds the least essential of those on narrow
 screens — the sync indicator stays, because it is also the error surface.
 
+**Avatar menu.** The avatar chip is a menu: every reader, with the current one
+marked — picking switches this device's reader instantly (a per-device
+convenience, not a credential —
+[ADR 0008](../adrs/0008-multiple-users-without-authentication.md)) — plus **Add
+reader**, which opens [settings](settings.md) on its Readers section, and
+**Settings** itself, which is also how narrow screens reach settings once the
+gear is shed.
+
 **Content region.** Everything else. It scrolls independently of the header and
 runs full width with no max-width clamp, so screens render their own content
 without re-establishing a layout. The [book list](book-list.md) is the first
@@ -71,12 +79,12 @@ library to frame.
       theme toolbar so components are reviewable in both.
 - [x] Settings and sync are reachable from every screen.
 - [x] The avatar reflects a real current reader.
+- [ ] The avatar opens a menu that switches reader, adds one, and opens
+      settings.
 - [ ] The search trigger opens a command palette.
 
 ## Open questions
 
-- Clicking the avatar does nothing; switching reader lives in
-  [settings](settings.md) rather than in the header.
 - There is no wordmark. The header is plain type until one is designed.
 - The theme toggle is a two-way flip with no "follow the system" state.
 - Latitude puts a third region — the Pulse rail — beside the library. Out of

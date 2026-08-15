@@ -92,8 +92,48 @@ keyboard can't reach, and hover never moves anything a click is aimed at.
 - **Reduced motion** — the fade, the pop and the burst are all `motion-safe`.
   The rating still commits and the stars still fill; nothing moves.
 
-Whole stars only. Calibre can store half stars; Grimoire's column is an integer
-1–5, and since Calibre's ratings are never read there is nothing to round.
+Half stars. The pointer's position within a star decides the half or the whole;
+arrow keys step by halves. Hardcover rates in halves, so the control has to
+speak them to show and set those ratings faithfully
+([ADR 0014](../adrs/0014-per-reader-rating-source-with-hardcover-write-back.md))
+— and local ratings use the same granularity rather than making the control
+behave differently per source.
+
+### Where your stars come from
+
+Each reader picks a **rating source** in the settings Hardcover section
+([settings](settings.md), [ADR 0014](../adrs/0014-per-reader-rating-source-with-hardcover-write-back.md)):
+
+- **Local** (default) — the stars read and write `ratings` in `grimoire.db`,
+  exactly as above.
+- **Hardcover** — the stars show that reader's ratings from their Hardcover
+  shelves, and setting one writes to their hardcover.app account with their own
+  token, updating the local mirror in the same request. Three edges:
+  - A book on Hardcover but **not on their shelves** asks first: rating it adds
+    the book to their shelves as **Read**, which is what rating means on
+    hardcover.app.
+  - A book on their shelves but **not finished** — Want to Read, Currently
+    Reading, or Paused — asks too: rating it marks it **Read** with the same
+    finished-when question, or **Just rate** leaves the shelf as it is. Read,
+    Did Not Finish and Ignored books rate directly; those are states someone
+    chose, and a rating doesn't retract them.
+  - Both ask-first flows also ask **when the book was finished**, the way
+    Hardcover itself does: *I don't know* (the default — leaving it unanswered
+    means this), *today*, a specific date, or just a month or year. The answer
+    lands on the Hardcover read entry; without one, the entry's dates are
+    cleared rather than letting Hardcover default them to today. Reduced
+    precision is stored the way their own UI stores it: the first day of the
+    period, plus `finished_at_precision` (0 none, 1 day, 2 month, 3 year — an
+    undocumented but introspectable column), so "sometime in June 2023"
+    displays as exactly that on hardcover.app.
+  - A **Calibre-only** book opens a finder instead: a search of Hardcover's
+    catalogue, seeded with the book's title. Picking the match adds it to
+    their shelves as **Read** — the dialog says so — sets the rating, and
+    joins the Hardcover book into this work as a pinned manual grouping
+    ([resolving duplicates](resolving-duplicates.md)), so from then on it is
+    one card with both marks and an ordinary Hardcover rating. Cancelling
+    rates nothing; nothing falls back to local silently.
+  - A failed Hardcover write rolls the stars back, like any failed write.
 
 ### Rating from either view
 
@@ -116,10 +156,24 @@ the shelf shows the new reader's ratings without a reload.
 
 ## API
 
-`GET /api/ratings` returns every rating this reader has set; unrated books are
-absent, not zero. `PUT /api/ratings/:bookId` sets one, and zero deletes it. Both
-require `X-Grimoire-User`, and both payloads are Zod schemas shared by API and
-client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
+`GET /api/ratings` returns every local rating this reader has set; unrated
+books are absent, not zero. `GET /api/ratings/hardcover` returns the same map
+from their Hardcover mirror — an entry per shelved book carrying the rating
+(`null` where the shelf entry is unrated) and its reading status, which is
+what decides whether rating one needs the mark-as-read ask. Presence doubles
+as "on their shelves".
+`PUT /api/ratings/:bookId` sets one, and zero deletes it; with
+`source: "hardcover"` the write goes to hardcover.app, `addToShelf: true`
+is the client relaying the reader's confirmation for a book not yet shelved —
+without it, an off-shelf book answers 409 — and `markRead: true` relays the
+same confirmation for a shelved-but-unfinished one, flipping its status to
+Read alongside the rating. For a work with no Hardcover
+edition, `hardcoverBookId` names the catalogue book the reader picked in the
+finder: the API shelves it, rates it, mirrors it, and links it into the work.
+`POST /api/users/:id/hardcover/search` is the finder's search, run server-side
+with that reader's token. All rating routes require `X-Grimoire-User`, and all
+payloads are Zod schemas shared by API and client
+([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
 
 ## Acceptance criteria
 
@@ -146,6 +200,24 @@ client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
       to a reader.
 - [ ] The write is optimistic and rolls back on failure.
 - [ ] The interactive control has a Storybook story, in both themes.
+- [ ] Halves can be set with the pointer and the keyboard, and display as half
+      stars.
+- [ ] With the source on Hardcover, the stars show that reader's Hardcover
+      ratings; setting one lands on their hardcover.app account and survives
+      the next sync.
+- [ ] Rating an unshelved Hardcover book asks before adding it to their shelves
+      as Read.
+- [ ] Rating a Calibre-only book in that mode opens the Hardcover finder;
+      picking a match shelves it as Read, rates it, and merges it into the
+      work; cancelling rates nothing.
+- [ ] Both shelving flows offer a finished-when: unknown (default), today, a
+      date, or a month/year — and "unknown" leaves no dates on the Hardcover
+      read entry instead of today's.
+- [ ] Rating a Want to Read / Currently Reading / Paused book asks the same
+      finished-when and marks it Read — or "Just rate" leaves the status
+      alone. DNF and Ignored books rate without the ask.
+- [ ] Switching the source toggle switches the stars on screen without a
+      reload.
 
 ## Open questions
 
@@ -159,8 +231,6 @@ client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
 - **The ratings already in Calibre** are permanently invisible with no way to
   adopt one. A one-off import for the current reader is the obvious answer; the
   part that needs a decision is guessing whose ratings those were.
-- **Half stars.** Calibre can express them and this cannot; changing that is a
-  migration, not just a hit target on each star half.
 - **Sorting and filtering by rating.** "My 5-star books" is the obvious first
   filter, and it needs the rating sortable server-side — the same argument for
   moving the join.

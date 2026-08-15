@@ -10,6 +10,8 @@ const UNLINKED = {
   hardcoverStatusCounts: [],
   hardcoverSyncedAt: null,
   hardcoverSyncError: null,
+  ratingsSource: "local" as const,
+  readStateSource: "hardcover" as const,
 };
 
 /**

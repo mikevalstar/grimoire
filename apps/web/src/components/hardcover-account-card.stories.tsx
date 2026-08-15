@@ -1,7 +1,7 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/tanstack-react";
 import { useEffect } from "react";
 import type { User } from "@/lib/api";
-import { HardcoverLink } from "./hardcover-link";
+import { HardcoverAccountCard } from "./hardcover-account-card";
 
 const READER: User = {
   id: 1,
@@ -13,6 +13,8 @@ const READER: User = {
   hardcoverStatusCounts: [],
   hardcoverSyncedAt: null,
   hardcoverSyncError: null,
+  ratingsSource: "local",
+  readStateSource: "hardcover",
 };
 
 /** A reader whose shelves have been synced (docs/features/hardcover-sync.md). */
@@ -53,18 +55,26 @@ const withStubbedApi =
   };
 
 const meta = {
-  title: "Settings/HardcoverLink",
-  component: HardcoverLink,
+  title: "Settings/HardcoverAccountCard",
+  component: HardcoverAccountCard,
   args: { user: READER, onChange: () => {} },
-  decorators: [withStubbedApi({ ok: true, username: "mikevalstar" })],
-} satisfies Meta<typeof HardcoverLink>;
+  decorators: [
+    withStubbedApi({ ok: true, username: "mikevalstar" }),
+    (Story) => (
+      <div className="max-w-xl p-4">
+        <Story />
+      </div>
+    ),
+  ],
+} satisfies Meta<typeof HardcoverAccountCard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Nothing linked yet: one quiet affordance under the reader's name. */
+/** Nothing linked yet: the card is an invitation to paste a token. */
 export const Unlinked: Story = {};
 
+/** Linked and synced: stats, and the two source toggles. */
 export const Linked: Story = {
   args: { user: LINKED },
 };
@@ -76,7 +86,7 @@ export const LinkedLight: Story = {
 
 /**
  * A link that has gone stale on its own: the last background sync was refused,
- * and the reason sits under the reader until one succeeds
+ * and the reason sits in the card until one succeeds
  * (docs/features/hardcover-sync.md).
  */
 export const SyncFailed: Story = {

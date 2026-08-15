@@ -5,7 +5,22 @@ const meta = {
   title: "Shell/AppShell",
   component: AppShell,
   parameters: { layout: "fullscreen" },
-  args: { bookCount: 1284, user: { name: "Mike Valstar", color: "indigo" } },
+  args: {
+    bookCount: 1284,
+    user: {
+      id: 1,
+      name: "Mike Valstar",
+      color: "indigo",
+      createdAt: "2026-08-01T10:00:00.000Z",
+      hardcoverUsername: null,
+      hardcoverBookCount: 0,
+      hardcoverStatusCounts: [],
+      hardcoverSyncedAt: null,
+      hardcoverSyncError: null,
+      ratingsSource: "local",
+      readStateSource: "hardcover",
+    },
+  },
 } satisfies Meta<typeof AppShell>;
 
 export default meta;

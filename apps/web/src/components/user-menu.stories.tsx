@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
 import type { User } from "@/lib/api";
-import { AppHeader } from "./app-header";
+import { UserMenu } from "./user-menu";
 
 const READERS: User[] = [
   {
@@ -29,19 +29,40 @@ const READERS: User[] = [
     ratingsSource: "local",
     readStateSource: "hardcover",
   },
+  {
+    id: 3,
+    name: "Sam Okonjo",
+    color: "emerald",
+    createdAt: "2026-08-02T09:12:00.000Z",
+    hardcoverUsername: null,
+    hardcoverBookCount: 0,
+    hardcoverStatusCounts: [],
+    hardcoverSyncedAt: null,
+    hardcoverSyncError: null,
+    ratingsSource: "local",
+    readStateSource: "hardcover",
+  },
 ];
 
 const meta = {
-  title: "Shell/AppHeader",
-  component: AppHeader,
-  parameters: { layout: "fullscreen" },
+  title: "Shell/UserMenu",
+  component: UserMenu,
+  // Room below the trigger, so the opened menu fits inside the story frame.
+  decorators: [
+    (Story) => (
+      <div className="flex h-80 justify-end p-4">
+        <Story />
+      </div>
+    ),
+  ],
   args: {
-    bookCount: 1284,
-    user: READERS[0],
     users: READERS,
+    currentUser: READERS[0],
     onPickUser: () => {},
+    onAddReader: () => {},
+    onOpenSettings: () => {},
   },
-} satisfies Meta<typeof AppHeader>;
+} satisfies Meta<typeof UserMenu>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -52,17 +73,12 @@ export const Light: Story = {
   globals: { theme: "light" },
 };
 
-/** Before the library has loaded, the placeholder drops the count. */
-export const CountUnknown: Story = {
-  args: { bookCount: undefined },
+/** Nobody picked yet — the chip falls back to the app's own initial. */
+export const NoCurrentReader: Story = {
+  args: { currentUser: undefined },
 };
 
-/** Without a reader list the avatar is a plain chip, not a menu. */
-export const NoReaderList: Story = {
-  args: { users: undefined },
-};
-
-/** Below `sm` the wide search trigger collapses to an icon. */
-export const Narrow: Story = {
-  globals: { viewport: { value: "mobile1" } },
+/** A single-reader install — the menu is mostly a door into settings. */
+export const OneReader: Story = {
+  args: { users: READERS.slice(0, 1) },
 };

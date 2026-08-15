@@ -87,6 +87,15 @@ function migrate(db: Database): void {
   addColumn(db, "users", "hardcover_user_id", "INTEGER");
   addColumn(db, "users", "hardcover_synced_at", "TEXT");
   addColumn(db, "users", "hardcover_sync_error", "TEXT");
+  // Where this reader's stars live — 'local' or 'hardcover' (ADR 0014). The
+  // first per-reader preference; a column rather than a preferences row because
+  // the API needs it on every rating write.
+  addColumn(db, "users", "ratings_source", "TEXT NOT NULL DEFAULT 'local'");
+  // Same choice for read state (docs/features/marking-a-book-read.md).
+  // Defaulted to hardcover — unlike ratings there was no local store to stay
+  // loyal to — but it only takes effect for a linked reader; everyone else is
+  // local regardless.
+  addColumn(db, "users", "read_state_source", "TEXT NOT NULL DEFAULT 'hardcover'");
 
   // A verbatim mirror of hardcover.app, split the way the Calibre mirror is:
   // what they said, kept apart from what Grimoire decided to keep.
@@ -313,12 +322,56 @@ function migrate(db: Database): void {
     CREATE TABLE IF NOT EXISTS ratings (
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-      rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      rating     REAL NOT NULL CHECK (rating BETWEEN 0.5 AND 5 AND rating * 2 = CAST(rating * 2 AS INTEGER)),
       updated_at TEXT NOT NULL,
       PRIMARY KEY (user_id, work_id)
     )
   `);
   rekeyRatingsOntoWorks(db);
+  widenRatingsToHalves(db);
+
+  // A reader's local read state (docs/features/marking-a-book-read.md) —
+  // shaped like ratings: keyed by work, unread is the absence of a row.
+  // `finished_at` holds the reader's answer at its own precision — "2023",
+  // "2023-06", "2023-06-15" — or NULL for read-but-don't-know-when.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS read_states (
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      work_id     INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+      finished_at TEXT,
+      updated_at  TEXT NOT NULL,
+      PRIMARY KEY (user_id, work_id)
+    )
+  `);
+}
+
+/**
+ * Ratings were whole stars in an INTEGER column; Hardcover rates in halves and
+ * local ratings adopted the same unit (ADR 0014). SQLite can't retype a column,
+ * so a table that predates this is rebuilt — every whole star is already a
+ * valid half, so the rows copy as they are.
+ */
+function widenRatingsToHalves(db: Database): void {
+  const columns = db.query("PRAGMA table_info(ratings)").all() as {
+    name: string;
+    type: string;
+  }[];
+  if (columns.find((column) => column.name === "rating")?.type !== "INTEGER") return;
+
+  db.transaction(() => {
+    db.run("ALTER TABLE ratings RENAME TO ratings_whole");
+    db.run(`
+      CREATE TABLE ratings (
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+        rating     REAL NOT NULL CHECK (rating BETWEEN 0.5 AND 5 AND rating * 2 = CAST(rating * 2 AS INTEGER)),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, work_id)
+      )
+    `);
+    db.run("INSERT INTO ratings SELECT * FROM ratings_whole");
+    db.run("DROP TABLE ratings_whole");
+  })();
 }
 
 /**

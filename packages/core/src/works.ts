@@ -6,6 +6,7 @@ import type {
   DuplicateReason,
   Duplicates,
   MatchOutcome,
+  PendingDuplicates,
   WorkMember,
 } from "./schemas.ts";
 
@@ -49,6 +50,9 @@ const REASON_RANK: Record<DuplicateReason, number> = { exact: 0, subtitle: 1, ti
  * library-wide review screen, not a longer list under one book.
  */
 const MAX_CANDIDATES = 8;
+
+/** Queue rows worth rendering in settings — a pane, not a report. */
+const MAX_PENDING = 50;
 
 /** Above every key a range scan could reach, so `>= key AND < KEY_CEILING` is "starts with". */
 const KEY_CEILING = "\u{10FFFF}";
@@ -199,6 +203,37 @@ export class WorksStore {
       .slice(0, MAX_CANDIDATES);
 
     return { members: members.map(toMember), candidates };
+  }
+
+  /**
+   * The review queue (docs/features/resolving-duplicates.md): every pair
+   * `duplicatesFor` would suggest, across the whole library, each pair once —
+   * the same suggestion is found from both of its works, and it is one
+   * question. Computed on demand like the per-work list, for the same reason:
+   * an answer removes it, so there is nothing worth keeping that couldn't go
+   * stale. Best reasons first, capped; `total` says what the cap hid.
+   */
+  pendingDuplicates(limit = MAX_PENDING): PendingDuplicates {
+    const workIds = this.db
+      .query("SELECT DISTINCT work_id AS id FROM books ORDER BY work_id")
+      .all() as { id: number }[];
+
+    const seen = new Set<string>();
+    const pairs = [];
+    for (const work of workIds) {
+      for (const candidate of this.duplicatesFor(work.id)?.candidates ?? []) {
+        const [low, high] =
+          work.id < candidate.workId ? [work.id, candidate.workId] : [candidate.workId, work.id];
+        const key = `${low}:${high}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Spread first: the candidate's own workId names the *other* work.
+        pairs.push({ ...candidate, workId: work.id, otherWorkId: candidate.workId });
+      }
+    }
+
+    pairs.sort((a, b) => REASON_RANK[a.reason] - REASON_RANK[b.reason] || a.workId - b.workId);
+    return { pairs: pairs.slice(0, limit), total: pairs.length };
   }
 
   /**

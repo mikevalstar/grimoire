@@ -5,6 +5,7 @@ export * from "./db.ts";
 export * from "./hardcover-books.ts";
 export * from "./matching.ts";
 export * from "./ratings.ts";
+export * from "./read-states.ts";
 export * from "./schemas.ts";
 export * from "./settings.ts";
 export * from "./types.ts";

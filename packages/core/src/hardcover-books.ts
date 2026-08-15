@@ -233,17 +233,144 @@ export class HardcoverBooksStore {
   }
 
   /**
+   * This reader's ratings keyed by *work* id — the id the shelf renders as
+   * `Book.id` — via the `books` rows the reconcile stamped with `hardcover_id`.
+   * An entry per shelved book with its rating (`null` where the shelf entry
+   * carries none) and reading status, so a key's presence doubles as "on
+   * their shelves" and the status decides the mark-as-read ask (ADR 0014).
+   */
+  ratingsByWork(userId: number): Record<string, { rating: number | null; statusId: number }> {
+    const rows = this.db
+      .query(
+        `SELECT b.work_id AS workId, hub.rating AS rating, hub.status_id AS statusId
+           FROM hardcover_user_books hub
+           JOIN books b ON b.hardcover_id = hub.hardcover_book_id
+          WHERE hub.user_id = $userId AND b.work_id IS NOT NULL`,
+      )
+      .all({ $userId: userId }) as { workId: number; rating: number | null; statusId: number }[];
+
+    const ratings: Record<string, { rating: number | null; statusId: number }> = {};
+    for (const row of rows) {
+      ratings[String(row.workId)] = { rating: row.rating, statusId: row.statusId };
+    }
+    return ratings;
+  }
+
+  /**
+   * The Hardcover side of one work, for a rating write-back (ADR 0014):
+   * which Hardcover book the work contains, and — if this reader shelved it —
+   * the `user_books` row the mutation targets. `userBookId` null means the
+   * write needs the reader's leave to add the book to their shelves first.
+   */
+  shelfEntryForWork(
+    userId: number,
+    workId: number,
+  ): { hardcoverBookId: number; userBookId: number | null } | null {
+    const row = this.db
+      .query(
+        `SELECT b.hardcover_id AS hardcoverBookId, hub.user_book_id AS userBookId
+           FROM books b
+           LEFT JOIN hardcover_user_books hub
+             ON hub.hardcover_book_id = b.hardcover_id AND hub.user_id = $userId
+          WHERE b.work_id = $workId AND b.hardcover_id IS NOT NULL`,
+      )
+      .get({ $userId: userId, $workId: workId }) as {
+      hardcoverBookId: number;
+      userBookId: number | null;
+    } | null;
+    return row;
+  }
+
+  /**
+   * Reflect a rating Hardcover just accepted, so the shelf shows it without
+   * waiting for the next sweep. Null keeps the entry and clears the stars,
+   * matching what `update_user_book(rating: null)` did on their side. With a
+   * `statusId`, the write also flipped the status — the mark-as-read ask.
+   */
+  setRating(
+    userId: number,
+    hardcoverBookId: number,
+    rating: number | null,
+    statusId?: number,
+  ): void {
+    this.db
+      .query(
+        `UPDATE hardcover_user_books
+            SET rating = $rating, status_id = COALESCE($statusId, status_id)
+          WHERE user_id = $userId AND hardcover_book_id = $bookId`,
+      )
+      .run({
+        $userId: userId,
+        $bookId: hardcoverBookId,
+        $rating: rating,
+        $statusId: statusId ?? null,
+      });
+  }
+
+  /** Reflect a status change Hardcover just accepted, leaving the rating alone. */
+  setStatus(userId: number, hardcoverBookId: number, statusId: number): void {
+    this.db
+      .query(
+        `UPDATE hardcover_user_books SET status_id = $statusId
+          WHERE user_id = $userId AND hardcover_book_id = $bookId`,
+      )
+      .run({ $userId: userId, $bookId: hardcoverBookId, $statusId: statusId });
+  }
+
+  /**
+   * Record a shelf entry `insert_user_book` just created (ADR 0014) — the
+   * minimum the mirror needs until the next sweep replaces it with Hardcover's
+   * full row. The book itself is already mirrored: only shelved books get
+   * write-backs, and this one just joined the shelves of a synced library.
+   */
+  recordShelfEntry(
+    userId: number,
+    hardcoverBookId: number,
+    userBookId: number,
+    statusId: number,
+    rating: number | null,
+  ): void {
+    this.db
+      .query(
+        `INSERT INTO hardcover_user_books (
+           user_id, hardcover_book_id, user_book_id, status_id, rating, owned,
+           raw, synced_at
+         ) VALUES ($userId, $bookId, $userBookId, $statusId, $rating, 0, $raw, $now)
+         ON CONFLICT (user_id, hardcover_book_id) DO UPDATE SET
+           user_book_id = excluded.user_book_id, status_id = excluded.status_id,
+           rating = excluded.rating, synced_at = excluded.synced_at`,
+      )
+      .run({
+        $userId: userId,
+        $bookId: hardcoverBookId,
+        $userBookId: userBookId,
+        $statusId: statusId,
+        $rating: rating,
+        $raw: JSON.stringify({ id: userBookId, status_id: statusId, rating }),
+        $now: new Date().toISOString(),
+      });
+  }
+
+  /**
    * Drop this reader's entries for books the sweep did not return — they have
    * been un-shelved. Books stay in `hardcover_books`: another reader may hold
    * them, and a book nobody holds costs one row.
+   *
+   * Entries mirrored in the last minute are spared: a write-back records its
+   * entry here immediately, but Hardcover's read replica can lag their write —
+   * a sweep racing that lag would erase a book the reader just shelved.
    */
   deleteMissing(userId: number, keep: number[]): number {
     const held = this.db
-      .query("SELECT hardcover_book_id AS id FROM hardcover_user_books WHERE user_id = $userId")
-      .all({ $userId: userId }) as { id: number }[];
+      .query(
+        `SELECT hardcover_book_id AS id, synced_at AS syncedAt
+           FROM hardcover_user_books WHERE user_id = $userId`,
+      )
+      .all({ $userId: userId }) as { id: number; syncedAt: string }[];
 
     const keeping = new Set(keep);
-    const gone = held.filter((row) => !keeping.has(row.id));
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    const gone = held.filter((row) => !keeping.has(row.id) && row.syncedAt < cutoff);
     if (gone.length === 0) return 0;
 
     const remove = this.db.query(

@@ -97,6 +97,18 @@ join can put two Calibre rows together, or two books that only a reader can see
 are the same. That is the point of it being manual. Every join is the same
 operation as saying **Same book**, and **Separate** undoes it.
 
+### The review queue
+
+The same candidates, library-wide, in the [settings](settings.md) Duplicates
+section: every pair the automatic pass refused and a person hasn't answered
+yet, found by running the panel's per-work query across the whole shelf and
+deduplicating pairs seen from both sides. Each row shows the two books —
+cover, title, authors, source marks — the reason they're suspected, and the
+same two answers the panel offers: **Same book** and **Not the same**.
+Answering removes the row; the queue caps what it shows and says when it has
+(a settings pane is not a report). This is the queue the **Find duplicates**
+button's conflict count was always pointing at.
+
 ### Saying yes
 
 **Same book** joins the two works. It is the same operation the matcher performs
@@ -232,11 +244,6 @@ has a shared schema
 
 ## Open questions
 
-- **No library-wide view.** Duplicates are found one book at a time, from a
-  panel someone happened to open. The same query feeds a *Duplicates* screen —
-  and [settings](settings.md) already has a **Find duplicates** button that
-  reports a conflict count into the void — but a review queue is its own
-  feature.
 - **The picker's search is the shelf's missing one.** [The toolbar](book-list.md)
   still holds a placeholder where filtering will go, and when it arrives the two
   should be the same input over the same ranking rather than two things that

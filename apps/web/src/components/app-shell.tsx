@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { AppHeader, type AppHeaderProps } from "@/components/app-header";
-import { SettingsDialog } from "@/components/settings-dialog";
+import { SettingsDialog, type SettingsSection } from "@/components/settings-dialog";
 
 /**
  * The frame every screen renders inside: ambient backdrop, sticky header, and
@@ -13,8 +13,13 @@ export function AppShell({
   ...header
 }: AppHeaderProps & { children: ReactNode }) {
   // The shell owns the settings dialog so every screen has it, unless a caller
-  // takes the gear over for something of its own.
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // takes the gear over for something of its own. Where it opens depends on
+  // who asked: the gear lands on Calibre, the avatar menu's "Add reader" on
+  // Readers.
+  const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>({
+    open: false,
+    section: "calibre",
+  });
 
   return (
     <div className="bg-background text-foreground flex h-screen flex-col overflow-hidden font-sans">
@@ -29,11 +34,19 @@ export function AppShell({
       />
 
       <div className="relative z-10 flex h-full min-h-0 flex-col">
-        <AppHeader {...header} onOpenSettings={onOpenSettings ?? (() => setSettingsOpen(true))} />
+        <AppHeader
+          {...header}
+          onOpenSettings={onOpenSettings ?? (() => setSettings({ open: true, section: "calibre" }))}
+          onAddReader={() => setSettings({ open: true, section: "readers" })}
+        />
         <main className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">{children}</main>
       </div>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        open={settings.open}
+        section={settings.section}
+        onOpenChange={(open) => setSettings((current) => ({ ...current, open }))}
+      />
     </div>
   );
 }

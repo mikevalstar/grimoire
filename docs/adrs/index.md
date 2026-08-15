@@ -24,4 +24,5 @@ Add one with `okq new adr "<title>"`.
 | Sync Calibre into grimoire.db and read the library from there | [0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md](0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md) |
 | Hardcover as a second source, with per-reader tokens | [0012-hardcover-as-a-second-source-with-per-reader-tokens.md](0012-hardcover-as-a-second-source-with-per-reader-tokens.md) |
 | Group duplicate books into works | [0013-group-duplicate-books-into-works.md](0013-group-duplicate-books-into-works.md) |
+| Per-reader rating source with Hardcover write-back | [0014-per-reader-rating-source-with-hardcover-write-back.md](0014-per-reader-rating-source-with-hardcover-write-back.md) |
 <!-- okq:index:end -->

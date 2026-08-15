@@ -3,7 +3,8 @@ import { Moon, Search, Settings, Sun } from "lucide-react";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { Kbd } from "@/components/ui/kbd";
 import { UserAvatar } from "@/components/user-avatar";
-import type { SyncStatus } from "@/lib/api";
+import { UserMenu } from "@/components/user-menu";
+import type { SyncStatus, User } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -15,10 +16,15 @@ export interface AppHeaderProps {
   /** Opens the command palette. Inert until that exists. */
   onOpenSearch?: () => void;
   onOpenSettings?: () => void;
+  /** Opens settings on its Readers section, from the avatar menu. */
+  onAddReader?: () => void;
   /** Shown in the search placeholder once we know the library size. */
   bookCount?: number;
   /** The reader this device is using — their initials on their own colour. */
-  user?: { name: string; color: string };
+  user?: User;
+  /** Everyone, for the avatar menu. Absent, the avatar is a plain chip. */
+  users?: User[];
+  onPickUser?: (user: User) => void;
   /** Drives the sync indicator. Absent in Storybook and before the first poll. */
   syncStatus?: SyncStatus;
   onSync?: () => void;
@@ -28,8 +34,11 @@ export interface AppHeaderProps {
 export function AppHeader({
   onOpenSearch,
   onOpenSettings,
+  onAddReader,
   bookCount,
   user,
+  users,
+  onPickUser,
   syncStatus,
   onSync,
   className,
@@ -100,11 +109,23 @@ export function AppHeader({
             <Settings size={14} />
           </button>
 
-          <UserAvatar
-            name={user?.name ?? "Grimoire"}
-            color={user?.color ?? "indigo"}
-            title={user?.name}
-          />
+          {/* With a reader list this is the switcher; without one (Storybook,
+              first load) it stays a plain chip. */}
+          {users && onPickUser ? (
+            <UserMenu
+              users={users}
+              currentUser={user}
+              onPickUser={onPickUser}
+              onAddReader={onAddReader}
+              onOpenSettings={onOpenSettings}
+            />
+          ) : (
+            <UserAvatar
+              name={user?.name ?? "Grimoire"}
+              color={user?.color ?? "indigo"}
+              title={user?.name}
+            />
+          )}
         </div>
       </div>
     </header>

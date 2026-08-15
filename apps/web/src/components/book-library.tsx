@@ -4,7 +4,13 @@ import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { Button } from "@/components/ui/button";
-import { ApiError, bookRating, type LibraryBook, type Ratings } from "@/lib/api";
+import {
+  ApiError,
+  bookRating,
+  type HardcoverRatings,
+  type LibraryBook,
+  type Ratings,
+} from "@/lib/api";
 import { searchBooks } from "@/lib/book-search";
 import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
@@ -15,10 +21,15 @@ export interface BookLibraryProps {
   isPending?: boolean;
   error?: Error | null;
   onRetry?: () => void;
-  /** The current reader's ratings, shown in front of Calibre's. */
-  ratings?: Ratings;
+  /** The current reader's ratings, from whichever source they chose (ADR 0014). */
+  ratings?: Ratings | HardcoverRatings;
   /** Set a rating. Without it the stars stay a read-out. */
   onRate?: (book: LibraryBook, rating: number) => void;
+  /** Whether this book's stars are a control — see BookGrid (ADR 0014). */
+  ratable?: (book: LibraryBook) => boolean;
+  /** The dog-ear (docs/features/marking-a-book-read.md) — see BookGrid. */
+  isRead?: (book: LibraryBook) => boolean;
+  onToggleRead?: (book: LibraryBook, read: boolean) => void;
   /**
    * Show a different one of a work's covers, by member id — the details panel's
    * cover stack (docs/features/book-details-panel.md).
@@ -39,6 +50,9 @@ export function BookLibrary({
   onRetry,
   ratings,
   onRate,
+  ratable,
+  isRead,
+  onToggleRead,
   onChooseCover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
@@ -85,6 +99,9 @@ export function BookLibrary({
             books={books}
             ratings={ratings}
             onRate={onRate}
+            ratable={ratable}
+            isRead={isRead}
+            onToggleRead={onToggleRead}
             onOpen={(book) => setOpenId(book.id)}
           />
         ) : (
@@ -92,6 +109,7 @@ export function BookLibrary({
             books={books}
             ratings={ratings}
             onRate={onRate}
+            ratable={ratable}
             onOpen={(book) => setOpenId(book.id)}
           />
         )}
@@ -101,7 +119,11 @@ export function BookLibrary({
         book={openBook}
         onClose={() => setOpenId(null)}
         rating={openBook ? bookRating(openBook, ratings) : 0}
-        onRate={onRate && openBook ? (rating) => onRate(openBook, rating) : undefined}
+        onRate={
+          onRate && openBook && (ratable?.(openBook) ?? true)
+            ? (rating) => onRate(openBook, rating)
+            : undefined
+        }
         onChooseCover={
           onChooseCover && openBook ? (bookId) => onChooseCover(openBook, bookId) : undefined
         }

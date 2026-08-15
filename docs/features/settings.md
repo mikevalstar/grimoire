@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Settings
-description: One dialog behind the header's gear holding everything configurable after first run — the Calibre connection, library sync, and the readers who share this library along with their Hardcover accounts.
+description: One sectioned dialog behind the header's gear — Calibre connection and sync, each reader's Hardcover account with its sync stats and source toggles, the readers themselves, and duplicate matching.
 tags: [frontend, ui, configuration, users]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-11 }
@@ -12,8 +12,9 @@ generated: { by: okq/0.8.0, at: 2026-08-11 }
 ## Summary
 
 The gear in the header opens one dialog with everything that can be changed
-after setup: where the Calibre content server is, who reads here, and which of
-those readers is using this device.
+after setup. It is organized as a fixed-size dialog with a section list down the
+left — Calibre, Hardcover, Readers, Duplicates — and one section's content on
+the right, so each concern gets room without the whole thing becoming a scroll.
 
 ## Motivation
 
@@ -23,85 +24,110 @@ content server that moved to another port, or a reader who joined the household
 after setup. Settings is where those answers live for the rest of the app's
 life.
 
-There is little enough to configure that splitting it into a settings *page*
-with sections and routes would be more navigation than content. One dialog, one
-scroll, sections as headings. When it outgrows that, it becomes a route and this
-doc gets superseded.
+The first version was one scroll of stacked headings, which stopped fitting
+once Hardcover brought per-reader connections, sync stats and source toggles.
+Sections behind a sidebar keep each surface small while staying one dialog —
+still less navigation than a settings *route* would be. When a section outgrows
+a pane, that decision gets revisited.
 
 ## Behavior
 
-A regular dialog — Escape, the close button and clicking outside all dismiss it,
-unlike the wizard's locked-down modal.
+A regular dialog — Escape, the close button and clicking outside all dismiss
+it. The sidebar switches sections; the dialog keeps one size so switching
+doesn't jump the layout. Callers can open it on a particular section — the
+header's avatar menu opens straight to Readers.
 
-### Library
+### Calibre
 
-The Calibre content server URL, with the same server-side **Test** probe the
-wizard uses ([ADR 0005](../adrs/0005-calibre-content-server-as-the-data-source.md)),
-reporting the book count on success. **Save** writes the URL and closes; the API
-resolves the proxy target per request, so the new server is live immediately
-with no restart. Saving also kicks a full [sync](calibre-sync.md), so the
-library repopulates from wherever it now points without waiting out an interval.
+The connection and the sync, together, since one is the health of the other:
 
-### Library sync
+- The content server URL, with the same server-side **Test** probe the wizard
+  uses ([ADR 0005](../adrs/0005-calibre-content-server-as-the-data-source.md)),
+  reporting the book count on success. **Save** lives next to the field — the
+  only deferred write in the dialog — and the API resolves the proxy target per
+  request, so the new server is live immediately with no restart.
+- Sync stats, as a small tile row: books still in Calibre, books Grimoire
+  tracks in total, and books that have left Calibre when the two differ —
+  plus when the last sync completed and when one was last attempted
+  ([calibre-sync](calibre-sync.md)).
+- The auto-sync interval (applies immediately), a **Sync now** button that
+  reports progress while running, and the last error in full if there was one.
 
-When Grimoire last synced, how many books it holds — and how many of those
-Calibre no longer lists, when the two differ — the last error in full if there
-was one, a **Sync now** button, and how often to sync automatically. The
-interval applies immediately.
+### Hardcover
 
-### Duplicates
+One card per reader, because the token is a person, not an instance-wide
+setting ([ADR 0012](../adrs/0012-hardcover-as-a-second-source-with-per-reader-tokens.md),
+[Hardcover connection](hardcover-connection.md)). A linked reader's card shows:
 
-A **Find duplicates** button, and what the last pass did
-([book matching](book-matching.md)). Matching runs on its own — at startup and
-after any sync that changed something — so this is a "look again" rather than
-the only way it happens. The number worth reading is the second one: how many
-groups it refused to merge because they would have put two rows from one source
-together, which is the queue manual resolution will consume.
+- The Hardcover username the stored token belongs to, with **Sync now**,
+  **Test** and **Unlink**.
+- Sync stats: how many books their shelves hold, the breakdown by reading
+  status — the proof that reading *state* came over, not just titles
+  ([Hardcover sync](hardcover-sync.md)) — when it last synced, and the last
+  sync error if any.
+- Two source toggles, deciding which truth wins where Grimoire and Hardcover
+  both have an answer:
+  - **Stars from Hardcover** — this reader's rating source
+    ([ADR 0014](../adrs/0014-per-reader-rating-source-with-hardcover-write-back.md)).
+    On, the shelf shows their Hardcover ratings and rating a book writes to
+    their hardcover.app account; off, stars live in `grimoire.db`
+    ([rating a book](rating-a-book.md)). Stored on the reader, applied
+    immediately, and reset to local by unlinking.
+  - **Read state from Hardcover** — this reader's read-state source
+    ([marking a book read](marking-a-book-read.md)). On, the cover's corner
+    check reads and writes their Hardcover shelves; off, read state lives in
+    `grimoire.db`. Stored on the reader, applied immediately; a reader with
+    no linked account is always local.
+
+An unlinked reader's card is the token form — paste, test, save — with a
+pointer to where a token comes from.
 
 ### Readers
 
-Everyone in `grimoire.db` ([ADR 0008](../adrs/0008-multiple-users-without-authentication.md)),
-as avatar chips. Two things happen here:
+Everyone in `grimoire.db`
+([ADR 0008](../adrs/0008-multiple-users-without-authentication.md)), with the
+reader on this device marked. **Add a reader** uses the same name and colour
+picker the wizard does, writing immediately.
 
-- **Who's using this device** — picking a reader marks them as current and the
-  header avatar changes at once. It is a per-device convenience, not a
-  credential; other devices are unaffected.
-- **Add a reader** — the same name and colour picker the wizard uses, writing
-  immediately rather than on Save.
-- **Link a Hardcover account** — per reader, because the token is a person
-  rather than a setting, with what has come across from it and a **Sync now**.
-  See [Hardcover connection](hardcover-connection.md) and
-  [Hardcover sync](hardcover-sync.md).
+*Switching* the device's reader is not here any more — it moved to the header
+avatar menu ([application shell](application-shell.md)), where it is one click
+instead of a trip through settings.
 
-Renaming and removing readers are not here yet. Removal in particular needs an
-answer for what happens to that reader's data, and inventing one before there
-*is* per-reader data would be guessing.
+### Duplicates
+
+The library-wide **review queue**
+([resolving duplicates](resolving-duplicates.md)): every pair the automatic
+pass refused and nobody has answered, each row carrying the two books, the
+reason, and the panel's two answers — **Same book** and **Not the same**.
+Above it, the **Find duplicates** button runs a matching pass by hand
+([book matching](book-matching.md)) — matching runs on its own at startup and
+after any sync that changed something, so this is a "look again" — and reports
+what it grouped and what it left for the queue below.
 
 ### What saves when
 
-Deliberately mixed, and worth stating: **Save** commits the content server URL
-only. Choosing the current reader, adding a reader, linking or unlinking a
-Hardcover account, changing the sync interval and pressing Sync now all apply
-the moment you do them — there is nothing to
-review and no half-typed state to protect, and making them wait behind Save
-would only invite closing the dialog and losing them.
+**Save** in the Calibre section commits the content server URL only. Everything
+else — adding a reader, linking or unlinking Hardcover, changing the sync
+interval, pressing either Sync now — applies the moment you do it: there is
+nothing to review, and making it wait behind a Save would only invite closing
+the dialog and losing it.
 
 ## Acceptance criteria
 
-- [x] The header gear opens the dialog; Escape, the close button and an outside
-      click all close it.
-- [x] The Calibre URL can be tested and saved, and the library re-syncs against
-      the new server without a restart.
-- [x] Library sync shows the last sync, the book count, any error, a working
-      interval select and a Sync now button.
-- [x] Every reader is listed; picking one changes the header avatar immediately
-      and survives a reload.
-- [x] A reader can be added, with a colour, and appears in the list at once.
-- [x] Find duplicates runs a matching pass and reports what it grouped and what
+- [ ] The header gear opens the dialog; Escape, the close button and an outside
+      click all close it; the sidebar switches between the four sections.
+- [ ] The Calibre section tests and saves the URL, shows the sync stat tiles,
+      the interval select, Sync now, and any sync error.
+- [ ] The Hardcover section shows a card per reader: link/test/unlink and the
+      token form for the unlinked, stats and the two source toggles for the
+      linked.
+- [ ] The Readers section lists everyone, marks this device's reader, and adds
+      a reader with a colour.
+- [ ] Find duplicates runs a matching pass and reports what it grouped and what
       it left alone.
-- [x] Each reader's row can link, test and unlink a Hardcover account
-      ([Hardcover connection](hardcover-connection.md)).
-- [x] The dialog has a Storybook story.
+- [ ] The dialog can be opened on a named section, and the avatar menu's "Add
+      reader" lands on Readers.
+- [ ] The dialog has a Storybook story per section.
 
 ## Open questions
 
@@ -110,5 +136,3 @@ would only invite closing the dialog and losing them.
   grows a general "appearance" section that decision should be revisited.
 - Nothing here explains that the header avatar is not a login. The wording may
   need to work harder once a Grimoire instance is routinely shared over a LAN.
-- Every setting is global except the current reader. The first genuinely
-  per-reader preference will force a decision about how this dialog splits.

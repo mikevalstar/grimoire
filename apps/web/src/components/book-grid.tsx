@@ -1,9 +1,10 @@
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
 import { BookMarks } from "@/components/book-marks";
+import { ReadCorner } from "@/components/read-corner";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { bookRating, type LibraryBook, type Ratings } from "@/lib/api";
+import { bookRating, type HardcoverRatings, type LibraryBook, type Ratings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookGridProps {
@@ -15,14 +16,33 @@ export interface BookGridProps {
    */
   onOpen?: (book: LibraryBook) => void;
   /** The reader's own ratings, which stand in front of Calibre's. */
-  ratings?: Ratings;
+  ratings?: Ratings | HardcoverRatings;
   /** Set a rating. Without it the stars stay a read-out. */
   onRate?: (book: LibraryBook, rating: number) => void;
+  /**
+   * Whether this book's stars are a control — a Calibre-only book can't be
+   * rated while the reader's source is Hardcover (ADR 0014). Absent, every
+   * book is.
+   */
+  ratable?: (book: LibraryBook) => boolean;
+  /** The dog-ear (docs/features/marking-a-book-read.md). Absent, no corners. */
+  isRead?: (book: LibraryBook) => boolean;
+  /** Open the confirm for the other state. Without it a read corner is a read-out. */
+  onToggleRead?: (book: LibraryBook, read: boolean) => void;
   className?: string;
 }
 
 /** The shelf: covers first, metadata under them, reflowing to any width. */
-export function BookGrid({ books, onOpen, ratings, onRate, className }: BookGridProps) {
+export function BookGrid({
+  books,
+  onOpen,
+  ratings,
+  onRate,
+  ratable,
+  isRead,
+  onToggleRead,
+  className,
+}: BookGridProps) {
   return (
     <ul className={cn(GRID, className)}>
       {books.map((book) => {
@@ -75,6 +95,14 @@ export function BookGrid({ books, onOpen, ratings, onRate, className }: BookGrid
                 variant="overlay"
                 className="absolute bottom-1.5 left-1.5 max-w-[calc(50%-1rem)]"
               />
+              {/* The dog-ear, bottom right — the one corner nothing else claims. */}
+              {isRead && (
+                <ReadCorner
+                  read={isRead(book)}
+                  label={book.title}
+                  onToggle={onToggleRead && ((read) => onToggleRead(book, read))}
+                />
+              )}
             </div>
 
             {/* Every card spends the same number of lines on metadata — one
@@ -101,7 +129,9 @@ export function BookGrid({ books, onOpen, ratings, onRate, className }: BookGrid
                 row. */}
             <StarRating
               value={bookRating(book, ratings)}
-              onRate={onRate && ((rating) => onRate(book, rating))}
+              onRate={
+                onRate && (ratable?.(book) ?? true) ? (rating) => onRate(book, rating) : undefined
+              }
               label={book.title}
               className="mt-auto pt-1"
             />

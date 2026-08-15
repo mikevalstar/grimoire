@@ -561,6 +561,18 @@ export class BooksStore {
     return work.id;
   }
 
+  /**
+   * The work holding a Hardcover catalogue book, if the reconcile has seen it —
+   * what the finder's rating write links into the Calibre book's work
+   * (docs/features/rating-a-book.md).
+   */
+  workForHardcoverId(hardcoverId: number): number | null {
+    const row = this.db
+      .query("SELECT work_id FROM books WHERE hardcover_id = $hardcoverId")
+      .get({ $hardcoverId: hardcoverId }) as { work_id: number } | null;
+    return row?.work_id ?? null;
+  }
+
   markCover(id: number, state: "cached" | "missing", syncedAt: string | null): void {
     this.db
       .query("UPDATE books SET cover_state = $state, cover_synced_at = $syncedAt WHERE id = $id")

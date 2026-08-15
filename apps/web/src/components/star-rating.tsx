@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface StarRatingProps {
-  /** Stars out of 5. 0 is unrated. Halves from Calibre are shown rounded. */
+  /** Stars out of 5, in halves (ADR 0014). 0 is unrated; anything else snaps to 0.5. */
   value: number;
   /**
    * Set the rating. Given this, the stars become a control once the pointer
@@ -36,6 +36,8 @@ const BURST_MS = 450;
 /**
  * A rating as five stars, in the user accent: this is the reader's own verdict,
  * never the crowd's (docs/features/application-shell.md — the two accents).
+ * Half stars since ADR 0014 — each star is two hit areas, left half for the
+ * half, right for the whole, and the glyph fills to match.
  *
  * Interactive when given `onRate` — see docs/features/rating-a-book.md.
  */
@@ -47,7 +49,7 @@ export function StarRating({
   size = 11,
   className,
 }: StarRatingProps) {
-  // The star being pointed at or focused, previewing what a click would set.
+  // The value being pointed at or focused, previewing what a click would set.
   const [preview, setPreview] = useState<number | null>(null);
 
   // The burst playing on a just-clicked star. The id restarts the animation
@@ -76,13 +78,23 @@ export function StarRating({
         className={cn("inline-flex items-center gap-px", className)}
       >
         {STARS.map((star) => (
-          <Star key={star} size={size} className={starClass(star <= rating)} />
+          <span key={star} className="p-px">
+            <StarGlyph star={star} shown={rating} size={size} revealed={false} readOnly />
+          </span>
         ))}
       </span>
     );
   }
 
   const shown = preview ?? rating;
+
+  /** Commit whatever a half's click means: this value, or clear if it already is the rating. */
+  function commit(halfValue: number) {
+    const next = halfValue === rating ? 0 : halfValue;
+    // Setting a rating is worth celebrating; clearing one isn't.
+    if (next > 0) playBurst(Math.ceil(next));
+    onRate?.(next);
+  }
 
   return (
     <span
@@ -97,9 +109,9 @@ export function StarRating({
         className,
       )}
     >
-      {/* A radio group, so arrow keys move through the five values and only one
-          star is a tab stop — 255 books shouldn't cost 1275 of them. The clear
-          button is deliberately outside it: a radio group holds radios. */}
+      {/* A radio group of ten values — two per star — so arrow keys move in
+          halves and only one value is a tab stop. The clear button is
+          deliberately outside it: a radio group holds radios. */}
       <span
         role="radiogroup"
         aria-label={label ? `Rating for ${label}` : "Rating"}
@@ -109,40 +121,12 @@ export function StarRating({
         className="inline-flex items-center gap-px"
       >
         {STARS.map((star) => {
-          const filled = star <= shown;
           // Written to narrow `burst` below, not just to test it.
           const bursting = burst !== null && burst.star === star;
           return (
-            // biome-ignore lint/a11y/useSemanticElements: a real radio can't clear itself — clicking the checked one fires no change event, and unrated is a state this control has to be able to reach.
-            <button
-              key={star}
-              type="button"
-              role="radio"
-              aria-checked={star === rating}
-              // Only the current rating is a tab stop; an unrated book offers its
-              // first star instead, so the group is always reachable.
-              tabIndex={star === (rating || 1) ? 0 : -1}
-              aria-label={
-                star === rating
-                  ? `Clear the ${star}-star rating${label ? ` for ${label}` : ""}`
-                  : `Rate ${label ? `${label} ` : ""}${star} star${star === 1 ? "" : "s"}`
-              }
-              onClick={(event) => {
-                // In the table the whole row opens the book; rating one shouldn't.
-                event.stopPropagation();
-                const next = star === rating ? 0 : star;
-                // Setting a rating is worth celebrating; clearing one isn't.
-                if (next > 0) playBurst(star);
-                onRate(next);
-              }}
-              onMouseEnter={() => setPreview(star)}
-              onFocus={() => setPreview(star)}
-              onBlur={() => setPreview(null)}
-              onKeyDown={(event) => handleArrows(event, star)}
-              className="focus-visible:ring-ring/50 relative cursor-pointer rounded-[2px] p-px focus-visible:ring-2 focus-visible:outline-none"
-            >
+            <span key={star} className="relative p-px">
               {/* Keyed by the burst id so clicking the same star again remounts
-                this and replays the pop from the top. */}
+                  this and replays the pop from the top. */}
               <span
                 key={bursting ? burst.id : "idle"}
                 className={cn(
@@ -150,20 +134,42 @@ export function StarRating({
                   bursting && "motion-safe:animate-[star-pop_400ms_var(--spring)]",
                 )}
               >
-                <Star
-                  size={size}
+                <StarGlyph star={star} shown={shown} size={size} revealed={revealed} />
+              </span>
+
+              {/* The two hit areas, over the glyph: left half rates star − 0.5,
+                  right half the whole star. */}
+              {[star - 0.5, star].map((halfValue, index) => (
+                // biome-ignore lint/a11y/useSemanticElements: a real radio can't clear itself — clicking the checked one fires no change event, and unrated is a state this control has to be able to reach.
+                <button
+                  key={halfValue}
+                  type="button"
+                  role="radio"
+                  aria-checked={halfValue === rating}
+                  // Only the current rating is a tab stop; an unrated book
+                  // offers its first half instead, so the group is always
+                  // reachable.
+                  tabIndex={halfValue === (rating || 0.5) ? 0 : -1}
+                  aria-label={
+                    halfValue === rating
+                      ? `Clear the ${halfValue}-star rating${label ? ` for ${label}` : ""}`
+                      : `Rate ${label ? `${label} ` : ""}${halfValue} star${halfValue === 1 ? "" : "s"}`
+                  }
+                  onClick={(event) => {
+                    // In the table the whole row opens the book; rating one shouldn't.
+                    event.stopPropagation();
+                    commit(halfValue);
+                  }}
+                  onMouseEnter={() => setPreview(halfValue)}
+                  onFocus={() => setPreview(halfValue)}
+                  onBlur={() => setPreview(null)}
+                  onKeyDown={(event) => handleArrows(event, halfValue)}
                   className={cn(
-                    starClass(filled),
-                    // An empty star is invisible until the pointer (or focus)
-                    // is in the control, then fades in outlined — that reveal
-                    // is the whole "these are yours to set" signal.
-                    !filled &&
-                      !revealed &&
-                      "opacity-0 group-hover/rating:opacity-100 group-focus-within/rating:opacity-100",
-                    "motion-safe:transition-all motion-safe:duration-150",
+                    "focus-visible:ring-ring/50 absolute inset-y-0 w-1/2 cursor-pointer rounded-[2px] focus-visible:ring-2 focus-visible:outline-none",
+                    index === 0 ? "left-0" : "right-0",
                   )}
                 />
-              </span>
+              ))}
 
               {bursting && (
                 <span aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -176,7 +182,7 @@ export function StarRating({
                   ))}
                 </span>
               )}
-            </button>
+            </span>
           );
         })}
       </span>
@@ -215,26 +221,75 @@ export function StarRating({
   );
 }
 
-/** Calibre reports halves; we show whole stars and can only set whole ones. */
+/**
+ * One star's glyph for a shown value: full, half, or empty. A half is the
+ * empty outline with a filled star clipped to its left 50% — the outline stays
+ * visible so half a star reads as half of something.
+ */
+function StarGlyph({
+  star,
+  shown,
+  size,
+  revealed,
+  readOnly = false,
+}: {
+  star: number;
+  shown: number;
+  size: number;
+  revealed: boolean;
+  readOnly?: boolean;
+}) {
+  const filled = shown >= star;
+  const half = !filled && shown === star - 0.5;
+
+  return (
+    <span className="relative block">
+      <Star
+        size={size}
+        className={cn(
+          starClass(filled),
+          // An empty star is invisible until the pointer (or focus) is in the
+          // control, then fades in outlined — that reveal is the whole "these
+          // are yours to set" signal. A half star keeps its outline: half a
+          // star has to read as half of something.
+          !filled &&
+            !half &&
+            !revealed &&
+            !readOnly &&
+            "opacity-0 group-hover/rating:opacity-100 group-focus-within/rating:opacity-100",
+          !readOnly && "motion-safe:transition-all motion-safe:duration-150",
+        )}
+      />
+      {half && (
+        <span className="absolute inset-0 w-1/2 overflow-hidden">
+          <Star size={size} className={starClass(true)} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Snap to the halves the control can express (ADR 0014). */
 function clamp(value: number): number {
-  return Math.round(Math.min(5, Math.max(0, value)));
+  return Math.round(Math.min(5, Math.max(0, value)) * 2) / 2;
 }
 
 const starClass = (filled: boolean) => (filled ? "fill-you text-you" : "text-line-strong");
 
 /**
- * Roving focus across the five stars. The radio group's own semantics promise
- * arrow keys work; nothing provides them for free.
+ * Roving focus across the ten half values. The radio group's own semantics
+ * promise arrow keys work; nothing provides them for free.
  */
-function handleArrows(event: React.KeyboardEvent<HTMLButtonElement>, star: number) {
-  const step = event.key === "ArrowRight" || event.key === "ArrowUp" ? 1 : -1;
+function handleArrows(event: React.KeyboardEvent<HTMLButtonElement>, halfValue: number) {
   if (!/^Arrow(Right|Left|Up|Down)$/.test(event.key)) return;
+  const step = event.key === "ArrowRight" || event.key === "ArrowUp" ? 0.5 : -0.5;
 
-  const next = Math.min(5, Math.max(1, star + step));
-  if (next === star) return;
+  const next = Math.min(5, Math.max(0.5, halfValue + step));
+  if (next === halfValue) return;
 
   event.preventDefault();
-  const group = event.currentTarget.parentElement;
-  const target = group?.children[next - 1];
+  const group = event.currentTarget.closest('[role="radiogroup"]');
+  const radios = group?.querySelectorAll('[role="radio"]');
+  const target = radios?.[next * 2 - 1];
   if (target instanceof HTMLElement) target.focus();
 }

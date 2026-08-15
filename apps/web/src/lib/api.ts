@@ -9,21 +9,34 @@ import {
   type DuplicateReason,
   type Duplicates,
   DuplicatesSchema,
+  type HardcoverRatings,
+  HardcoverRatingsSchema,
+  type HardcoverSearchResult,
+  HardcoverSearchResultsSchema,
   type HardcoverTest,
   HardcoverTestSchema,
   type MatchOutcome,
   MatchOutcomeSchema,
+  type PendingDuplicate,
+  type PendingDuplicates,
+  PendingDuplicatesSchema,
   type Preferences,
   PreferencesSchema,
   type RatingResult,
   RatingResultSchema,
+  type RatingSource,
   type Ratings,
   RatingsSchema,
+  type ReadStateResult,
+  ReadStateResultSchema,
+  type ReadStates,
+  ReadStatesSchema,
   type SyncStatus,
   SyncStatusSchema,
   type User,
   type UserCreate,
   UserSchema,
+  type UserSettings,
   UsersSchema,
   type WorkMember,
 } from "@grimoire/core/schemas";
@@ -47,14 +60,22 @@ export type {
   DuplicateCandidate,
   DuplicateReason,
   Duplicates,
+  HardcoverRatings,
+  HardcoverSearchResult,
   HardcoverTest,
   MatchOutcome,
+  PendingDuplicate,
+  PendingDuplicates,
   Preferences,
   RatingResult,
+  RatingSource,
   Ratings,
+  ReadStateResult,
+  ReadStates,
   SyncStatus,
   User,
   UserCreate,
+  UserSettings,
   WorkMember,
 };
 export {
@@ -197,28 +218,125 @@ export function syncHardcover(userId: number) {
   return request(`/api/users/${userId}/hardcover/sync`, UserSchema, { method: "POST" });
 }
 
-/** Every rating this reader has set, keyed by Calibre book id. */
+/** Every local rating this reader has set, keyed by work id. */
 export function fetchRatings(userId: number) {
   return request("/api/ratings", RatingsSchema, { method: "GET", userId });
 }
 
-/** Set this reader's rating for a book. 0 clears it. */
-export function saveRating(userId: number, bookId: number, rating: number) {
+/**
+ * The same map from their Hardcover mirror — an entry per shelved book, null
+ * where the shelf entry is unrated, so presence doubles as "on their shelves"
+ * (ADR 0014).
+ */
+export function fetchHardcoverRatings(userId: number) {
+  return request("/api/ratings/hardcover", HardcoverRatingsSchema, { method: "GET", userId });
+}
+
+/**
+ * Search Hardcover's catalogue as this reader — the finder behind rating a
+ * Calibre-only book in Hardcover mode (docs/features/rating-a-book.md).
+ */
+export function searchHardcover(userId: number, query: string) {
+  return request(`/api/users/${userId}/hardcover/search`, HardcoverSearchResultsSchema, {
+    method: "POST",
+    body: { query },
+  });
+}
+
+/**
+ * Set this reader's rating for a book; 0 clears it. Where it lands follows
+ * their rating source (ADR 0014) — `hardcover` writes to their hardcover.app
+ * account, `addToShelf` relays their confirmation that rating an unshelved
+ * book may add it to their shelves as Read, and `hardcoverBookId` names the
+ * finder's pick for a work with no Hardcover edition yet.
+ */
+export function saveRating(
+  userId: number,
+  bookId: number,
+  rating: number,
+  options?: {
+    source?: RatingSource;
+    addToShelf?: boolean;
+    hardcoverBookId?: number;
+    /** Confirmation that a shelved-but-unfinished book may flip to Read. */
+    markRead?: boolean;
+    /** When they finished it, at its own precision — see RatingUpdateSchema. */
+    finishedAt?: string;
+  },
+) {
   return request(`/api/ratings/${bookId}`, RatingResultSchema, {
     method: "PUT",
-    body: { rating },
+    body: { rating, ...options },
+    userId,
+  });
+}
+
+/** Which per-reader settings to change — the rating and read-state sources. */
+export function updateUserSettings(userId: number, settings: UserSettings) {
+  return request(`/api/users/${userId}`, UserSchema, { method: "PATCH", body: settings });
+}
+
+/** The reader's *local* read states (docs/features/marking-a-book-read.md). */
+export function fetchReadStates(userId: number) {
+  return request("/api/read-states", ReadStatesSchema, { method: "GET", userId });
+}
+
+/**
+ * Mark a book read or unread, through whichever source the reader chose. The
+ * optional rating (marking) and removeRating (unmarking) land in the same
+ * source; the Hardcover fields mean what they do on the ratings route.
+ */
+export function saveReadState(
+  userId: number,
+  bookId: number,
+  update: {
+    read: boolean;
+    finishedAt?: string;
+    rating?: number;
+    removeRating?: boolean;
+    source?: RatingSource;
+    addToShelf?: boolean;
+    hardcoverBookId?: number;
+  },
+) {
+  return request(`/api/read-states/${bookId}`, ReadStateResultSchema, {
+    method: "PUT",
+    body: update,
     userId,
   });
 }
 
 /**
- * The rating to show — the reader's own, and only ever theirs. Calibre's
- * rating is deliberately not a fallback: stars in the user accent mean *your*
- * verdict, and borrowing Calibre's would make an unrated book look rated by
- * you (docs/features/rating-a-book.md).
+ * Whether the shelf should wear the corner check for this book: their
+ * Hardcover status when the reader's read state lives there, the local map
+ * otherwise (docs/features/marking-a-book-read.md).
  */
-export function bookRating(book: LibraryBook, ratings: Ratings | undefined): number {
-  return ratings?.[String(book.id)] ?? 0;
+export function bookIsRead(
+  book: LibraryBook,
+  source: RatingSource,
+  readStates: ReadStates | undefined,
+  hardcoverRatings: HardcoverRatings | undefined,
+): boolean {
+  if (source === "hardcover") return hardcoverRatings?.[String(book.id)]?.statusId === 3;
+  return String(book.id) in (readStates ?? {});
+}
+
+/**
+ * The rating to show — the reader's own, from whichever source they chose
+ * (ADR 0014); a Hardcover map holds null for shelved-but-unrated books, which
+ * reads as unrated. Calibre's rating is deliberately not a fallback: stars in
+ * the user accent mean *your* verdict, and borrowing Calibre's would make an
+ * unrated book look rated by you (docs/features/rating-a-book.md).
+ */
+export function bookRating(
+  book: LibraryBook,
+  ratings: Ratings | HardcoverRatings | undefined,
+): number {
+  const value = ratings?.[String(book.id)];
+  if (value == null) return 0;
+  // A local map holds bare numbers; the Hardcover map wraps the rating with
+  // the shelf status (null = shelved but unrated).
+  return typeof value === "number" ? value : (value.rating ?? 0);
 }
 
 /** Ask the API to probe a candidate Calibre content server URL. */
@@ -350,6 +468,15 @@ export function chooseBookCover(workId: number, bookId: number): Promise<Library
  */
 export function fetchDuplicates(workId: number): Promise<Duplicates> {
   return request(`/api/books/${workId}/duplicates`, DuplicatesSchema);
+}
+
+/**
+ * The library-wide review queue: every pair the matcher refused and nobody has
+ * answered (docs/features/resolving-duplicates.md). Pairs name works; their
+ * metadata comes from `fetchBooks`, same as the panel's candidates.
+ */
+export function fetchPendingDuplicates(): Promise<PendingDuplicates> {
+  return request("/api/duplicates", PendingDuplicatesSchema);
 }
 
 /**

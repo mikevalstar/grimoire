@@ -30,6 +30,23 @@ export const Scale: Story = {
 };
 
 /**
+ * The halves between them (ADR 0014) — a half is the outline with its left
+ * side filled, so it reads as half of something rather than a floating sliver.
+ */
+export const Halves: Story = {
+  render: (args) => (
+    <div className="space-y-1.5">
+      {[0.5, 1.5, 2.5, 3.5, 4.5].map((value) => (
+        <div key={value} className="flex items-center gap-3">
+          <span className="text-muted-foreground w-6 text-[11px] tabular-nums">{value}</span>
+          <StarRating {...args} value={value} size={16} />
+        </div>
+      ))}
+    </div>
+  ),
+};
+
+/**
  * With `onRate` the stars are a control — but only once you enter them. At
  * rest it reads as the plain read-out; hovering fades in the empty stars and
  * the clear button. Hover to preview, click to commit, × (or clicking your own

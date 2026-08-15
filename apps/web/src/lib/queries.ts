@@ -7,14 +7,21 @@ import {
   dismissDuplicate,
   fetchBooks,
   fetchDuplicates,
+  fetchHardcoverRatings,
+  fetchPendingDuplicates,
   fetchPreferences,
   fetchRatings,
+  fetchReadStates,
   fetchSyncStatus,
   fetchUsers,
+  type HardcoverRatings,
   type LibraryBook,
   linkDuplicate,
+  type RatingSource,
   type Ratings,
+  type ReadStates,
   saveRating,
+  saveReadState,
   saveSyncInterval,
   separateMember,
   startSync,
@@ -67,6 +74,33 @@ export function ratingsQuery(userId: number | null | undefined) {
     // No reader chosen yet, so there is nobody to fetch ratings for.
     enabled: userId != null,
     // Only this app writes them, and every write updates the cache in place.
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * The same map from a reader's Hardcover mirror (ADR 0014), for readers whose
+ * rating source is Hardcover. Not `Infinity`-fresh like the local map: a
+ * Hardcover sync also moves these, so they re-fetch on the usual triggers.
+ */
+export function hardcoverRatingsQuery(userId: number | null | undefined) {
+  return queryOptions({
+    queryKey: ["hardcover-ratings", userId],
+    queryFn: () => fetchHardcoverRatings(userId as number),
+    enabled: userId != null,
+  });
+}
+
+/**
+ * A reader's local read states (docs/features/marking-a-book-read.md) — the
+ * corner checks, for readers whose read state lives here rather than on their
+ * Hardcover shelves. Like local ratings: only this app writes them.
+ */
+export function readStatesQuery(userId: number | null | undefined) {
+  return queryOptions({
+    queryKey: ["read-states", userId],
+    queryFn: () => fetchReadStates(userId as number),
+    enabled: userId != null,
     staleTime: Infinity,
   });
 }
@@ -177,6 +211,16 @@ export function duplicatesQuery(workId: number | null) {
 }
 
 /**
+ * The review queue in settings (docs/features/resolving-duplicates.md).
+ * Shares the "duplicates" key prefix, so a merge's invalidation refreshes
+ * this list too.
+ */
+export const pendingDuplicatesQuery = queryOptions({
+  queryKey: ["duplicates", "pending"],
+  queryFn: fetchPendingDuplicates,
+});
+
+/**
  * These two are the same book. The library reloads because a merge changes what
  * is on the shelf — one card where there were two — and the ratings with it,
  * since the surviving work may not be the one the reader was looking at.
@@ -277,28 +321,57 @@ export function useSeparateMember() {
 
 /**
  * Rate a book, optimistically: the stars move under the pointer and the PUT
- * follows. A failed write puts the old rating back.
+ * follows. A failed write puts the old rating back — including a Hardcover
+ * write their API refused (ADR 0014).
  */
-export function useRateBook(userId: number | null | undefined) {
+export function useRateBook(userId: number | null | undefined, source: RatingSource = "local") {
   const queryClient = useQueryClient();
-  const key = ["ratings", userId];
+  const key = source === "hardcover" ? ["hardcover-ratings", userId] : ["ratings", userId];
 
   return useMutation({
-    mutationFn: ({ bookId, rating }: { bookId: number; rating: number }) =>
-      saveRating(userId as number, bookId, rating),
+    mutationFn: ({
+      bookId,
+      rating,
+      addToShelf,
+      hardcoverBookId,
+      markRead,
+      finishedAt,
+    }: RateVariables) =>
+      saveRating(userId as number, bookId, rating, {
+        source,
+        addToShelf,
+        hardcoverBookId,
+        markRead,
+        finishedAt,
+      }),
 
-    async onMutate({ bookId, rating }) {
+    async onMutate({ bookId, rating, addToShelf, markRead }) {
       // An in-flight refetch would otherwise land after us and undo the change.
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<Ratings>(key);
+      const previous = queryClient.getQueryData<Ratings | HardcoverRatings>(key);
 
-      queryClient.setQueryData<Ratings>(key, (current) => {
-        const next = { ...current };
-        // Unrated is the absence of a key, matching what the API stores.
-        if (rating <= 0) delete next[String(bookId)];
-        else next[String(bookId)] = rating;
-        return next;
-      });
+      // Widened to either map's values: local bare numbers, Hardcover's
+      // rating-with-status entries.
+      queryClient.setQueryData<Record<string, number | HardcoverRatings[string]>>(
+        key,
+        (current) => {
+          const next = { ...current };
+          const id = String(bookId);
+          if (source === "hardcover") {
+            // The book stays shelved when the rating clears — null is the
+            // unrated their mirror stores. Shelving or marking read lands on
+            // status 3; otherwise the status stands.
+            const existing = next[id];
+            const statusId =
+              addToShelf || markRead || typeof existing === "number" || existing == null
+                ? 3
+                : existing.statusId;
+            next[id] = { rating: rating > 0 ? rating : null, statusId };
+          } else if (rating <= 0) delete next[id];
+          else next[id] = rating;
+          return next;
+        },
+      );
 
       return { previous };
     },
@@ -307,4 +380,91 @@ export function useRateBook(userId: number | null | undefined) {
       if (context?.previous) queryClient.setQueryData(key, context.previous);
     },
   });
+}
+
+/**
+ * Mark a book read or unread, optimistically, through whichever source the
+ * reader's read state lives in (docs/features/marking-a-book-read.md). The
+ * optional rating and removeRating side effects patch the matching ratings
+ * cache too; a failed write puts both back.
+ */
+export function useSetReadState(userId: number | null | undefined, source: RatingSource = "local") {
+  const queryClient = useQueryClient();
+  const readKey = source === "hardcover" ? ["hardcover-ratings", userId] : ["read-states", userId];
+  // Only same-source rating side effects exist, by design — so the cache to
+  // patch is the one belonging to this source.
+  const ratingKey = source === "hardcover" ? readKey : ["ratings", userId];
+
+  return useMutation({
+    mutationFn: ({ bookId, ...update }: ReadStateVariables) =>
+      saveReadState(userId as number, bookId, { ...update, source }),
+
+    async onMutate({ bookId, read, finishedAt, rating, removeRating }) {
+      await queryClient.cancelQueries({ queryKey: readKey });
+      await queryClient.cancelQueries({ queryKey: ratingKey });
+      const previousRead = queryClient.getQueryData(readKey);
+      const previousRatings = queryClient.getQueryData(ratingKey);
+      const id = String(bookId);
+
+      if (source === "hardcover") {
+        // One cache holds both: status flips, and the rating rides along.
+        queryClient.setQueryData<HardcoverRatings>(readKey, (current) => {
+          const next = { ...current };
+          const existing = next[id];
+          if (read) {
+            next[id] = { rating: rating ?? existing?.rating ?? null, statusId: 3 };
+          } else if (existing) {
+            // Back to Want to Read — what unmarking means on their shelves.
+            next[id] = { rating: removeRating ? null : existing.rating, statusId: 1 };
+          }
+          return next;
+        });
+      } else {
+        queryClient.setQueryData<ReadStates>(readKey, (current) => {
+          const next = { ...current };
+          if (read) next[id] = { finishedAt: finishedAt ?? null };
+          else delete next[id];
+          return next;
+        });
+        if (rating !== undefined || removeRating) {
+          queryClient.setQueryData<Ratings>(ratingKey, (current) => {
+            const next = { ...current };
+            if (read && rating !== undefined) next[id] = rating;
+            else if (!read && removeRating) delete next[id];
+            return next;
+          });
+        }
+      }
+
+      return { previousRead, previousRatings };
+    },
+
+    onError(_error, _variables, context) {
+      if (context?.previousRead) queryClient.setQueryData(readKey, context.previousRead);
+      if (context?.previousRatings) queryClient.setQueryData(ratingKey, context.previousRatings);
+    },
+  });
+}
+
+interface ReadStateVariables {
+  bookId: number;
+  read: boolean;
+  finishedAt?: string;
+  rating?: number;
+  removeRating?: boolean;
+  addToShelf?: boolean;
+  hardcoverBookId?: number;
+}
+
+interface RateVariables {
+  bookId: number;
+  rating: number;
+  /** The reader's confirmation that rating may shelve the book as Read (ADR 0014). */
+  addToShelf?: boolean;
+  /** The finder's pick, for a work with no Hardcover edition yet. */
+  hardcoverBookId?: number;
+  /** The reader's confirmation that a shelved-but-unfinished book may flip to Read. */
+  markRead?: boolean;
+  /** When they finished it — "2023", "2023-06" or "2023-06-15"; absent = unknown. */
+  finishedAt?: string;
 }
