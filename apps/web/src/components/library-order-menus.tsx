@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, Layers } from "lucide-react";
 import type { ReactNode } from "react";
+import { ToolbarMenuTrigger } from "@/components/toolbar-menu-trigger";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,28 +16,6 @@ export interface LibraryOrderMenuProps {
   className?: string;
 }
 
-/** The toolbar's shared control shape — the ViewSwitcher's frame, as a menu trigger. */
-function MenuTrigger({
-  active,
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"button"> & { active?: boolean }) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "border-line bg-fill flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
-        active ? "text-you-soft" : "text-muted-foreground hover:text-foreground",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
  * Which key the shelf sorts by. Choosing the active key again flips the
  * direction — the trigger's arrow says which way it currently runs.
@@ -48,11 +27,11 @@ export function SortMenu({ order, onOrder, className }: LibraryOrderMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <MenuTrigger className={className} aria-label={`Sort by ${active?.label}`}>
+        <ToolbarMenuTrigger className={className} aria-label={`Sort by ${active?.label}`}>
           <ArrowUpDown size={13} />
           <span className="hidden sm:inline">{active?.label}</span>
           <Dir size={11} className="text-muted-foreground/70" />
-        </MenuTrigger>
+        </ToolbarMenuTrigger>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-44">
         {SORT_OPTIONS.map((option) => {
@@ -94,14 +73,14 @@ export function GroupMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <MenuTrigger
+        <ToolbarMenuTrigger
           active={grouped}
           className={className}
           aria-label={grouped ? `Grouped by ${active?.label}` : "Group"}
         >
           <Layers size={13} />
           <span className="hidden sm:inline">{grouped ? active?.label : "Group"}</span>
-        </MenuTrigger>
+        </ToolbarMenuTrigger>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-44">
         {GROUP_OPTIONS.map((option) => {

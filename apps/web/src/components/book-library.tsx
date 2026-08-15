@@ -5,6 +5,11 @@ import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
 import { GroupMenu, SortMenu } from "@/components/library-order-menus";
 import { LibraryQuickFilter } from "@/components/library-quick-filter";
+import {
+  LibrarySourceFilter,
+  librarySources,
+  matchesSourceFilter,
+} from "@/components/library-source-filter";
 import { LibraryToolbar } from "@/components/library-toolbar";
 import { ReadStatusFilter, type ReadStatusFilterValue } from "@/components/read-status-filter";
 import { Button } from "@/components/ui/button";
@@ -84,6 +89,7 @@ export function BookLibrary({
   const [view, setView] = useViewMode();
   const [order, setOrder] = useLibraryOrder();
   const [filter, setFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string[]>([]);
   const [readFilter, setReadFilter] = useState<ReadStatusFilterValue>("all");
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
 
@@ -97,19 +103,32 @@ export function BookLibrary({
     () => ranked?.map((entry) => entry.book) ?? books ?? [],
     [books, ranked],
   );
+
+  // The toolbar filters in a fixed order — text, then source, then read status —
+  // so each control's counts describe what the ones before it left
+  // (docs/features/library-source-filter.md).
+  const sources = useMemo(() => librarySources(books), [books]);
+  const sourcedBooks = useMemo(
+    () =>
+      sourceFilter.length === 0
+        ? searchedBooks
+        : searchedBooks.filter((book) => matchesSourceFilter(book, sourceFilter)),
+    [searchedBooks, sourceFilter],
+  );
+
   const effectiveReadFilter = isRead ? readFilter : "all";
   const readStatusCounts = useMemo(
     () => ({
-      all: searchedBooks.length,
-      "to-read": isRead ? searchedBooks.filter((book) => !isRead(book)).length : 0,
-      read: isRead ? searchedBooks.filter(isRead).length : 0,
+      all: sourcedBooks.length,
+      "to-read": isRead ? sourcedBooks.filter((book) => !isRead(book)).length : 0,
+      read: isRead ? sourcedBooks.filter(isRead).length : 0,
     }),
-    [searchedBooks, isRead],
+    [sourcedBooks, isRead],
   );
   const shownBooks = useMemo(() => {
-    if (!isRead || effectiveReadFilter === "all") return searchedBooks;
-    return searchedBooks.filter((book) => isRead(book) === (effectiveReadFilter === "read"));
-  }, [searchedBooks, isRead, effectiveReadFilter]);
+    if (!isRead || effectiveReadFilter === "all") return sourcedBooks;
+    return sourcedBooks.filter((book) => isRead(book) === (effectiveReadFilter === "read"));
+  }, [sourcedBooks, isRead, effectiveReadFilter]);
   const relevance = useMemo(
     () => (ranked ? new Map(ranked.map((entry) => [entry.book.id, entry.score])) : null),
     [ranked],
@@ -158,6 +177,12 @@ export function BookLibrary({
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <LibraryQuickFilter value={filter} onChange={setFilter} />
+          {/* Absent, not disabled, in a single-source library. */}
+          <LibrarySourceFilter
+            sources={sources}
+            value={sourceFilter}
+            onValueChange={setSourceFilter}
+          />
           <SortMenu order={order} onOrder={setOrder} />
           {/* Read-status grouping means nothing until someone's marks exist. */}
           <GroupMenu order={order} onOrder={setOrder} readStatusAvailable={isRead !== undefined} />
@@ -185,7 +210,11 @@ export function BookLibrary({
         ) : books.length === 0 ? (
           <LibraryEmpty />
         ) : shownBooks.length === 0 ? (
-          <LibraryNoMatches query={filter} readFilter={effectiveReadFilter} />
+          <LibraryNoMatches
+            query={filter}
+            readFilter={effectiveReadFilter}
+            sourceFiltered={sourceFilter.length > 0}
+          />
         ) : view === "covers" ? (
           <BookGrid
             sections={sections}
@@ -243,24 +272,31 @@ export function BookLibrary({
   );
 }
 
-/** A real library, but nothing satisfying all of the typed tokens. */
+/** A real library, but nothing satisfying every active filter. */
 function LibraryNoMatches({
   query,
   readFilter,
+  sourceFiltered,
 }: {
   query: string;
   readFilter: ReadStatusFilterValue;
+  sourceFiltered: boolean;
 }) {
   const status = readFilter === "read" ? "read" : readFilter === "to-read" ? "to read" : null;
+  const marked = status ? `marked ${status} ` : "";
+  const where = sourceFiltered ? " in the selected sources" : "";
+  let reason: string;
+  if (query.trim()) {
+    reason = `Nothing ${marked}matched “${query.trim()}”${where}.`;
+  } else if (status) {
+    reason = `There are no books marked ${status}${where}.`;
+  } else {
+    reason = "There are no books from the selected sources.";
+  }
   return (
     <div className="py-24 text-center">
       <p className="text-foreground text-sm">No matching books.</p>
-      <p className="text-muted-foreground mt-1 text-[13px]">
-        {query.trim()
-          ? `Nothing ${status ? `marked ${status} ` : ""}matched “${query.trim()}”.`
-          : `There are no books marked ${status}.`}{" "}
-        Try a different filter.
-      </p>
+      <p className="text-muted-foreground mt-1 text-[13px]">{reason} Try a different filter.</p>
     </div>
   );
 }
