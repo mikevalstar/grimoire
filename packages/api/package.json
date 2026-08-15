@@ -12,6 +12,7 @@
   "dependencies": {
     "@grimoire/core": "workspace:*",
     "@hono/zod-validator": "^0.9.0",
+    "@jsquash/webp": "^1.5.0",
     "hono": "^4.13.1",
     "jimp": "^1.6.1",
     "zod": "^4.4.3"

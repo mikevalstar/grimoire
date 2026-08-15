@@ -592,6 +592,13 @@ export const BookSchema = z.object({
    * reason a Hardcover book's cover needs the network (docs/features/hardcover-sync.md).
    */
   coverUrl: z.string().nullable().default(null),
+  /**
+   * When this work's cached cover was last written — the newest `cover_synced_at`
+   * among the members holding one, and null when none does. Stamped on every
+   * cover URL so re-fetching a file is visible from behind a year-long
+   * `max-age` (docs/features/book-actions.md).
+   */
+  coverVersion: z.string().nullable().default(null),
 });
 export type Book = z.infer<typeof BookSchema>;
 
@@ -602,6 +609,19 @@ export const CoverChoiceSchema = z.object({
   bookId: z.number().int().positive(),
 });
 export type CoverChoice = z.infer<typeof CoverChoiceSchema>;
+
+/**
+ * What POST /api/books/:id/cover/refetch answers with: the book as it now is,
+ * plus how the run went (docs/features/book-actions.md). `attempted` counts the
+ * members that had a source to ask, so `attempted: 0` is "nowhere to look"
+ * rather than "everything failed".
+ */
+export const CoverRefetchSchema = z.object({
+  book: BookSchema,
+  attempted: z.number(),
+  fetched: z.number(),
+});
+export type CoverRefetch = z.infer<typeof CoverRefetchSchema>;
 
 // --- Duplicates ------------------------------------------------------------
 // The entries a work is made of, and the ones that look like they belong in it

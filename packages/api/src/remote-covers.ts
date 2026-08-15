@@ -1,4 +1,11 @@
+/// <reference path="./assets.d.ts" />
+import { join } from "node:path";
 import { COVER_SIZE_NAMES, COVER_SIZES, type CoverStore } from "@grimoire/core";
+// The wasm as a *bundled asset* rather than something the codec finds itself:
+// its own resolution works unbundled and breaks in the desktop build
+// ([ADR 0017](../../../docs/adrs/0017-decode-webp-covers-with-a-wasm-codec.md)).
+import webpWasm from "@jsquash/webp/codec/dec/webp_dec.wasm" with { type: "file" };
+import decodeWebp, { init as initWebp } from "@jsquash/webp/decode.js";
 import { Jimp } from "jimp";
 
 /**
@@ -28,6 +35,68 @@ const MAX_BYTES = 12 * 1024 * 1024;
 
 /** Downloaded covers in flight at once — someone else's CDN, so be a good guest. */
 export const REMOTE_COVER_CONCURRENCY = 4;
+
+/** The RIFF….WEBP header, which is the only reliable way to know: the CDN's headers lie. */
+function isWebp(bytes: Uint8Array): boolean {
+  return (
+    bytes.length > 12 &&
+    // "RIFF"
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    // "WEBP"
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  );
+}
+
+/**
+ * Where that asset actually is. Unbundled the import is already an absolute
+ * path; bundled it is `./<name>-<hash>.wasm`, which is relative to the *bundle*
+ * and not to whatever directory the app was launched from — so it is joined to
+ * this module's own, which is the bundle's when there is one.
+ */
+const WEBP_WASM_PATH = webpWasm.startsWith(".") ? join(import.meta.dir, webpWasm) : webpWasm;
+
+/** Compiled once, on the first WebP the process meets — a library with none never pays. */
+let webpReady: Promise<void> | null = null;
+
+/**
+ * A decoded image, as Jimp's own reader hands one over. Named off `read` rather
+ * than spelled `JimpInstance`: the class and its reader disagree about the type
+ * by a hair, and the reader is the one both branches below have to satisfy.
+ */
+type DecodedImage = Awaited<ReturnType<typeof Jimp.read>>;
+
+/**
+ * One downloaded image as something Jimp can scale, whatever it arrived as.
+ *
+ * WebP is decoded by the wasm codec and rebuilt as a bitmap, because Jimp reads
+ * every common format *except* that one — and hardcover.app serves some covers
+ * as WebP under a `.jpg` name and an `image/jpeg` header, so the bytes are the
+ * only honest test
+ * ([ADR 0017](../../../docs/adrs/0017-decode-webp-covers-with-a-wasm-codec.md)).
+ */
+async function decode(bytes: ArrayBuffer): Promise<DecodedImage> {
+  if (!isWebp(new Uint8Array(bytes))) return Jimp.read(Buffer.from(bytes));
+
+  webpReady ??= Bun.file(WEBP_WASM_PATH)
+    .arrayBuffer()
+    .then((wasm) => WebAssembly.compile(wasm))
+    .then((module) => initWebp(module));
+  await webpReady;
+
+  // RGBA, which is Jimp's own bitmap layout — so this is a wrap, not a convert.
+  const image = await decodeWebp(bytes);
+  return Jimp.fromBitmap({
+    width: image.width,
+    height: image.height,
+    data: Buffer.from(image.data.buffer),
+  });
+}
 
 /**
  * Fetch one image and write every cached size from it. All or nothing: a book
@@ -62,7 +131,7 @@ export async function cacheRemoteCover(
   try {
     // Decoded once and cloned per size: decoding is most of the cost, and
     // there are three sizes to make from it.
-    const source = await Jimp.read(Buffer.from(bytes));
+    const source = await decode(bytes);
 
     for (const size of COVER_SIZE_NAMES) {
       const { width, height } = COVER_SIZES[size];

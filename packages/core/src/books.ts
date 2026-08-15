@@ -169,6 +169,15 @@ function toBook(members: BookRow[]): Book {
     coverUrl: cached || missing ? null : pick((row) => row.cover_url),
     covers,
     coverBookId: chosen?.bookId ?? covers[0]?.bookId ?? null,
+    // One version for the whole work rather than one per member: it exists to
+    // change a URL after a re-fetch (docs/features/book-actions.md), and a
+    // re-fetch does every member at once.
+    coverVersion:
+      rows
+        .filter((row) => row.cover_state === "cached" && row.cover_synced_at)
+        .map((row) => row.cover_synced_at as string)
+        .sort()
+        .at(-1) ?? null,
   };
 }
 
@@ -533,6 +542,24 @@ export class BooksStore {
           ORDER BY id`,
       )
       .all() as { id: number; url: string }[];
+  }
+
+  /**
+   * Every member of one work with somewhere to fetch a cover from — Calibre's
+   * id, a stored URL, or both (docs/features/book-actions.md). Unlike the two
+   * queues above this asks nothing about what is already cached: it answers a
+   * reader who has looked at the cover and said to fetch it again.
+   */
+  coverSourcesForWork(
+    workId: number,
+  ): { id: number; calibreId: number | null; url: string | null }[] {
+    return this.db
+      .query(
+        `SELECT id, calibre_id AS calibreId, cover_url AS url FROM books
+          WHERE work_id = $workId AND (calibre_id IS NOT NULL OR cover_url IS NOT NULL)
+          ORDER BY id`,
+      )
+      .all({ $workId: workId }) as { id: number; calibreId: number | null; url: string | null }[];
   }
 
   /**

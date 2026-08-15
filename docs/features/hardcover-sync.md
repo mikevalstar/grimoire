@@ -162,6 +162,13 @@ the desktop app outright, which is exactly the asymmetry
 prevent. A few hundred milliseconds per book, once, in a background sync, is
 worth paying to keep all three targets identical.
 
+**Some of their covers are WebP wearing a `.jpg`**, headers and all, which that
+resizer cannot read on its own — so a WASM decoder handles those and hands the
+pixels over, chosen and wired for the same
+all-three-targets-or-nothing reason
+([ADR 0017](../adrs/0017-decode-webp-covers-with-a-wasm-codec.md)). The file's
+own bytes decide, never the CDN's content type.
+
 Rules the cache follows:
 
 - **Never upscale.** An image smaller than a size we cache is written as it is.

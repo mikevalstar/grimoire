@@ -2,7 +2,6 @@ import type { Database } from "bun:sqlite";
 import {
   BooksStore,
   CalibreBooksStore,
-  COVER_SIZE_NAMES,
   CoverStore,
   type CoverTarget,
   CsBooksSchema,
@@ -16,6 +15,7 @@ import {
   WorksStore,
 } from "@grimoire/core";
 import type { z } from "zod";
+import { fetchCalibreCovers } from "./covers.ts";
 
 /** Books per `/ajax/books` request. Calibre takes an arbitrary id list; this keeps URLs sane. */
 const PAGE_SIZE = 200;
@@ -379,7 +379,7 @@ export class CalibreSync {
         const target = queue.shift();
         if (!target) return;
 
-        const ok = await this.fetchCovers(base, target.id, target.calibreId);
+        const ok = await fetchCalibreCovers(this.covers, base, target.id, target.calibreId);
         this.books.markCover(target.id, ok ? "cached" : "missing", target.lastModified);
         if (ok) fetched++;
 
@@ -403,26 +403,6 @@ export class CalibreSync {
       if (!(await this.covers.hasAll(target.id))) missing.push(target);
     }
     return missing;
-  }
-
-  /** All three sizes for one book. Any failure leaves the book marked `missing`. */
-  private async fetchCovers(base: string, bookId: number, calibreId: number): Promise<boolean> {
-    for (const size of COVER_SIZE_NAMES) {
-      const url = new URL(CoverStore.calibrePath(calibreId, size), `${base.replace(/\/+$/, "")}/`);
-
-      let res: Response;
-      try {
-        res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      } catch {
-        return false;
-      }
-      // A book with no cover 404s here — expected, not an error worth failing
-      // the whole sync over. The views already draw a placeholder.
-      if (!res.ok) return false;
-
-      await this.covers.write(bookId, size, await res.arrayBuffer());
-    }
-    return true;
   }
 
   // --- plumbing -------------------------------------------------------------

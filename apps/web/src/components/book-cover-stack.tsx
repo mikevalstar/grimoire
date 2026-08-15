@@ -62,7 +62,8 @@ export function BookCoverStack({ book, width = 104, onChoose, className }: BookC
 
   const next = covers[(Math.max(current, 0) + 1) % covers.length];
   const behind = covers.filter((cover) => cover.bookId !== chosen.bookId);
-  const url = (bookId: number) => bookCoverUrl(book.id, coverSizeFor(width), bookId);
+  const url = (bookId: number) =>
+    bookCoverUrl(book.id, coverSizeFor(width), bookId, book.coverVersion);
 
   function choose() {
     // Re-checked rather than relied on from the early return above: a closure
