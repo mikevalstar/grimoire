@@ -31,12 +31,13 @@ format?") wants columns. Building both off one book model keeps a third view
 
 ## Behavior
 
-**The toolbar.** One sticky row above the library: text search, sort, and group
-controls on the left; a three-way **All / To read / Read** segmented filter and
-the view switcher on the right. The read filter replaces the former result
-count and shows the count for each state. Its counts reflect the text-filtered
-set before read status is applied, so switching status does not make the other
-choices disappear. Read state is the current reader's state; until a reader is
+**The toolbar.** One sticky row above the library: text search, the
+[source filter](library-source-filter.md), sort, and group controls on the left;
+a three-way **All / To read / Read** segmented filter and the view switcher on
+the right. The read filter replaces the former result count and shows the count
+for each state. Its counts reflect the text- and source-filtered set before read
+status is applied, so switching status does not make the other choices
+disappear. Read state is the current reader's state; until a reader is
 selected, the control stays on All and is unavailable.
 
 The active read filter is immediate browser-side state and composes with text
@@ -141,8 +142,9 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] The library renders in either a cover grid or a table, and the toolbar
       switches between them without refetching.
 - [x] The chosen view survives a reload and is per-device.
-- [x] The toolbar carries the [quick filter](library-quick-filter.md), sort, and
-      group controls without crowding the view switcher.
+- [x] The toolbar carries the [quick filter](library-quick-filter.md), the
+      [source filter](library-source-filter.md), sort, and group controls
+      without crowding the view switcher.
 - [x] The toolbar filters the current text-search result to All, To read, or
       Read books, shows each option's count, and does not require a refetch.
 - [x] Covers load from Grimoire's own cache, and a missing or broken cover falls
@@ -170,7 +172,8 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   it is two, and stays two until manual resolution exists.
 
 - **Structured filters.** The toolbar now has the text
-  [quick filter](library-quick-filter.md) plus
+  [quick filter](library-quick-filter.md), the
+  [source filter](library-source-filter.md), and
   [sort and group](library-sort-and-group.md). Author, tag, format, and rating
   pills are still to come, with the table's column headers as a second sort
   entry point.
