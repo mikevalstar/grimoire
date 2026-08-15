@@ -47,9 +47,10 @@ import { cn } from "@/lib/utils";
 
 /**
  * The dialog's sections, in sidebar order. Ids are the public names callers
- * open the dialog on — the avatar menu's "Add reader" lands on `readers`.
+ * open the dialog on — the avatar menu's "Add reader" lands on `readers`, and
+ * the command palette lists one command per section.
  */
-const SECTIONS = [
+export const SECTIONS = [
   { id: "calibre", label: "Calibre", icon: Server },
   { id: "hardcover", label: "Hardcover", icon: Globe },
   { id: "readers", label: "Readers", icon: Users },

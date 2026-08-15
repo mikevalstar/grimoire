@@ -43,8 +43,8 @@ match the desktop — and applies before first paint so there is no flash of the
 wrong canvas.
 
 **Header.** Sticky, translucent over scrolled content, holding left to right:
-the wordmark linking to the library root; a search trigger, which is the anchor
-for a command palette that does not exist yet; a theme toggle; the
+the wordmark linking to the library root; a search trigger, which opens the
+[command palette](command-palette.md); a theme toggle; the
 [sync indicator](calibre-sync.md); [settings](settings.md); and the current
 reader as an avatar chip. It sheds the least essential of those on narrow
 screens — the sync indicator stays, because it is also the error surface.
@@ -81,7 +81,7 @@ library to frame.
 - [x] The avatar reflects a real current reader.
 - [ ] The avatar opens a menu that switches reader, adds one, and opens
       settings.
-- [ ] The search trigger opens a command palette.
+- [x] The search trigger opens the [command palette](command-palette.md).
 
 ## Open questions
 
