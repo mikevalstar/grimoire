@@ -428,6 +428,25 @@ export function bookIsRead(
 }
 
 /**
+ * When the reader finished this book, at whatever precision they gave it —
+ * their most recent read where the history has several. Null for an unread
+ * book and for a read nobody dated — both of which read-year grouping files
+ * under "No read date" (docs/features/library-sort-and-group.md).
+ */
+export function bookFinishedAt(
+  book: LibraryBook,
+  source: RatingSource,
+  readStates: ReadStates | undefined,
+  hardcoverRatings: HardcoverRatings | undefined,
+): string | null {
+  if (source === "hardcover") {
+    const entry = hardcoverRatings?.[String(book.id)];
+    return entry?.statusId === 3 ? (entry.lastReadDate ?? null) : null;
+  }
+  return readStates?.[String(book.id)]?.finishedAt ?? null;
+}
+
+/**
  * The rating to show — the reader's own, from whichever source they chose
  * (ADR 0014); a Hardcover map holds null for shelved-but-unrated books, which
  * reads as unrated. Calibre's rating is deliberately not a fallback: stars in

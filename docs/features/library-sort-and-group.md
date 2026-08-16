@@ -50,14 +50,25 @@ reads by author, and everything ends at title A→Z. Secondary order never
 flips with the chosen direction — authors Z→A still read each series #1,
 #2, #3.
 
-**Group.** A second dropdown: None, Author, Series, Read status. Grouping
-splits the view into sections, each headed by a label and a count — a header
-row spanning the grid, a full-width row in the table. Sections are ordered by
-their own label (authors and series alphabetically; read status Unread first,
-then Read); the sort order applies *within* each section. Ungrouped leftovers
-("No series") form a final section. Read status uses the current reader's
-marks ([marking a book read](marking-a-book-read.md)); the option is disabled
-until a reader is chosen.
+**Group.** A second dropdown: None, Author, Series, Read status, Published
+year, Read year. Grouping splits the view into sections, each headed by a
+label and a count — a header row spanning the grid, a full-width row in the
+table. Sections are ordered by their own label (authors and series
+alphabetically; read status Unread first, then Read; both year groupings
+newest year first, because a shelf read by year is a recency question); the
+sort order applies *within* each section. Ungrouped leftovers ("No series",
+"No publication date", "No read date" — which is both the unread and the
+read-but-undated) form a final section. Read status and read
+year use the current reader's marks
+([marking a book read](marking-a-book-read.md)) from whichever source they
+chose; both options are disabled until a reader is chosen.
+
+A read year is the year the reader finished the book — the local finish date,
+or Hardcover's last read date from the shelf mirror for a reader whose read
+state lives there. A book read more than once files under its most recent
+year, not once per read: sections partition the shelf, they don't multiply it.
+Finish dates are recorded at whatever precision the reader gave ("2023",
+"2023-06-15"), so the year is always known when a date is.
 
 A book can appear in only one section: author groups use the primary (first)
 author, matching how author sort works.
@@ -80,6 +91,9 @@ about the library.
       inside each section.
 - [x] Read-status grouping is disabled with no reader chosen; rating sort
       degrades to title order rather than erroring.
+- [x] Published year and read year group into year sections, newest first,
+      with undated books in a final section; read year is disabled with no
+      reader chosen and follows the reader's read-state source.
 - [x] Sort and group choices survive a reload, per device.
 - [x] The dropdowns and grouped views have Storybook stories.
 

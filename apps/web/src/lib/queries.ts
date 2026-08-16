@@ -574,7 +574,13 @@ export function useRateBook(userId: number | null | undefined, source: RatingSou
               addToShelf || markRead || typeof existing === "number" || existing == null
                 ? 3
                 : existing.statusId;
-            next[id] = { rating: rating > 0 ? rating : null, statusId };
+            next[id] = {
+              rating: rating > 0 ? rating : null,
+              statusId,
+              // Rating a book says nothing about when it was read — whatever
+              // the mirror already knew stands until the next sweep.
+              lastReadDate: typeof existing === "number" ? null : (existing?.lastReadDate ?? null),
+            };
           } else if (rating <= 0) delete next[id];
           else next[id] = rating;
           return next;
@@ -620,10 +626,19 @@ export function useSetReadState(userId: number | null | undefined, source: Ratin
           const next = { ...current };
           const existing = next[id];
           if (read) {
-            next[id] = { rating: rating ?? existing?.rating ?? null, statusId: 3 };
+            next[id] = {
+              rating: rating ?? existing?.rating ?? null,
+              statusId: 3,
+              lastReadDate: finishedAt ?? existing?.lastReadDate ?? null,
+            };
           } else if (existing) {
-            // Back to Want to Read — what unmarking means on their shelves.
-            next[id] = { rating: removeRating ? null : existing.rating, statusId: 1 };
+            // Back to Want to Read — what unmarking means on their shelves,
+            // which takes the finish date with it.
+            next[id] = {
+              rating: removeRating ? null : existing.rating,
+              statusId: 1,
+              lastReadDate: null,
+            };
           }
           return next;
         });

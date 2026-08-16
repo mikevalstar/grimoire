@@ -439,6 +439,12 @@ export const HardcoverRatingsSchema = z.record(
     rating: RatingSchema.nullable(),
     /** A HARDCOVER_STATUS id — their vocabulary, passed through. */
     statusId: z.number(),
+    /**
+     * When they last finished it, from the same mirror — what read-year
+     * grouping files the book under (docs/features/library-sort-and-group.md).
+     * Null for anything unread, and for a read they never dated.
+     */
+    lastReadDate: z.string().nullable(),
   }),
 );
 export type HardcoverRatings = z.infer<typeof HardcoverRatingsSchema>;

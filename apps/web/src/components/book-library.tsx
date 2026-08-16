@@ -21,7 +21,7 @@ import {
   type Ratings,
 } from "@/lib/api";
 import { rankBooks, searchBooks } from "@/lib/book-search";
-import { orderLibrary, useLibraryOrder } from "@/lib/library-order";
+import { orderLibrary, READER_GROUP_KEYS, useLibraryOrder } from "@/lib/library-order";
 import { setOpenBookId, useOpenBookId } from "@/lib/open-book";
 import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
@@ -40,6 +40,11 @@ export interface BookLibraryProps {
   ratable?: (book: LibraryBook) => boolean;
   /** The dog-ear (docs/features/marking-a-book-read.md) — see BookGrid. */
   isRead?: (book: LibraryBook) => boolean;
+  /**
+   * When the reader finished a book, for read-year grouping
+   * (docs/features/library-sort-and-group.md). Same source as `isRead`.
+   */
+  finishedAt?: (book: LibraryBook) => string | null;
   onToggleRead?: (book: LibraryBook, read: boolean) => void;
   /** Known finish dates for the book currently open in the details panel. */
   openBookReadDates?: string[];
@@ -85,6 +90,7 @@ export function BookLibrary({
   onRate,
   ratable,
   isRead,
+  finishedAt,
   onToggleRead,
   openBookReadDates,
   readDatesPending,
@@ -143,17 +149,26 @@ export function BookLibrary({
     [ranked],
   );
 
+  // A grouping stored from a session with a reader would file the whole
+  // library under one meaningless section once nobody is chosen, so it lapses
+  // back to ungrouped rather than lying.
+  const effectiveOrder = useMemo(
+    () =>
+      READER_GROUP_KEYS.has(order.group) && !isRead ? { ...order, group: "none" as const } : order,
+    [order, isRead],
+  );
   // The shelf as held: sorted, and split into sections when grouped
   // (docs/features/library-sort-and-group.md). Rating and read state are
   // per-reader, so the order recomputes when either map changes hands.
   const sections = useMemo(
     () =>
-      orderLibrary(shownBooks, order, {
+      orderLibrary(shownBooks, effectiveOrder, {
         rating: (book) => bookRating(book, ratings),
         isRead,
+        finishedAt,
         relevance: relevance ? (book) => relevance.get(book.id) ?? 0 : undefined,
       }),
-    [shownBooks, order, ratings, isRead, relevance],
+    [shownBooks, effectiveOrder, ratings, isRead, finishedAt, relevance],
   );
 
   // Which book the details panel is showing, by id rather than by value, so a
@@ -193,8 +208,8 @@ export function BookLibrary({
             onValueChange={setSourceFilter}
           />
           <SortMenu order={order} onOrder={setOrder} />
-          {/* Read-status grouping means nothing until someone's marks exist. */}
-          <GroupMenu order={order} onOrder={setOrder} readStatusAvailable={isRead !== undefined} />
+          {/* The read-state groupings mean nothing until someone's marks exist. */}
+          <GroupMenu order={order} onOrder={setOrder} readerAvailable={isRead !== undefined} />
         </div>
       </LibraryToolbar>
 
