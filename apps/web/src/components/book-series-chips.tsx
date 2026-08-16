@@ -1,11 +1,18 @@
 import { HardcoverIcon } from "@/components/brand-icons";
+import { FilterLink } from "@/components/filter-link";
 import type { SeriesRef } from "@/lib/api";
+import type { FilterField } from "@/lib/book-filter";
 import { cn } from "@/lib/utils";
 
 /**
  * A book's series, in the details panel's header — one chip each, primary
  * first (ADR 0019). A chip carrying Hardcover's mark is one Calibre has no side
  * of, so the shelf is showing something the library itself does not.
+ *
+ * A chip carries one of two meanings, split by which chip it is: the primary
+ * has nothing to promote, so clicking it filters the shelf to that series
+ * (docs/features/library-quick-filter.md); the others promote. Two readings on
+ * one chip would be a coin toss.
  *
  * Falls back to the plain string for a book whose series has not been
  * reconciled into the tables yet, which is what the panel showed before this
@@ -18,6 +25,7 @@ export function BookSeriesChips({
   seriesIndex,
   seriesList,
   onChoosePrimary,
+  onFilter,
   className,
 }: {
   series: string | null;
@@ -29,13 +37,18 @@ export function BookSeriesChips({
    * is nothing to promote.
    */
   onChoosePrimary?: (seriesId: number) => void;
+  /**
+   * Narrow the shelf to a series. Without it the leading series is a read-out,
+   * as it was before.
+   */
+  onFilter?: (field: FilterField, value: string) => void;
   className?: string;
 }) {
   if (seriesList.length === 0) {
     if (!series) return null;
     return (
       <p className={cn("text-you-soft text-[12px]", className)}>
-        {series}
+        <FilterLink field="series" value={series} onFilter={onFilter} />
         {seriesIndex !== null && ` · Book ${seriesIndex}`}
       </p>
     );
@@ -62,16 +75,24 @@ export function BookSeriesChips({
           entry.primary ? "text-you-soft border-you-soft/30" : "text-muted-foreground",
         );
 
-        // Only a series that isn't already leading has anything to do when
-        // clicked, so the primary stays plain text rather than a button that
-        // does nothing.
+        // A chip that isn't leading has a promotion to offer; the one that is
+        // has none, which is what leaves it free to mean "show me this series".
+        const action = entry.primary
+          ? // No hint: filtering by the series you are looking at needs no
+            // explaining. Promoting one does, so that chip keeps its.
+            onFilter && { onClick: () => onFilter("series", entry.name), hint: undefined }
+          : onChoosePrimary && {
+              onClick: () => onChoosePrimary(entry.id),
+              hint: `Show ${entry.name} as this book's series`,
+            };
+
         return (
           <li key={entry.id}>
-            {onChoosePrimary && !entry.primary ? (
+            {action ? (
               <button
                 type="button"
-                onClick={() => onChoosePrimary(entry.id)}
-                title={`Show ${entry.name} as this book's series`}
+                onClick={action.onClick}
+                title={action.hint}
                 className={cn(chip, "hover:text-foreground hover:border-line/80 transition-colors")}
               >
                 {body}

@@ -20,14 +20,30 @@ import {
   type LibraryBook,
   type Ratings,
 } from "@/lib/api";
+import {
+  describeFilter,
+  type FilterField,
+  filterTerm,
+  matchesFilterTerms,
+  type ParsedFilter,
+  parseFilterQuery,
+} from "@/lib/book-filter";
 import { rankBooks, searchBooks } from "@/lib/book-search";
 import { orderLibrary, READER_GROUP_KEYS, useLibraryOrder } from "@/lib/library-order";
+import { LIBRARY_VIEW_DEFAULTS, type LibraryView, type SetLibraryView } from "@/lib/library-view";
 import { setOpenBookId, useOpenBookId } from "@/lib/open-book";
 import { useDuplicates } from "@/lib/queries";
 import { useViewMode } from "@/lib/view-mode";
 
 export interface BookLibraryProps {
   books?: LibraryBook[];
+  /**
+   * How the shelf is narrowed and ordered. Supplied by the route, which keeps
+   * it in the URL (ADR 0020) — omit both this and `onShelfChange` and the
+   * screen holds its own, which is what a story wants.
+   */
+  shelf?: LibraryView;
+  onShelfChange?: SetLibraryView;
   /** The library is still on its way — draw the active view's skeleton. */
   isPending?: boolean;
   error?: Error | null;
@@ -83,6 +99,8 @@ export interface BookLibraryProps {
  */
 export function BookLibrary({
   books,
+  shelf: shelfProp,
+  onShelfChange,
   isPending,
   error,
   onRetry,
@@ -102,22 +120,49 @@ export function BookLibrary({
   openBookHardcover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
-  const [order, setOrder] = useLibraryOrder();
-  const [filter, setFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<string[]>([]);
-  const [readFilter, setReadFilter] = useState<ReadStatusFilterValue>("all");
+  const [storedOrder] = useLibraryOrder();
+  // Uncontrolled — a story, or any surface with no URL to write to. Seeded
+  // from this device's stored order so it opens the way the app would.
+  const [ownShelf, setOwnShelf] = useState<LibraryView>(() => ({
+    ...LIBRARY_VIEW_DEFAULTS,
+    ...storedOrder,
+  }));
+  const shelf = shelfProp ?? ownShelf;
+  const changeShelf: SetLibraryView =
+    onShelfChange ?? (({ patch }) => setOwnShelf((current) => ({ ...current, ...patch })));
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
+
+  const order = useMemo(
+    () => ({ sort: shelf.sort, dir: shelf.dir, group: shelf.group }),
+    [shelf.sort, shelf.dir, shelf.group],
+  );
+
+  // The filter box holds both field terms and free text
+  // (docs/features/library-quick-filter.md). Terms narrow first — they are
+  // exact and cheap — and the ranked search then runs over what is left.
+  const parsed = useMemo(() => parseFilterQuery(shelf.q), [shelf.q]);
+  const termedBooks = useMemo(() => {
+    if (!parsed.hasTerms) return books ?? [];
+    return (books ?? []).filter((book) => matchesFilterTerms(book, parsed));
+  }, [books, parsed]);
 
   // A query ranks every matching book. Keep the score beside the filtered
   // list so the chosen library sort can break relevance ties.
   const ranked = useMemo(
-    () => (fold(filter) ? rankBooks(books ?? [], filter) : null),
-    [books, filter],
+    () => (fold(parsed.text) ? rankBooks(termedBooks, parsed.text) : null),
+    [termedBooks, parsed.text],
   );
   const searchedBooks = useMemo(
-    () => ranked?.map((entry) => entry.book) ?? books ?? [],
-    [books, ranked],
+    () => ranked?.map((entry) => entry.book) ?? termedBooks,
+    [termedBooks, ranked],
   );
+
+  // Clicking an author or a series replaces the whole query rather than adding
+  // to it: it is a jump to a different shelf, not a refinement of this one, and
+  // it earns a history entry so the back button undoes it.
+  const filterBy = (field: FilterField, value: string) => {
+    changeShelf({ patch: { q: filterTerm(field, value) }, push: true });
+  };
 
   // The toolbar filters in a fixed order — text, then source, then read status —
   // so each control's counts describe what the ones before it left
@@ -125,13 +170,13 @@ export function BookLibrary({
   const sources = useMemo(() => librarySources(books), [books]);
   const sourcedBooks = useMemo(
     () =>
-      sourceFilter.length === 0
+      shelf.sources.length === 0
         ? searchedBooks
-        : searchedBooks.filter((book) => matchesSourceFilter(book, sourceFilter)),
-    [searchedBooks, sourceFilter],
+        : searchedBooks.filter((book) => matchesSourceFilter(book, shelf.sources)),
+    [searchedBooks, shelf.sources],
   );
 
-  const effectiveReadFilter = isRead ? readFilter : "all";
+  const effectiveReadFilter = isRead ? shelf.read : "all";
   const readStatusCounts = useMemo(
     () => ({
       all: sourcedBooks.length,
@@ -193,23 +238,29 @@ export function BookLibrary({
         statusFilter={
           <ReadStatusFilter
             value={effectiveReadFilter}
-            onValueChange={setReadFilter}
+            onValueChange={(read) => changeShelf({ patch: { read }, push: true })}
             counts={books && !error ? readStatusCounts : undefined}
             disabled={!isRead}
           />
         }
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <LibraryQuickFilter value={filter} onChange={setFilter} />
+          {/* Typing replaces the history entry — one back step per keystroke
+              would make the back button useless (ADR 0020). */}
+          <LibraryQuickFilter value={shelf.q} onChange={(q) => changeShelf({ patch: { q } })} />
           {/* Absent, not disabled, in a single-source library. */}
           <LibrarySourceFilter
             sources={sources}
-            value={sourceFilter}
-            onValueChange={setSourceFilter}
+            value={shelf.sources}
+            onValueChange={(next) => changeShelf({ patch: { sources: next }, push: true })}
           />
-          <SortMenu order={order} onOrder={setOrder} />
+          <SortMenu order={order} onOrder={(next) => changeShelf({ patch: next, push: true })} />
           {/* The read-state groupings mean nothing until someone's marks exist. */}
-          <GroupMenu order={order} onOrder={setOrder} readerAvailable={isRead !== undefined} />
+          <GroupMenu
+            order={order}
+            onOrder={(next) => changeShelf({ patch: next, push: true })}
+            readerAvailable={isRead !== undefined}
+          />
         </div>
       </LibraryToolbar>
 
@@ -235,9 +286,9 @@ export function BookLibrary({
           <LibraryEmpty />
         ) : shownBooks.length === 0 ? (
           <LibraryNoMatches
-            query={filter}
+            filter={parsed}
             readFilter={effectiveReadFilter}
-            sourceFiltered={sourceFilter.length > 0}
+            sourceFiltered={shelf.sources.length > 0}
           />
         ) : view === "covers" ? (
           <BookGrid
@@ -248,6 +299,7 @@ export function BookLibrary({
             ratable={ratable}
             isRead={isRead}
             onToggleRead={onToggleRead}
+            onFilter={filterBy}
             onOpen={(book) => setOpenBookId(book.id)}
           />
         ) : (
@@ -284,6 +336,12 @@ export function BookLibrary({
             ? (seriesId) => onChoosePrimarySeries(openBook, seriesId)
             : undefined
         }
+        // Filtering from the panel closes it: the click asked to see the
+        // shelf, and leaving the flyout over the answer hides it.
+        onFilter={(field, value) => {
+          setOpenBookId(null);
+          filterBy(field, value);
+        }}
         readDates={openBookReadDates}
         readDatesPending={readDatesPending}
         readDatesError={readDatesError}
@@ -304,20 +362,23 @@ export function BookLibrary({
 
 /** A real library, but nothing satisfying every active filter. */
 function LibraryNoMatches({
-  query,
+  filter,
   readFilter,
   sourceFiltered,
 }: {
-  query: string;
+  filter: ParsedFilter;
   readFilter: ReadStatusFilterValue;
   sourceFiltered: boolean;
 }) {
   const status = readFilter === "read" ? "read" : readFilter === "to-read" ? "to read" : null;
   const marked = status ? `marked ${status} ` : "";
   const where = sourceFiltered ? " in the selected sources" : "";
+  // The terms as they were understood, rather than the raw query — a filter
+  // that parsed differently from how it was typed should say so.
+  const described = describeFilter(filter);
   let reason: string;
-  if (query.trim()) {
-    reason = `Nothing ${marked}matched “${query.trim()}”${where}.`;
+  if (described.length > 0) {
+    reason = `Nothing ${marked}matched ${described.join(" and ")}${where}.`;
   } else if (status) {
     reason = `There are no books marked ${status}${where}.`;
   } else {

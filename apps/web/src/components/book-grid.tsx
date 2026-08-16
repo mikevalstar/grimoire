@@ -3,10 +3,12 @@ import { type RefObject, useLayoutEffect, useMemo, useRef, useState } from "reac
 import { BookCover } from "@/components/book-cover";
 import { BookDownloadButton } from "@/components/book-download-button";
 import { BookMarks } from "@/components/book-marks";
+import { FilterLink } from "@/components/filter-link";
 import { ReadCorner } from "@/components/read-corner";
 import { StarRating } from "@/components/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bookRating, type HardcoverRatings, type LibraryBook, type Ratings } from "@/lib/api";
+import type { FilterField } from "@/lib/book-filter";
 import type { BookSection } from "@/lib/library-order";
 import { cn } from "@/lib/utils";
 import { useVirtualScrollMargin } from "@/lib/virtual-scroll";
@@ -37,6 +39,12 @@ export interface BookGridProps {
   isRead?: (book: LibraryBook) => boolean;
   /** Open the confirm for the other state. Without it a read corner is a read-out. */
   onToggleRead?: (book: LibraryBook, read: boolean) => void;
+  /**
+   * Narrow the shelf to an author or a series
+   * (docs/features/library-quick-filter.md). Without it a card's author and
+   * series lines are plain text, which is what they were before this.
+   */
+  onFilter?: (field: FilterField, value: string) => void;
   /** The library-owned vertical scrollport. Without it, render the complete small sample. */
   scrollElement?: HTMLElement | null;
   className?: string;
@@ -66,6 +74,7 @@ export function BookGrid({
   ratable,
   isRead,
   onToggleRead,
+  onFilter,
   scrollElement,
   className,
 }: BookGridProps) {
@@ -136,6 +145,7 @@ export function BookGrid({
                     ratable={ratable}
                     isRead={isRead}
                     onToggleRead={onToggleRead}
+                    onFilter={onFilter}
                     onOpen={onOpen}
                   />
                 ))}
@@ -164,7 +174,16 @@ interface BookCardProps extends Omit<BookGridProps, "sections" | "scrollElement"
   book: LibraryBook;
 }
 
-function BookCard({ book, onOpen, ratings, onRate, ratable, isRead, onToggleRead }: BookCardProps) {
+function BookCard({
+  book,
+  onOpen,
+  ratings,
+  onRate,
+  ratable,
+  isRead,
+  onToggleRead,
+  onFilter,
+}: BookCardProps) {
   const cover = (
     <BookCover
       book={book}
@@ -230,13 +249,22 @@ function BookCard({ book, onOpen, ratings, onRate, ratable, isRead, onToggleRead
       <p className="text-foreground/85 group-hover/book:text-foreground mt-2 min-h-[1lh] truncate text-[13px] leading-snug font-medium transition-colors">
         {book.title}
       </p>
+      {/* An author's name and a series' name are identities, not prose, so
+                each is a way into the shelf rather than a label — see
+                docs/features/library-quick-filter.md. */}
       <p className="text-muted-foreground min-h-[1lh] truncate text-[11px]">
-        {book.authors.join(", ")}
+        {book.authors.map((author, index) => (
+          <span key={author}>
+            {index > 0 && ", "}
+            <FilterLink field="author" value={author} onFilter={onFilter} />
+          </span>
+        ))}
       </p>
       <p className="text-muted-foreground/70 min-h-[1lh] truncate text-[11px]">
         {book.series && (
           <>
-            {book.series}
+            <FilterLink field="series" value={book.series} onFilter={onFilter} />
+            {/* The index stays plain: #3 is not a thing to filter by. */}
             {book.seriesIndex !== null && ` #${book.seriesIndex}`}
           </>
         )}

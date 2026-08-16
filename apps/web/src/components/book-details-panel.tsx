@@ -13,6 +13,7 @@ import { BookMarks } from "@/components/book-marks";
 import { BookReadDates } from "@/components/book-read-dates";
 import { BookSeriesChips } from "@/components/book-series-chips";
 import { HardcoverIcon } from "@/components/brand-icons";
+import { FilterLink } from "@/components/filter-link";
 import { StarRating } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { tooltipProps } from "@/components/ui/tooltip";
 import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
+import type { FilterField } from "@/lib/book-filter";
 import { publicationYear } from "@/lib/publication";
 
 export interface BookDetailsPanelProps {
@@ -57,6 +59,12 @@ export interface BookDetailsPanelProps {
    * chip in the header. Without it the chips stay a read-out.
    */
   onChoosePrimarySeries?: (seriesId: number) => void;
+  /**
+   * Narrow the shelf to this book's author or leading series
+   * (docs/features/library-quick-filter.md). The caller closes the panel
+   * behind it — the click was a request to look at the shelf.
+   */
+  onFilter?: (field: FilterField, value: string) => void;
   /** Known finish dates, newest read first, at their original precision. */
   readDates?: string[];
   readDatesPending?: boolean;
@@ -129,6 +137,7 @@ export function BookDetailsPanel({
   onRefetchCover,
   onSetSeries,
   onChoosePrimarySeries,
+  onFilter,
   readDates = [],
   readDatesPending = false,
   readDatesError,
@@ -222,13 +231,21 @@ export function BookDetailsPanel({
                     {shown.title}
                   </SheetTitle>
                   <SheetDescription className="mt-0.5 text-[13px]">
-                    {shown.authors.length > 0 ? shown.authors.join(", ") : "Unknown author"}
+                    {shown.authors.length > 0
+                      ? shown.authors.map((author, index) => (
+                          <span key={author}>
+                            {index > 0 && ", "}
+                            <FilterLink field="author" value={author} onFilter={onFilter} />
+                          </span>
+                        ))
+                      : "Unknown author"}
                   </SheetDescription>
                   <BookSeriesChips
                     series={shown.series}
                     seriesIndex={shown.seriesIndex}
                     seriesList={shown.seriesList}
                     onChoosePrimary={onChoosePrimarySeries}
+                    onFilter={onFilter}
                     className="mt-1.5"
                   />
                   <BookMarks book={shown} className="mt-2" />

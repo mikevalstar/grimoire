@@ -52,6 +52,15 @@ author, series line, and the stars — which are a control, not a read-out
 on metadata whether or not the book has a series, so cards are the same height
 and the stars line up across a row where they can be aimed at.
 
+The author and series lines are *links into the shelf*: each author name, and
+the series name, filters the library to it by writing an `author:` or `series:`
+term into the [quick filter](library-quick-filter.md). A card names identities,
+not prose, and the obvious thing to want from an author's name is the rest of
+their books. A card with several authors makes each one separately clickable,
+and the series index stays plain text beside the name — `#3` is not a thing to
+filter by. These are the same rules the
+[details panel](book-details-panel.md) header follows.
+
 **List view.** A table that scrolls horizontally rather than crushing columns:
 thumbnail, title, author, series, your rating, formats, date added, and a
 trailing actions column. Columns are fixed for now; a picker is a later feature.
@@ -124,6 +133,14 @@ images.
 **View persistence.** Which view you are in is per-device, kept in
 `localStorage` alongside the theme, not in Grimoire's database.
 
+**Everything else is in the URL.** The filter query, the source filter, the
+read-status filter, and the sort/direction/group choice are search parameters
+on the library route, so any narrowed shelf is a bookmark and a shareable link,
+and the back button undoes a filter
+([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)). Defaults are
+left out of the URL; typing in the filter box replaces the history entry rather
+than pushing one per keystroke.
+
 **Scale.** The client keeps the complete library so quick search, sort and
 grouping remain immediate, but each view mounts only the rows in and just
 outside the scrollport. The table virtualizes book and group-heading rows. The
@@ -142,6 +159,10 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] The library renders in either a cover grid or a table, and the toolbar
       switches between them without refetching.
 - [x] The chosen view survives a reload and is per-device.
+- [x] The filter query, source filter, read filter and sort/group choice are
+      URL search parameters; a copied link reproduces the same shelf.
+- [x] Author names and the series name on a cover card filter the library to
+      that author or series.
 - [x] The toolbar carries the [quick filter](library-quick-filter.md), the
       [source filter](library-source-filter.md), sort, and group controls
       without crowding the view switcher.
@@ -171,12 +192,15 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
   [matching](book-matching.md) can't tell they are the same book, in which case
   it is two, and stays two until manual resolution exists.
 
-- **Structured filters.** The toolbar now has the text
-  [quick filter](library-quick-filter.md), the
-  [source filter](library-source-filter.md), and
-  [sort and group](library-sort-and-group.md). Author, tag, format, and rating
-  pills are still to come, with the table's column headers as a second sort
-  entry point.
+- **Structured filters.** Author and series filtering exists as
+  [filter terms](library-quick-filter.md) typed into — or clicked into — the
+  quick filter box. Tag, format and rating are the same shape and unbuilt, and
+  none of them are *pills* yet: the terms live as text in one box rather than
+  as removable chips. The table's column headers are still not a sort entry
+  point.
+- **Author and series links in list view.** Only the cover card and the
+  details panel offer them; the table's author and series columns are still
+  plain text.
 - **Server-side scale.** The whole library is still returned in one pass and
   searched and sorted in the browser. Virtualization removes the DOM cost, but
   a hundred-thousand-book library may still justify server-side querying and
