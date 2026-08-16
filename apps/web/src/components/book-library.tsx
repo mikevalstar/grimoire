@@ -60,6 +60,8 @@ export interface BookLibraryProps {
    * (docs/features/setting-a-series-from-hardcover.md).
    */
   onSetSeries?: (book: LibraryBook) => void;
+  /** Promote one of the open book's series to the head of its line. */
+  onChoosePrimarySeries?: (book: LibraryBook, seriesId: number) => void;
   /**
    * Hardcover's about, tags and moods for the open book, where the instance
    * asked for them (docs/features/book-details-panel.md). The panel falls back
@@ -90,6 +92,7 @@ export function BookLibrary({
   onChooseCover,
   onRefetchCover,
   onSetSeries,
+  onChoosePrimarySeries,
   openBookHardcover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
@@ -261,6 +264,11 @@ export function BookLibrary({
         // answer is none (docs/features/book-actions.md).
         onRefetchCover={onRefetchCover && openBook ? () => onRefetchCover(openBook) : undefined}
         onSetSeries={onSetSeries && openBook ? () => onSetSeries(openBook) : undefined}
+        onChoosePrimarySeries={
+          onChoosePrimarySeries && openBook
+            ? (seriesId) => onChoosePrimarySeries(openBook, seriesId)
+            : undefined
+        }
         readDates={openBookReadDates}
         readDatesPending={readDatesPending}
         readDatesError={readDatesError}

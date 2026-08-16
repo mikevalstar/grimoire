@@ -157,15 +157,6 @@ export const HcMeResponseSchema = z.object({
 });
 
 /**
- * A book as Hardcover's library query returns it. The `cached_*` fields are
- * JSON blobs with no documented shape, so they are carried as `unknown` and
- * read defensively in `hardcover-books.ts` — they are also the *only* way to
- * get contributors, tags and the cover within their depth-3 query limit.
- *
- * `title` is nullish because their catalogue has records that lack one; the
- * mirror substitutes rather than dropping the book.
- */
-/**
  * A series in Hardcover's catalogue. `canonical_id` is their own dedupe
  * pointer: where a series has one, this row is a duplicate of that series, and
  * attaching to the canonical instead is how their librarians' merges reach
@@ -233,6 +224,15 @@ export const HcBookSeriesSchema = z.object({
 });
 export type HcBookSeries = z.infer<typeof HcBookSeriesSchema>;
 
+/**
+ * A book as Hardcover's library query returns it. The `cached_*` fields are
+ * JSON blobs with no documented shape, so they are carried as `unknown` and
+ * read defensively in `hardcover-books.ts` — they are also the *only* way to
+ * get contributors, tags and the cover within their depth-3 query limit.
+ *
+ * `title` is nullish because their catalogue has records that lack one; the
+ * mirror substitutes rather than dropping the book.
+ */
 export const HcBookSchema = z.object({
   id: z.number(),
   title: z.string().nullish(),
@@ -850,6 +850,15 @@ export const SeriesApplyResultSchema = z.object({
   books: z.array(BookSchema).default([]),
 });
 export type SeriesApplyResult = z.infer<typeof SeriesApplyResultSchema>;
+
+/**
+ * Body of PUT /api/books/:bookId/series/primary — which of a work's series
+ * heads its line. Null clears the choice and hands the work back to the rule.
+ */
+export const SeriesPrimarySchema = z.object({
+  seriesId: z.number().int().positive().nullable(),
+});
+export type SeriesPrimary = z.infer<typeof SeriesPrimarySchema>;
 
 /** Body of PUT /api/books/:id/cover — which member's cover this work should show. */
 export const CoverChoiceSchema = z.object({

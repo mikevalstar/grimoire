@@ -33,6 +33,7 @@ import {
   saveReadState,
   saveSyncInterval,
   separateMember,
+  setPrimarySeries,
   startSync,
 } from "@/lib/api";
 
@@ -197,6 +198,56 @@ export function useApplySeries(userId: number | null | undefined) {
       // The counts on the first step ("12 on your shelf") are now wrong.
       void queryClient.invalidateQueries({ queryKey: ["hardcover-series"] });
       void queryClient.invalidateQueries({ queryKey: ["series-roster"] });
+    },
+  });
+}
+
+/**
+ * Promote one of a work's series to the head of its line. Optimistic, like
+ * turning over a cover: the write is silent and the chips moving is the
+ * acknowledgement that the click landed.
+ */
+export function useSetPrimarySeries() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workId, seriesId }: { workId: number; seriesId: number | null }) =>
+      setPrimarySeries(workId, seriesId),
+
+    async onMutate({ workId, seriesId }) {
+      await queryClient.cancelQueries({ queryKey: booksQuery.queryKey });
+      const previous = queryClient.getQueryData<LibraryBook[]>(booksQuery.queryKey);
+
+      queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
+        books?.map((book) => {
+          if (book.id !== workId) return book;
+          const promoted = book.seriesList.find((ref) => ref.id === seriesId);
+          if (!promoted) return book;
+          // The same shape the server will answer with: the chosen one at the
+          // head, marked, and the rest in the order they were.
+          const seriesList = [
+            { ...promoted, primary: true },
+            ...book.seriesList
+              .filter((ref) => ref.id !== seriesId)
+              .map((ref) => ({
+                ...ref,
+                primary: false,
+              })),
+          ];
+          return { ...book, seriesList, series: promoted.name, seriesIndex: promoted.position };
+        }),
+      );
+      return { previous };
+    },
+
+    onError(_err, _vars, context) {
+      if (context?.previous) queryClient.setQueryData(booksQuery.queryKey, context.previous);
+    },
+
+    onSuccess(book) {
+      queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
+        books?.map((existing) => (existing.id === book.id ? book : existing)),
+      );
     },
   });
 }

@@ -47,6 +47,14 @@ export const TwoSeries: Story = {
   args: { seriesList: [discworld, witches] },
 };
 
+/**
+ * With somewhere to send the click: a chip that isn't leading becomes a button
+ * that promotes it. The primary stays plain — it has nothing to do.
+ */
+export const Promotable: Story = {
+  args: { seriesList: [discworld, witches], onChoosePrimary: () => {} },
+};
+
 /** From Calibre, which has no mark — the library itself knows this one. */
 export const FromCalibre: Story = {
   args: {

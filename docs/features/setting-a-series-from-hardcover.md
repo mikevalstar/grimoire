@@ -135,6 +135,30 @@ The panel's series line becomes chips, primary first, each carrying its position
 and — where the attachment came from Hardcover or a run of this action — their
 mark, so it is clear the shelf is showing something Calibre does not have.
 
+**Clicking a chip promotes it.** For a book in more than one series, the one
+leading is a choice a reader can change without going near this dialog again:
+click *Witches* and the shelf files the book under Witches from then on. The
+write is optimistic and otherwise silent — the chips reordering is the
+acknowledgement, the same bargain [rating](rating-a-book.md) and the
+[cover stack](book-details-panel.md) strike. The series already leading is not a
+button; it has nothing to do.
+
+The choice is stored the way every other human decision about a series is: as a
+`manual` attachment ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)),
+created on the spot if the series only ever came from a sync. That is what makes
+it outlive the next sweep, which rewrites its own rows and would carry a mark on
+one away with it.
+
+Like the cover choice, it belongs to the *work* and not to a reader: which
+series a book is filed under is what the book is, not an opinion about it.
+
+Clearing the choice hands the work back to the rule, and takes with it the
+manual attachment a promotion created — an attachment that only repeats what a
+source already says exists to carry the mark, and would otherwise go on
+outranking that source silently. A series that is the *only* claim on the book —
+one this dialog attached — stays: deciding which series leads is no way to
+remove a book from a series.
+
 The shelf behind redraws: 13 books change their series line, and if the shelf is
 grouped or sorted by series they move. That is a bigger visible change than any
 action so far, which is the reason for the count on the button and the confirm
@@ -174,6 +198,10 @@ most of the shelf.
 - [x] The panel and the shelf behind it show the new series without a reload.
 - [x] With the **Series** switch on, a synced Hardcover series wins over
       Calibre's; with it off, Calibre's shows and nothing is lost.
+- [x] Clicking a non-primary chip in the panel makes that series the one the
+      shelf files the book under, and the choice survives the next sync.
+- [x] Clearing the choice hands the work back to the rule, without taking the
+      book out of a series only a person ever put it in.
 - [x] The dialog has Storybook stories covering: several series, none, a roster
       with conflicts, and a reader with no token.
 
@@ -198,6 +226,12 @@ where the matcher and the library live, and it is deliberately looser than the
 [automatic pass](book-matching.md) — nothing is written, and a person reads
 every row. 409 for a reader with no linked account: unlike the read-outs, this
 was asked for by somebody who pressed something.
+
+`PUT /api/books/:bookId/series/primary` promotes one of a work's series to the
+head of its line, answering with the book as it now is. `seriesId: null` clears
+the choice. Not reader-scoped, like the cover choice and for the same reason.
+404 for a book that does not exist, and for a series the book is not in — a
+choice that could not be honoured is not worth storing.
 
 `POST /api/series/apply` takes the series — by Hardcover id *and* name, since
 the row may not exist here yet — and the whole list of `{ workId, position }`

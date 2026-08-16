@@ -52,6 +52,11 @@ export interface BookDetailsPanelProps {
    * account gets — the action needs their token.
    */
   onSetSeries?: () => void;
+  /**
+   * Promote one of this book's series to the head of its line — a click on a
+   * chip in the header. Without it the chips stay a read-out.
+   */
+  onChoosePrimarySeries?: (seriesId: number) => void;
   /** Known finish dates, newest read first, at their original precision. */
   readDates?: string[];
   readDatesPending?: boolean;
@@ -123,6 +128,7 @@ export function BookDetailsPanel({
   onChooseCover,
   onRefetchCover,
   onSetSeries,
+  onChoosePrimarySeries,
   readDates = [],
   readDatesPending = false,
   readDatesError,
@@ -222,6 +228,7 @@ export function BookDetailsPanel({
                     series={shown.series}
                     seriesIndex={shown.seriesIndex}
                     seriesList={shown.seriesList}
+                    onChoosePrimary={onChoosePrimarySeries}
                     className="mt-1.5"
                   />
                   <BookMarks book={shown} className="mt-2" />

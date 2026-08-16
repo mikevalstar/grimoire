@@ -304,6 +304,18 @@ export function fetchSeriesRoster(userId: number, hardcoverId: number) {
   });
 }
 
+/**
+ * Promote one of a work's series to the head of its line — clicking a chip in
+ * the panel. Null hands the work back to the rule. Not reader-scoped: which
+ * series a book is filed under is what the book is, not an opinion about it.
+ */
+export function setPrimarySeries(bookId: number, seriesId: number | null) {
+  return request(`/api/books/${bookId}/series/primary`, BookSchema, {
+    method: "PUT",
+    body: { seriesId },
+  });
+}
+
 /** Put a series on every work the reader agreed to. */
 export function applySeries(userId: number, body: SeriesApply) {
   return request("/api/series/apply", SeriesApplyResultSchema, {

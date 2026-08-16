@@ -38,6 +38,7 @@ import {
   ReadStateUpdateSchema,
   SERIES_SOURCE,
   SeriesApplySchema,
+  SeriesPrimarySchema,
   SeriesStore,
   SettingsStore,
   SyncSettingsUpdateSchema,
@@ -1000,6 +1001,40 @@ export function createApi(options: ApiOptions = {}) {
       books: body.entries.flatMap((entry) => known.get(entry.workId) ?? []),
     } satisfies SeriesApplyResult);
   });
+
+  /**
+   * Promote one of a work's series to the head of its line — the chip a reader
+   * clicked in the panel (docs/features/setting-a-series-from-hardcover.md).
+   *
+   * Not reader-scoped, and deliberately: which series a book is filed under is
+   * what the book *is*, not what somebody thinks of it — the same reasoning
+   * that put the cover choice on the work rather than on a reader
+   * (docs/features/book-details-panel.md).
+   *
+   * `seriesId: null` clears the choice and hands the work back to the rule.
+   */
+  app.put(
+    "/api/books/:bookId/series/primary",
+    zValidator("json", SeriesPrimarySchema, invalid),
+    (c) => {
+      const bookId = Number(c.req.param("bookId"));
+      if (!Number.isInteger(bookId) || bookId <= 0) {
+        return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+      }
+      const book = getBooks().get(bookId);
+      if (!book) return c.json({ error: `No book with id ${bookId}.` }, 404);
+
+      const { seriesId } = c.req.valid("json");
+      // A series the work is not in is not a choice that could be honoured —
+      // the same refusal choosing a cover makes for a member that has none.
+      if (seriesId !== null && !book.seriesList.some((ref) => ref.id === seriesId)) {
+        return c.json({ error: `That book is not in series ${seriesId}.` }, 404);
+      }
+
+      getSeries().setPrimary(bookId, seriesId);
+      return c.json(getBooks().get(bookId));
+    },
+  );
 
   /**
    * A read book's full reread history. This deliberately bypasses the mirror:

@@ -251,20 +251,79 @@ export class SeriesStore {
   /**
    * Which of a work's series heads its series line. Null clears the choice and
    * hands the work back to the rule — the same shape as unchoosing a cover.
+   *
+   * **The mark always lands on a `manual` attachment**, created here if the
+   * series only arrived from a sync. Two reasons, both load-bearing:
+   *
+   * - A sweep rewrites its own rows (`replaceForWork`), so a flag on a
+   *   `hardcover` row would survive until the next sync and no longer.
+   * - One series can be attached by two sources at once, and marking "the rows
+   *   for this series" would set the flag twice, which the partial unique index
+   *   correctly refuses.
+   *
+   * Promoting is a person's decision, and this is where those live (ADR 0019),
+   * so the row it needs is the row it makes.
    */
   setPrimary(workId: number, seriesId: number | null): void {
+    const now = new Date().toISOString();
     this.db.transaction(() => {
       this.db
         .query("UPDATE work_series SET is_primary = 0 WHERE work_id = $workId")
         .run({ $workId: workId });
-      if (seriesId !== null) {
+
+      if (seriesId === null) {
+        // Handing the work back to the rule means removing what a *promotion*
+        // left behind, not just its mark: a manual row outranks a synced one
+        // even unmarked, so leaving it would keep the promoted series leading
+        // and the clear would do nothing visible.
+        //
+        // Only the redundant ones go — a manual attachment to a series some
+        // source already reports exists to carry the choice, and the book stays
+        // in that series without it. One that is the *only* claim on a series
+        // is why the book is in it at all (the dialog put it there), and
+        // clearing which series leads is no way to remove a book from a series.
         this.db
           .query(
-            "UPDATE work_series SET is_primary = 1, updated_at = $now " +
-              "WHERE work_id = $workId AND series_id = $seriesId",
+            `DELETE FROM work_series
+              WHERE work_id = $workId AND source = 'manual'
+                AND EXISTS (
+                  SELECT 1 FROM work_series other
+                   WHERE other.work_id = work_series.work_id
+                     AND other.series_id = work_series.series_id
+                     AND other.source <> 'manual'
+                )`,
           )
-          .run({ $workId: workId, $seriesId: seriesId, $now: new Date().toISOString() });
+          .run({ $workId: workId });
+        return;
       }
+
+      // Whatever the sync knew about the book's place in it — a promotion is
+      // about which series leads, not about renumbering the book.
+      const known = this.db
+        .query(
+          "SELECT position, featured FROM work_series " +
+            "WHERE work_id = $workId AND series_id = $seriesId " +
+            "ORDER BY CASE source WHEN 'manual' THEN 0 ELSE 1 END LIMIT 1",
+        )
+        .get({ $workId: workId, $seriesId: seriesId }) as {
+        position: number | null;
+        featured: number;
+      } | null;
+
+      this.db
+        .query(
+          "INSERT INTO work_series (work_id, series_id, position, source, featured, is_primary, created_at, updated_at) " +
+            "VALUES ($workId, $seriesId, $position, 'manual', $featured, 1, $now, $now) " +
+            "ON CONFLICT (work_id, series_id, source) DO UPDATE SET " +
+            "is_primary = 1, updated_at = excluded.updated_at",
+        )
+        .run({
+          $workId: workId,
+          $seriesId: seriesId,
+          $position: known?.position ?? null,
+          $featured: known?.featured ?? 0,
+          $now: now,
+        });
     })();
   }
 

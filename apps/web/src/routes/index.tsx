@@ -30,6 +30,7 @@ import {
   useChooseCover,
   useRateBook,
   useRefetchCover,
+  useSetPrimarySeries,
   useSetReadState,
 } from "@/lib/queries";
 
@@ -217,6 +218,9 @@ function LibraryScreen() {
     hardcoverSeriesQuery(currentUser?.id, settingSeries?.id ?? null, null, settingSeries !== null),
   );
   const applySeries = useApplySeries(currentUser?.id);
+  // Which series heads a book's line is the library's answer, not a reader's —
+  // the same reasoning as the cover choice, so this needs nobody chosen.
+  const choosePrimarySeries = useSetPrimarySeries();
 
   return (
     <>
@@ -246,6 +250,9 @@ function LibraryScreen() {
         // nobody chosen leaves the gear's item disabled rather than opening a
         // dialog that could only fail.
         onSetSeries={currentUser ? setSettingSeries : undefined}
+        onChoosePrimarySeries={(book, seriesId) =>
+          choosePrimarySeries.mutate({ workId: book.id, seriesId })
+        }
       />
 
       <SetSeriesDialog
