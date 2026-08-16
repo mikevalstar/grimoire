@@ -28,6 +28,15 @@ button in the footer without the footer becoming a toolbar.
 A menu behind a gear is the cheap answer: one affordance, quiet enough to ignore,
 and it holds the next five actions without a redesign.
 
+**An action may now touch more than the open book.**
+[Setting a series from Hardcover](setting-a-series-from-hardcover.md) writes to
+every book in that series already on the shelf, which is a deliberate change to
+the rule this menu started with. The justification is that a series *is* a
+selection — better defined than any the shelf could offer — and the guard is
+that such an action must say how many books it will change and confirm before
+writing. An action that reaches past the open book without stating the count
+does not belong here.
+
 Re-fetching a cover is the first because the cover is the one piece of a book
 Grimoire caches as a *file*. [Sync](calibre-sync.md) only fetches it again when
 Calibre says the book was edited — so a cover replaced in Calibre with the same
@@ -103,7 +112,9 @@ it exists to make the URL change, and the file on disk is the answer either way.
 
 - **Other actions.** Re-match against Hardcover, forget a book that has left
   Calibre, and copying an identifier are the obvious next entries; none is
-  decided yet.
+  decided yet. **Set series…**
+  ([setting a series from Hardcover](setting-a-series-from-hardcover.md)) is the
+  second entry and is specified.
 - **Uploading a cover** would be the natural neighbour of re-fetching one, and
   waits on the same thing the panel's open questions record: a `grimoire` member
   row to hold it.

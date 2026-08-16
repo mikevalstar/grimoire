@@ -29,4 +29,5 @@ Add one with `okq new adr "<title>"`.
 | react-tooltip for hover affordances | [0016-react-tooltip-for-hover-affordances.md](0016-react-tooltip-for-hover-affordances.md) |
 | Decode WebP covers with a WASM codec | [0017-decode-webp-covers-with-a-wasm-codec.md](0017-decode-webp-covers-with-a-wasm-codec.md) |
 | GitHub Actions and GHCR for build and release automation | [0018-github-actions-and-ghcr-for-build-and-release-automation.md](0018-github-actions-and-ghcr-for-build-and-release-automation.md) |
+| Series as records with a primary per work | [0019-series-as-records-with-a-primary-per-work.md](0019-series-as-records-with-a-primary-per-work.md) |
 <!-- okq:index:end -->
