@@ -25,6 +25,7 @@ Add one with `okq new feature "<title>"`.
 | Library sort and group | [library-sort-and-group.md](library-sort-and-group.md) |
 | Library source filter | [library-source-filter.md](library-source-filter.md) |
 | Marking a book read | [marking-a-book-read.md](marking-a-book-read.md) |
+| OPDS catalog | [opds-catalog.md](opds-catalog.md) |
 | Rating a book | [rating-a-book.md](rating-a-book.md) |
 | Resolving duplicates | [resolving-duplicates.md](resolving-duplicates.md) |
 | Settings | [settings.md](settings.md) |
