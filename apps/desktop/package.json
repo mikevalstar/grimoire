@@ -7,7 +7,7 @@
     "build:ui": "bun run --cwd ../web build && rm -rf dist && cp -R ../web/dist dist",
     "dev": "bun run build:ui && bunx electrobun dev",
     "dev:hmr": "bun run build:ui && concurrently -n vite,electrobun \"bun run --cwd ../web dev\" \"bunx electrobun dev\"",
-    "build": "bun run build:ui && bunx electrobun build --env=production",
+    "build": "bun run build:ui && bunx electrobun build --env=stable",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

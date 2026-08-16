@@ -1,10 +1,12 @@
 import type { ElectrobunConfig } from "electrobun";
 
+const version = (process.env.GRIMOIRE_VERSION ?? "0.0.1").replace(/^v/, "");
+
 export default {
   app: {
     name: "Grimoire Books",
     identifier: "dev.valstar.grimoire",
-    version: "0.0.1",
+    version,
   },
   build: {
     bun: {
@@ -28,5 +30,10 @@ export default {
       bundleCEF: false,
       icon: "assets/app-icon.ico",
     },
+  },
+  release: {
+    // GitHub Releases is the distribution channel for now. Delta updates need
+    // a stable public base URL and can be enabled when in-app updates land.
+    generatePatch: false,
   },
 } satisfies ElectrobunConfig;

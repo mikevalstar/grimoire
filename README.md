@@ -93,7 +93,19 @@ bun run start:server
 
 # Desktop app bundle
 bun run build:desktop
+
+# Self-hosted container (published releases are at ghcr.io/mikevalstar/grimoire)
+docker build -t grimoire .
+docker run --rm -p 4747:4747 \
+  -v grimoire-data:/data \
+  -e CALIBRE_SERVER=http://host.docker.internal:8080 \
+  grimoire
 ```
+
+Version tags matching `vX.Y.Z` publish Linux, Windows, and macOS desktop ZIPs,
+a multi-architecture GHCR image, and a GitHub Release with generated notes. See
+[Cut a release](docs/workflows/cut-a-release.md) for the release process. The
+desktop packages are not yet code-signed or notarized.
 
 ## Other commands
 

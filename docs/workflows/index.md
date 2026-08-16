@@ -21,3 +21,11 @@ status: draft
 
 Body convention: **When to use** / **Steps** / **Verify** — keep each step
 runnable.
+
+<!-- okq:index:begin -->
+### Concepts
+
+| Title | File |
+|-------|------|
+| Cut a release | [cut-a-release.md](cut-a-release.md) |
+<!-- okq:index:end -->

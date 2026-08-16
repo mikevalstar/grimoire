@@ -10,6 +10,7 @@
     "dev": "bun run --filter '@grimoire/web' --filter '@grimoire/server' dev",
     "dev:desktop": "bun run --cwd apps/desktop dev:hmr",
     "build:web": "bun run --cwd apps/web build",
+    "build:server": "bun run --cwd apps/server build",
     "build:desktop": "bun run --cwd apps/desktop build",
     "start:server": "bun run --cwd apps/server start",
     "storybook": "bun run --cwd apps/web storybook",

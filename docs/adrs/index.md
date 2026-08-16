@@ -28,4 +28,5 @@ Add one with `okq new adr "<title>"`.
 | Virtualize library views with TanStack Virtual | [0015-virtualize-library-views-with-tanstack-virtual.md](0015-virtualize-library-views-with-tanstack-virtual.md) |
 | react-tooltip for hover affordances | [0016-react-tooltip-for-hover-affordances.md](0016-react-tooltip-for-hover-affordances.md) |
 | Decode WebP covers with a WASM codec | [0017-decode-webp-covers-with-a-wasm-codec.md](0017-decode-webp-covers-with-a-wasm-codec.md) |
+| GitHub Actions and GHCR for build and release automation | [0018-github-actions-and-ghcr-for-build-and-release-automation.md](0018-github-actions-and-ghcr-for-build-and-release-automation.md) |
 <!-- okq:index:end -->

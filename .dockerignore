@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+**/node_modules
+**/dist
+**/build
+**/artifacts
+storybook-static
+*.log
+.DS_Store
+.env*
