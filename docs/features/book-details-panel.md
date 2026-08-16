@@ -65,6 +65,16 @@ Its contents, in order:
   Hardcover's mark on a series that came from them or from
   [setting one by hand](setting-a-series-from-hardcover.md) — Calibre has no
   such series, so the shelf is showing something the library does not.
+
+  Each author name filters the library to that author, and so does the primary
+  series — a click writes the matching term into the
+  [quick filter](library-quick-filter.md) and closes the panel, because looking
+  for an author's other books is a request to see the shelf. A *non*-primary
+  chip keeps the one job it already had: clicking it promotes that series to
+  the head of the line ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)).
+  The two readings sit on different chips rather than competing on the same
+  one — a chip that is already leading has nothing to promote, which is exactly
+  the chip with room for another meaning.
 - **The cover stack** — when the work has more than one cover, see below.
 - **Your rating** — the same control as on the shelf
   ([rating a book](rating-a-book.md)), at a larger size and always visible
@@ -208,6 +218,8 @@ that puts filters and sorting in the URL.
 
 - [x] Clicking a card or a row opens the panel for that book, in both views.
 - [x] The stars and the download button on a card do not open the panel.
+- [x] An author name, and the primary series, filter the library to it and
+      close the panel; a non-primary series chip still promotes.
 - [x] The panel shows the cover, title, authors, series, marks, rating,
       download, details, tags and description — omitting what the book has no
       value for.

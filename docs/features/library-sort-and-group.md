@@ -73,9 +73,11 @@ Finish dates are recorded at whatever precision the reader gave ("2023",
 A book can appear in only one section: author groups use the primary (first)
 author, matching how author sort works.
 
-**Persistence.** Per-device in `localStorage` alongside the
-[view choice](book-list.md) — sorting is how *you* hold the shelf, not a fact
-about the library.
+**Persistence.** Both live in the URL as search parameters, so a sorted,
+grouped shelf is a link ([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)).
+The `localStorage` mirror stays, demoted to the *default* for a URL that
+doesn't name them: sorting is still how you hold the shelf on this device, but
+an explicit parameter always wins, so a link opens the way its sender saw it.
 
 **Counts.** The toolbar's book count keeps counting books, not sections.
 
@@ -94,7 +96,8 @@ about the library.
 - [x] Published year and read year group into year sections, newest first,
       with undated books in a final section; read year is disabled with no
       reader chosen and follows the reader's read-state source.
-- [x] Sort and group choices survive a reload, per device.
+- [x] Sort and group choices survive a reload, per device, and round-trip
+      through the URL so a link carries them.
 - [x] The dropdowns and grouped views have Storybook stories.
 
 ## Open questions

@@ -17,6 +17,15 @@ import {
   searchHardcover,
 } from "@/lib/api";
 import { useCurrentUser } from "@/lib/current-user";
+import { setLibraryOrder, useLibraryOrder } from "@/lib/library-order";
+import {
+  type LibraryView,
+  librarySearchSchema,
+  libraryViewFromSearch,
+  libraryViewToSearch,
+  type SetLibraryView,
+  touchesOrder,
+} from "@/lib/library-view";
 import { useOpenBookId } from "@/lib/open-book";
 import {
   booksQuery,
@@ -36,14 +45,49 @@ import {
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
+  // How the shelf is narrowed and ordered, so any view of it is a link
+  // (ADR 0020). Every field catches, so a hand-edited URL degrades to the
+  // default rather than erroring the route.
+  validateSearch: librarySearchSchema,
   // Prefetch, but don't fail the route on it: a content server that's down is
   // a state the screen draws (with the proxy's hint), not a router error.
   loader: ({ context }) => context.queryClient.ensureQueryData(booksQuery).catch(() => undefined),
   component: LibraryScreen,
 });
 
+/**
+ * The URL, read as a view of the library and written back the same way. Sort,
+ * direction and group fall back to this device's stored order for a URL that
+ * doesn't name them, and are written as a set once anything moves them — see
+ * `libraryViewToSearch`.
+ */
+function useLibraryView(): [LibraryView, SetLibraryView] {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [storedOrder] = useLibraryOrder();
+
+  const view = libraryViewFromSearch(search, storedOrder);
+  // The URL already names the order, or this change is about to.
+  const ordered =
+    search.sort !== undefined || search.dir !== undefined || search.group !== undefined;
+
+  const setView: SetLibraryView = ({ patch, push }) => {
+    const next = { ...view, ...patch };
+    // Keep the per-device mirror in step, so the *next* bare visit opens the
+    // way this one was left.
+    if (touchesOrder(patch)) setLibraryOrder({ sort: next.sort, dir: next.dir, group: next.group });
+    void navigate({
+      search: libraryViewToSearch(next, ordered || touchesOrder(patch)),
+      replace: !push,
+    });
+  };
+
+  return [view, setView];
+}
+
 function LibraryScreen() {
   const { data: books, error, isPending, refetch } = useQuery(booksQuery);
+  const [shelf, setShelf] = useLibraryView();
 
   // Ratings and read state belong to whoever is using this device, each from
   // whichever source they chose (ADR 0014,
@@ -227,6 +271,8 @@ function LibraryScreen() {
     <>
       <BookLibrary
         books={books}
+        shelf={shelf}
+        onShelfChange={setShelf}
         isPending={isPending}
         error={error}
         onRetry={() => void refetch()}
