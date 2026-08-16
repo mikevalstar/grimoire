@@ -165,6 +165,51 @@ export const HcMeResponseSchema = z.object({
  * `title` is nullish because their catalogue has records that lack one; the
  * mirror substitutes rather than dropping the book.
  */
+/**
+ * A series in Hardcover's catalogue. `canonical_id` is their own dedupe
+ * pointer: where a series has one, this row is a duplicate of that series, and
+ * attaching to the canonical instead is how their librarians' merges reach
+ * Grimoire (ADR 0019).
+ */
+export const HcSeriesSchema = z.object({
+  id: z.number(),
+  name: z.string().nullish(),
+  slug: z.string().nullish(),
+  books_count: z.number().nullish(),
+  canonical_id: z.number().nullish(),
+});
+export type HcSeries = z.infer<typeof HcSeriesSchema>;
+
+export const HcSeriesResponseSchema = z.object({
+  data: z.object({ series: z.array(HcSeriesSchema) }).nullish(),
+  ...hcErrors,
+});
+
+/**
+ * One row of Hardcover's `book_series` join, with the series it points at.
+ *
+ * `position` is their `float8` and genuinely nullable — a series can hold a
+ * book nobody has numbered. `featured` is their flag for the series they treat
+ * as the book's home, and half of the rule that picks a primary (ADR 0019).
+ * `canonical_id` is their own dedupe pointer: where a series has one, it is a
+ * duplicate of that series, and attaching to it rather than to this row is how
+ * their merge reaches Grimoire.
+ */
+export const HcBookSeriesSchema = z.object({
+  /**
+   * Present on the shelf sweep, which cannot afford the nested `series` — that
+   * would be depth 4 and their queries stop at 3. A second query hydrates these
+   * ids into the object below, exactly as the finder hydrates search results.
+   */
+  series_id: z.number().nullish(),
+  position: z.number().nullish(),
+  featured: z.boolean().nullish(),
+  /** Their omnibus flag. Carried but not yet acted on. */
+  compilation: z.boolean().nullish(),
+  series: HcSeriesSchema.nullish(),
+});
+export type HcBookSeries = z.infer<typeof HcBookSeriesSchema>;
+
 export const HcBookSchema = z.object({
   id: z.number(),
   title: z.string().nullish(),
@@ -178,6 +223,12 @@ export const HcBookSchema = z.object({
   cached_contributors: z.unknown().optional(),
   cached_image: z.unknown().optional(),
   cached_tags: z.unknown().optional(),
+  /**
+   * Their `book_series` join — real fields rather than a cached blob, so this
+   * one is modelled (ADR 0019). Nullish throughout: a book in no series has an
+   * empty array, and a query that asked for less must not fail the page.
+   */
+  book_series: z.array(HcBookSeriesSchema).nullish(),
 });
 
 export type HcBook = z.infer<typeof HcBookSchema>;

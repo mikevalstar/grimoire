@@ -138,4 +138,9 @@ answer, derived from them.
   think about before.
 - Folding by name will occasionally fuse two genuinely different series that
   share one. Nothing here splits them back apart yet; the manual attachment is
-  the escape hatch until something does.
+  the escape hatch until something does. Two *Hardcover* series with one name
+  stay two rows — their ids tell them apart — but a Calibre string that folds to
+  that name attaches to the older of them, which is a guess.
+- Hardcover's `canonical_id` is followed, so a series their librarians merged
+  merges here too. Nothing un-merges: if they split one later, Grimoire keeps
+  the fused row until somebody attaches by hand.

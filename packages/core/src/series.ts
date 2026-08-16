@@ -123,8 +123,16 @@ export class SeriesStore {
         return orphan.id;
       }
     } else {
+      // Any row with this key is this series, **including one Hardcover has
+      // named** — that is the whole point of the fold, and looking only at the
+      // nameless rows would file Calibre's "The Discworld Series" under a second
+      // Discworld beside the one their sync created.
+      //
+      // Oldest first, so a key shared by two of their series (which is allowed —
+      // ids are what tell those apart) resolves the same way every time rather
+      // than by row order.
       const known = this.db
-        .query("SELECT * FROM series WHERE hardcover_id IS NULL AND match_key = $key")
+        .query("SELECT * FROM series WHERE match_key = $key ORDER BY id LIMIT 1")
         .get({ $key: key }) as SeriesRow | null;
       if (known) return known.id;
     }

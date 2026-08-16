@@ -1,13 +1,13 @@
 import type { Database } from "bun:sqlite";
 import type { CalibreBookRow } from "./calibre-books.ts";
 import { resolveDatabase } from "./db.ts";
-import type { HardcoverBookRow } from "./hardcover-books.ts";
+import type { HardcoverBookRow, MirroredSeries } from "./hardcover-books.ts";
 import { matchKey } from "./matching.ts";
 import type { Book, SeriesRef } from "./schemas.ts";
 import { hardcoverContentPrefs } from "./schemas.ts";
-import { orderSeries, SeriesStore } from "./series.ts";
+import { type AttachmentInput, orderSeries, SeriesStore } from "./series.ts";
 import { SettingsStore } from "./settings.ts";
-import { BOOK_SOURCE } from "./types.ts";
+import { BOOK_SOURCE, SERIES_SOURCE, type SeriesSource } from "./types.ts";
 
 interface BookRow {
   id: number;
@@ -85,6 +85,28 @@ function parseArray(json: string): string[] {
   } catch {
     return [];
   }
+}
+
+function parseSeries(json: string | null): MirroredSeries[] {
+  if (!json) return [];
+  try {
+    const value = JSON.parse(json);
+    return Array.isArray(value) ? (value as MirroredSeries[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Whether a source's stored attachments already say what it now says — series
+ * and position both, since a book moving from #3 to #4 is a change worth
+ * writing and nothing else about the row is.
+ */
+function sameAttachments(current: readonly SeriesRef[], next: readonly AttachmentInput[]): boolean {
+  if (current.length !== next.length) return false;
+  const key = (id: number, position: number | null | undefined) => `${id}:${position ?? ""}`;
+  const have = new Set(current.map((ref) => key(ref.id, ref.position)));
+  return next.every((attachment) => have.has(key(attachment.seriesId, attachment.position)));
 }
 
 function parseRecord(json: string): Record<string, string> {
@@ -500,6 +522,112 @@ export class BooksStore {
     })(mirror);
 
     return result;
+  }
+
+  /**
+   * Turn what the sources say about series into `series` and `work_series` rows
+   * (ADR 0019). Run after either reconcile, over the whole library rather than
+   * over one sweep's rows: attachments are per *work*, a work's members can come
+   * from either source, and a library that predates these tables has to be
+   * caught up as well.
+   *
+   * Both sources are recomputed from what they currently say — a series removed
+   * in Calibre loses its attachment here. A `manual` attachment is nobody's to
+   * remove but the person who made it, and `replaceForWork` leaves it alone.
+   *
+   * Idempotent, and quiet when nothing changed: a work whose attachments already
+   * match is not rewritten, so the common case of a sync that changed no series
+   * writes nothing at all.
+   */
+  reconcileSeries(): { works: number; attachments: number } {
+    const rows = this.db
+      .query(
+        `SELECT b.work_id, b.source, b.series, b.series_index, hb.series AS hardcover_series
+           FROM books b
+           LEFT JOIN hardcover_books hb ON hb.hardcover_id = b.hardcover_id`,
+      )
+      .all() as {
+      work_id: number;
+      source: string;
+      series: string | null;
+      series_index: number | null;
+      hardcover_series: string | null;
+    }[];
+
+    // What each source says a work is in, gathered across the work's members.
+    const wanted = new Map<number, Map<SeriesSource, Map<number, AttachmentInput>>>();
+    const want = (workId: number, source: SeriesSource, attachment: AttachmentInput) => {
+      const bySource = wanted.get(workId) ?? new Map<SeriesSource, Map<number, AttachmentInput>>();
+      wanted.set(workId, bySource);
+      const bySeries = bySource.get(source) ?? new Map<number, AttachmentInput>();
+      bySource.set(source, bySeries);
+      const existing = bySeries.get(attachment.seriesId);
+      // Two members naming one series: keep a position over none, and featured
+      // over not — the same "an answer beats no answer" the resolver applies.
+      if (!existing) bySeries.set(attachment.seriesId, attachment);
+      else {
+        existing.position ??= attachment.position;
+        existing.featured ||= attachment.featured;
+      }
+    };
+
+    let attachments = 0;
+    const write = this.db.transaction(() => {
+      for (const row of rows) {
+        if (row.source === BOOK_SOURCE.calibre && row.series) {
+          // Calibre's is a string somebody typed, so this is where three
+          // spellings of one series become one row.
+          want(row.work_id, SERIES_SOURCE.calibre, {
+            workId: row.work_id,
+            seriesId: this.series.upsert({ name: row.series }),
+            position: row.series_index,
+          });
+        }
+
+        for (const entry of parseSeries(row.hardcover_series)) {
+          // An entry the hydrate never named cannot be identified — their id is
+          // not enough to create a row somebody has to read. Skipped, and picked
+          // up by the next sweep that names it.
+          if (!entry.name) continue;
+          want(row.work_id, SERIES_SOURCE.hardcover, {
+            workId: row.work_id,
+            seriesId: this.series.upsert({
+              name: entry.name,
+              hardcoverId: entry.seriesId,
+              slug: entry.slug,
+              booksCount: entry.booksCount,
+            }),
+            position: entry.position,
+            featured: entry.featured,
+          });
+        }
+      }
+
+      const current = this.series.all();
+      for (const [workId, bySource] of wanted) {
+        for (const source of [SERIES_SOURCE.calibre, SERIES_SOURCE.hardcover] as const) {
+          const next = [...(bySource.get(source)?.values() ?? [])];
+          const now = (current.get(workId) ?? []).filter((ref) => ref.source === source);
+          if (sameAttachments(now, next)) continue;
+          this.series.replaceForWork(workId, source, next);
+          attachments += next.length;
+        }
+      }
+
+      // A work nothing claims any more — its Calibre series cleared, its
+      // Hardcover side gone — is not in `wanted` at all, so its stale rows are
+      // swept here rather than being left to outlive the source that made them.
+      for (const [workId, refs] of current) {
+        if (wanted.has(workId)) continue;
+        for (const source of [SERIES_SOURCE.calibre, SERIES_SOURCE.hardcover] as const) {
+          if (refs.some((ref) => ref.source === source))
+            this.series.replaceForWork(workId, source, []);
+        }
+      }
+    });
+
+    write();
+    return { works: wanted.size, attachments };
   }
 
   /**

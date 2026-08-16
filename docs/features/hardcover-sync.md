@@ -71,7 +71,20 @@ dates.
 `featured` flag, so a sweep writes the series themselves and the work's
 attachments to them
 ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)) rather
-than flattening them into one string. Reconcile recomputes those attachments on
+than flattening them into one string.
+
+Getting the names costs a **second request per page**, for the depth limit
+below: `user_books { book { book_series { series } } }` is four levels and their
+queries stop at three, so a page can only carry series *ids*. One
+`series(where: { id: { _in: … } })` per page names them before the mirror stores
+them — the same two-step the finder makes, and for the same reason. A hydrate
+that fails costs that page its series names, not its books: an entry with no
+name is skipped by reconcile and picked up by the next sweep.
+
+**Their merges are followed.** A series carrying a `canonical_id` is one their
+librarians folded into another, so the canonical id is what gets stored. Without
+that, a merge on their side would leave two Discworlds here and split the shelf
+between them. Reconcile recomputes those attachments on
 every sweep and leaves any a person set by hand
 ([setting a series from Hardcover](setting-a-series-from-hardcover.md)) alone.
 Whether a Hardcover series or Calibre's wins where both have one is the

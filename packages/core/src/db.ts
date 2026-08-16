@@ -116,11 +116,17 @@ function migrate(db: Database): void {
       release_date TEXT,
       slug         TEXT,
       tags         TEXT NOT NULL DEFAULT '[]',
+      series       TEXT NOT NULL DEFAULT '[]',
       cover_url    TEXT,
       raw          TEXT NOT NULL,
       synced_at    TEXT NOT NULL
     )
   `);
+  // The mirror's copy of their `book_series` join — one entry per series with
+  // its id, name, slug, size, this book's position and their featured flag
+  // (ADR 0019). JSON here for the same reason `tags` is: the mirror keeps what
+  // they said, and reconcile is what turns it into `series` and `work_series`.
+  addColumn(db, "hardcover_books", "series", "TEXT NOT NULL DEFAULT '[]'");
 
   // One reader's relationship with one book: status, their rating, the dates.
   // Rows here *are* deleted when a book leaves someone's shelves — this mirrors
