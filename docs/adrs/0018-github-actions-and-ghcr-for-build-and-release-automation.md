@@ -49,6 +49,12 @@ generated release notes are categorized by pull request labels using
 the binary and release agree even though workspace package versions remain
 pre-release development metadata.
 
+Dependabot checks the Bun workspace, GitHub Actions, and Docker base images
+weekly. Minor and patch updates are grouped per ecosystem to limit pull request
+noise; major upgrades remain separate so their migration and compatibility
+costs are visible. Dependabot's default `dependencies` and ecosystem labels
+feed dependency changes into the generated release-note categories.
+
 See [Cut a release](../workflows/cut-a-release.md) for the operator flow and
 [ADR 0003](0003-electrobun-for-the-desktop-shell.md) for the desktop runtime.
 
@@ -58,6 +64,10 @@ Every downloadable artifact and container now comes from one tagged, verified
 commit, and pull requests exercise the same packaging paths before release.
 GHCR uses the built-in `GITHUB_TOKEN`, so no long-lived registry credential is
 required. A failed job prevents the release from being created.
+
+Routine dependency updates now arrive as tested pull requests instead of
+depending on maintainers to notice new releases. Grouping keeps routine churn
+manageable, while major versions still require individual review.
 
 Native desktop packaging consumes four hosted runners and is slower than the
 web-only checks. The initial desktop artifacts are intentionally unsigned and
