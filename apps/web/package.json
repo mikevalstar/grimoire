@@ -14,7 +14,7 @@
   "dependencies": {
     "@grimoire/core": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
-    "@tanstack/react-router": "^1.170.25",
+    "@tanstack/react-router": "^1.170.27",
     "@tanstack/react-virtual": "^3.14.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -29,18 +29,18 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@storybook/addon-a11y": "^10.5.7",
-    "@storybook/addon-docs": "^10.5.7",
-    "@storybook/tanstack-react": "^10.5.7",
+    "@storybook/addon-a11y": "^10.5.8",
+    "@storybook/addon-docs": "^10.5.8",
+    "@storybook/tanstack-react": "^10.5.8",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.101.4",
     "@tanstack/react-router-devtools": "^1.167.1",
-    "@tanstack/router-plugin": "^1.168.29",
+    "@tanstack/router-plugin": "^1.168.30",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
-    "storybook": "^10.5.7",
+    "storybook": "^10.5.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
