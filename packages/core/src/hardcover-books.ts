@@ -1,6 +1,9 @@
 import type { Database } from "bun:sqlite";
 import { resolveDatabase } from "./db.ts";
-import type { HcBookSeries, HcUserBook } from "./schemas.ts";
+import type { HardcoverRatings, HcBookSeries, HcUserBook } from "./schemas.ts";
+
+/** One work's line in {@link HardcoverBooksStore.ratingsByWork}. */
+type HardcoverShelfEntry = HardcoverRatings[string];
 
 /**
  * A book as the Hardcover mirror holds it — their payload, flattened. JSON
@@ -337,20 +340,28 @@ export class HardcoverBooksStore {
    * An entry per shelved book with its rating (`null` where the shelf entry
    * carries none) and reading status, so a key's presence doubles as "on
    * their shelves" and the status decides the mark-as-read ask (ADR 0014).
+   *
+   * The last read date rides along so the shelf can group by read year without
+   * a second round trip (docs/features/library-sort-and-group.md).
    */
-  ratingsByWork(userId: number): Record<string, { rating: number | null; statusId: number }> {
+  ratingsByWork(userId: number): Record<string, HardcoverShelfEntry> {
     const rows = this.db
       .query(
-        `SELECT b.work_id AS workId, hub.rating AS rating, hub.status_id AS statusId
+        `SELECT b.work_id AS workId, hub.rating AS rating, hub.status_id AS statusId,
+                hub.last_read_date AS lastReadDate
            FROM hardcover_user_books hub
            JOIN books b ON b.hardcover_id = hub.hardcover_book_id
           WHERE hub.user_id = $userId AND b.work_id IS NOT NULL`,
       )
-      .all({ $userId: userId }) as { workId: number; rating: number | null; statusId: number }[];
+      .all({ $userId: userId }) as ({ workId: number } & HardcoverShelfEntry)[];
 
-    const ratings: Record<string, { rating: number | null; statusId: number }> = {};
+    const ratings: Record<string, HardcoverShelfEntry> = {};
     for (const row of rows) {
-      ratings[String(row.workId)] = { rating: row.rating, statusId: row.statusId };
+      ratings[String(row.workId)] = {
+        rating: row.rating,
+        statusId: row.statusId,
+        lastReadDate: row.lastReadDate,
+      };
     }
     return ratings;
   }

@@ -9,7 +9,7 @@ import type { LibraryBook } from "@/lib/api";
 
 export type SortKey = "title" | "author" | "series" | "added" | "published" | "rating";
 export type SortDir = "asc" | "desc";
-export type GroupKey = "none" | "author" | "series" | "readstatus";
+export type GroupKey = "none" | "author" | "series" | "readstatus" | "publishedyear" | "readyear";
 
 export interface LibraryOrder {
   sort: SortKey;
@@ -31,7 +31,15 @@ export const GROUP_OPTIONS: { key: GroupKey; label: string }[] = [
   { key: "author", label: "Author" },
   { key: "series", label: "Series" },
   { key: "readstatus", label: "Read status" },
+  { key: "publishedyear", label: "Published year" },
+  { key: "readyear", label: "Read year" },
 ];
+
+/** Group keys that mean nothing until a reader is chosen. */
+export const READER_GROUP_KEYS: ReadonlySet<GroupKey> = new Set<GroupKey>([
+  "readstatus",
+  "readyear",
+]);
 
 /** The direction a key starts in: text reads A→Z, dates and stars newest/best first. */
 const NATURAL_DIR: Record<SortKey, SortDir> = {
@@ -121,6 +129,8 @@ export interface BookSection {
 export interface OrderContext {
   rating?: (book: LibraryBook) => number;
   isRead?: (book: LibraryBook) => boolean;
+  /** When the reader finished it, at whatever precision they gave — read-year grouping. */
+  finishedAt?: (book: LibraryBook) => string | null;
   /** Search relevance is the primary order while the quick filter is active. */
   relevance?: (book: LibraryBook) => number;
 }
@@ -231,6 +241,15 @@ function compareBooks(
   return breakTie(a, b, order.sort) || collator.compare(a.title, b.title);
 }
 
+/**
+ * The year out of a date at whatever precision it carries — "2023",
+ * "2023-06-15" and a full ISO timestamp all answer "2023". Anything else has
+ * no year to file under.
+ */
+function year(date: string | null | undefined): string | null {
+  return date?.match(/^\d{4}/)?.[0] ?? null;
+}
+
 /** Which section a book files under, per group key. Null is the leftovers bucket. */
 function groupLabel(book: LibraryBook, group: GroupKey, context: OrderContext): string | null {
   switch (group) {
@@ -242,6 +261,10 @@ function groupLabel(book: LibraryBook, group: GroupKey, context: OrderContext): 
       return book.series;
     case "readstatus":
       return context.isRead?.(book) ? "Read" : "Unread";
+    case "publishedyear":
+      return year(book.published);
+    case "readyear":
+      return year(context.finishedAt?.(book));
   }
 }
 
@@ -249,11 +272,17 @@ function groupLabel(book: LibraryBook, group: GroupKey, context: OrderContext): 
 const LEFTOVER_LABELS: Partial<Record<GroupKey, string>> = {
   author: "Unknown author",
   series: "No series",
+  publishedyear: "No publication date",
+  readyear: "No read date",
 };
+
+/** Groupings whose sections read newest first rather than alphabetically. */
+const NEWEST_FIRST: ReadonlySet<GroupKey> = new Set<GroupKey>(["publishedyear", "readyear"]);
 
 /**
  * Sort the shelf and split it into sections: sections ordered by their own
- * label (Unread before Read; leftovers last), the sort applied within each.
+ * label (Unread before Read; years newest first; leftovers last), the sort
+ * applied within each.
  * Ungrouped, the result is a single unlabelled section.
  */
 export function orderLibrary(
@@ -280,7 +309,8 @@ export function orderLibrary(
   labelled.sort((a, b) => {
     if (a.leftover !== b.leftover) return a.leftover ? 1 : -1;
     if (order.group === "readstatus") return a.label === "Unread" ? -1 : 1;
-    return collator.compare(a.label ?? "", b.label ?? "");
+    const byLabel = collator.compare(a.label ?? "", b.label ?? "");
+    return NEWEST_FIRST.has(order.group) ? -byLabel : byLabel;
   });
   return labelled.map(({ label, books: sectionBooks }) => ({ label, books: sectionBooks }));
 }

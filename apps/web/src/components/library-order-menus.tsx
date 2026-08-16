@@ -7,7 +7,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { chooseSort, GROUP_OPTIONS, type LibraryOrder, SORT_OPTIONS } from "@/lib/library-order";
+import {
+  chooseSort,
+  GROUP_OPTIONS,
+  type LibraryOrder,
+  READER_GROUP_KEYS,
+  SORT_OPTIONS,
+} from "@/lib/library-order";
 import { cn } from "@/lib/utils";
 
 export interface LibraryOrderMenuProps {
@@ -58,16 +64,16 @@ export function SortMenu({ order, onOrder, className }: LibraryOrderMenuProps) {
 }
 
 /**
- * Whether — and how — the shelf splits into sections. Read status needs a
- * chosen reader to mean anything, so without one the option says so instead
- * of grouping everything under "Unread".
+ * Whether — and how — the shelf splits into sections. The read-state groupings
+ * need a chosen reader to mean anything, so without one those options say so
+ * instead of filing the whole library under "Unread".
  */
 export function GroupMenu({
   order,
   onOrder,
-  readStatusAvailable = true,
+  readerAvailable = true,
   className,
-}: LibraryOrderMenuProps & { readStatusAvailable?: boolean }) {
+}: LibraryOrderMenuProps & { readerAvailable?: boolean }) {
   const active = GROUP_OPTIONS.find((option) => option.key === order.group);
   const grouped = order.group !== "none";
   return (
@@ -84,7 +90,7 @@ export function GroupMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-44">
         {GROUP_OPTIONS.map((option) => {
-          const disabled = option.key === "readstatus" && !readStatusAvailable;
+          const disabled = READER_GROUP_KEYS.has(option.key) && !readerAvailable;
           let hint: ReactNode = null;
           if (disabled) {
             hint = <span className="ml-auto text-[10px]">needs a reader</span>;

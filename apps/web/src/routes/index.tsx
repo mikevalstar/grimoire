@@ -8,6 +8,7 @@ import { type PendingReadState, ReadStateDialog } from "@/components/read-state-
 import { SetSeriesDialog } from "@/components/set-series-dialog";
 import {
   BOOK_SOURCE,
+  bookFinishedAt,
   bookIsRead,
   bookRating,
   fetchSeriesRoster,
@@ -237,6 +238,14 @@ function LibraryScreen() {
         isRead={
           currentUser
             ? (book) => bookIsRead(book, readSource, readStates, hardcoverRatings)
+            : undefined
+        }
+        // Read-year grouping reads the same source the corners do; the
+        // Hardcover map carries each shelf entry's last read date, so this
+        // costs no extra fetch (docs/features/library-sort-and-group.md).
+        finishedAt={
+          currentUser
+            ? (book) => bookFinishedAt(book, readSource, readStates, hardcoverRatings)
             : undefined
         }
         onToggleRead={currentUser ? onToggleRead : undefined}
