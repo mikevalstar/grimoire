@@ -18,12 +18,15 @@ export default {
     watchIgnore: ["dist/**"],
     mac: {
       bundleCEF: false,
+      icons: "assets/app-icon.iconset",
     },
     linux: {
       bundleCEF: false,
+      icon: "assets/app-icon.png",
     },
     win: {
       bundleCEF: false,
+      icon: "assets/app-icon.ico",
     },
   },
 } satisfies ElectrobunConfig;
