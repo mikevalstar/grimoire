@@ -334,6 +334,10 @@ export const HardcoverSearchResultsSchema = z.object({
 });
 export type HardcoverSearchResults = z.infer<typeof HardcoverSearchResultsSchema>;
 
+// Adding a book Grimoire doesn't have at all
+// (docs/features/adding-a-book-from-hardcover.md) reuses this search; its own
+// payloads live below, where the finished-when they carry is defined.
+
 // --- Ratings ---------------------------------------------------------------
 // A reader's own stars, kept in grimoire.db and never written back to Calibre.
 // See docs/features/rating-a-book.md.
@@ -387,6 +391,33 @@ export const FinishedAtSchema = z
 /** Known finish dates for one book, newest read first. */
 export const ReadDatesSchema = z.object({ dates: z.array(FinishedAtSchema) });
 export type ReadDates = z.infer<typeof ReadDatesSchema>;
+
+// Adding a book Grimoire has no side of at all
+// (docs/features/adding-a-book-from-hardcover.md): the catalogue pick becomes a
+// shelf entry of its own rather than joining an existing work.
+
+/**
+ * Body of POST /api/users/:id/hardcover/books. The shelf is the reader's choice
+ * of the three statuses worth adding *to* — Want to read, Reading, Read; the
+ * other three (Paused, DNF, Ignored) describe a book you already have.
+ * `finishedAt` only means anything on Read.
+ */
+export const HardcoverAddSchema = z.object({
+  hardcoverBookId: z.number().int().positive(),
+  statusId: z.literal([1, 2, 3]),
+  finishedAt: FinishedAtSchema.optional(),
+});
+export type HardcoverAdd = z.infer<typeof HardcoverAddSchema>;
+
+/**
+ * What the add answers: the new work's Grimoire book id — null when Hardcover
+ * took the write but its read replica wouldn't hand back the entry yet, so the
+ * book arrives on the next sweep instead.
+ */
+export const HardcoverAddResultSchema = z.object({
+  bookId: z.number().nullable(),
+});
+export type HardcoverAddResult = z.infer<typeof HardcoverAddResultSchema>;
 
 /**
  * What Hardcover has written about one book, read live for an open details

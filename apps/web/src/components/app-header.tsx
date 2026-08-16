@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Moon, Search, Settings, Sun } from "lucide-react";
+import { Moon, Plus, Search, Settings, Sun } from "lucide-react";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { Kbd } from "@/components/ui/kbd";
 import { tooltipProps } from "@/components/ui/tooltip";
@@ -16,6 +16,13 @@ const iconButton =
 export interface AppHeaderProps {
   /** Opens the command palette. Inert until that exists. */
   onOpenSearch?: () => void;
+  /**
+   * Opens the add-a-book dialog
+   * (docs/features/adding-a-book-from-hardcover.md). Absent for a reader with
+   * no linked Hardcover account — there is nowhere to add anything to — and
+   * the **+** goes with it.
+   */
+  onAddBook?: () => void;
   onOpenSettings?: () => void;
   /** Opens settings on its Readers section, from the avatar menu. */
   onAddReader?: () => void;
@@ -34,6 +41,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({
   onOpenSearch,
+  onAddBook,
   onOpenSettings,
   onAddReader,
   bookCount,
@@ -54,6 +62,8 @@ export function AppHeader({
       : `Search ${bookCount.toLocaleString()} books or run a command`;
   const searchLabel = `${searchAction}…`;
 
+  const addAction = "Add a book from Hardcover";
+
   // A two-way flip with no "follow the system" state, so the label can always
   // name the theme the click moves to rather than the one you are in.
   const themeAction = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
@@ -70,21 +80,35 @@ export function AppHeader({
           Grimoire
         </Link>
 
-        {/* wide search trigger — the anchor the command palette will hang off */}
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          className="border-line bg-fill text-muted-foreground hover:border-line-strong hover:bg-fill-strong mx-auto hidden h-8 w-full max-w-md items-center gap-2.5 rounded-lg border px-3 text-[13px] transition-all sm:flex"
-        >
-          <Search size={13} />
-          <span className="flex-1 truncate text-left">{searchLabel}</span>
-          <span className="flex items-center gap-1">
-            <Kbd>⌘</Kbd>
-            <Kbd>K</Kbd>
-          </span>
-        </button>
+        {/* wide search trigger — the anchor the command palette hangs off —
+            with the add button riding beside it, so the two live together */}
+        <div className="mx-auto hidden w-full max-w-md items-center gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            className="border-line bg-fill text-muted-foreground hover:border-line-strong hover:bg-fill-strong flex h-8 min-w-0 flex-1 items-center gap-2.5 rounded-lg border px-3 text-[13px] transition-all"
+          >
+            <Search size={13} />
+            <span className="flex-1 truncate text-left">{searchLabel}</span>
+            <span className="flex items-center gap-1">
+              <Kbd>⌘</Kbd>
+              <Kbd>K</Kbd>
+            </span>
+          </button>
+          {onAddBook && (
+            <button
+              type="button"
+              onClick={onAddBook}
+              aria-label={addAction}
+              {...tooltipProps(addAction, "bottom")}
+              className={cn(iconButton, "shrink-0")}
+            >
+              <Plus size={15} />
+            </button>
+          )}
+        </div>
 
-        {/* below sm the trigger collapses to an icon and pushes the rest right */}
+        {/* below sm both collapse to icons and push the rest right */}
         <button
           type="button"
           onClick={onOpenSearch}
@@ -94,6 +118,17 @@ export function AppHeader({
         >
           <Search size={14} />
         </button>
+        {onAddBook && (
+          <button
+            type="button"
+            onClick={onAddBook}
+            aria-label={addAction}
+            {...tooltipProps(addAction, "bottom")}
+            className={cn(iconButton, "sm:hidden")}
+          >
+            <Plus size={15} />
+          </button>
+        )}
 
         <div className="flex shrink-0 items-center gap-2">
           {/* Stays visible on a phone, unlike the gear below it: this is also

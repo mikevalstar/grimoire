@@ -1,5 +1,6 @@
-import { BookOpen, Loader2, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { HardcoverBookSearch } from "@/components/hardcover-book-search";
 import { finishedAtOf, type ReadDateChoice, ReadDatePicker } from "@/components/read-date-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,10 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import type { HardcoverSearchResult, LibraryBook } from "@/lib/api";
 import { publicationYear } from "@/lib/publication";
-import { cn } from "@/lib/utils";
 
 /**
  * What the finder is holding: the book, and the stars to give it — or null
@@ -24,9 +23,6 @@ export interface PendingFind {
   book: LibraryBook;
   rating: number | null;
 }
-
-/** How long the input gets to settle before a keystroke becomes a search. */
-const DEBOUNCE_MS = 350;
 
 /**
  * The finder (docs/features/rating-a-book.md): rating a Calibre-only book
@@ -95,53 +91,17 @@ function FinderBody({
 }) {
   const { book, rating } = pending;
 
-  // Seeded with the title minus any subtitle — ":" onwards is what most often
-  // keeps the catalogue from matching.
-  const [query, setQuery] = useState(book.title.replace(/:.*$/, "").trim());
-  const [results, setResults] = useState<HardcoverSearchResult[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [picked, setPicked] = useState<number | null>(null);
+  const [picked, setPicked] = useState<HardcoverSearchResult | null>(null);
   const [readDate, setReadDate] = useState<ReadDateChoice>({ kind: "unknown" });
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Each search remembers its turn, so a slow early answer can't overwrite a
-  // fast late one.
-  const searchSeq = useRef(0);
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    const seq = ++searchSeq.current;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      search(query)
-        .then((found) => {
-          if (searchSeq.current !== seq) return;
-          setResults(found);
-          setError(null);
-        })
-        .catch((err) => {
-          if (searchSeq.current !== seq) return;
-          setResults([]);
-          setError(err instanceof Error ? err.message : String(err));
-        })
-        .finally(() => {
-          if (searchSeq.current === seq) setSearching(false);
-        });
-    }, DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [query, search]);
-
   async function confirm() {
-    if (picked === null) return;
+    if (!picked) return;
     setConfirming(true);
     setError(null);
     try {
-      await onConfirm(picked, finishedAtOf(readDate));
+      await onConfirm(picked.id, finishedAtOf(readDate));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setConfirming(false);
@@ -160,92 +120,24 @@ function FinderBody({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="relative">
-        <Search
-          size={13}
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
-        />
-        <Input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setPicked(null);
-          }}
-          placeholder="Title, author…"
-          autoFocus
-          spellCheck={false}
-          className="pl-8"
-        />
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {results === null || (searching && results.length === 0) ? (
-          <p className="text-muted-foreground flex items-center gap-2 py-6 text-[13px]">
-            <Loader2 size={13} className="animate-spin" />
-            Searching Hardcover…
-          </p>
-        ) : results.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-[13px]">
-            Nothing in their catalogue for that. Try fewer words, or just the author.
-          </p>
-        ) : (
-          <ul className="grid gap-1">
-            {results.map((result) => {
-              const selected = result.id === picked;
-              return (
-                <li key={result.id}>
-                  <button
-                    type="button"
-                    onClick={() => setPicked(selected ? null : result.id)}
-                    aria-pressed={selected}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors",
-                      selected
-                        ? "border-you/50 bg-you-dim"
-                        : "border-transparent hover:border-line hover:bg-fill",
-                    )}
-                  >
-                    {/* Their CDN's cover, straight through — these books have no
-                        mirrored cover yet. The placeholder keeps rows aligned. */}
-                    {result.coverUrl ? (
-                      <img
-                        src={result.coverUrl}
-                        alt=""
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        className="bg-fill h-15 w-10 shrink-0 rounded object-cover"
-                      />
-                    ) : (
-                      <span className="bg-fill text-muted-foreground flex h-15 w-10 shrink-0 items-center justify-center rounded">
-                        <BookOpen size={14} />
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-medium">{result.title}</span>
-                      <span className="text-muted-foreground block truncate text-[11px]">
-                        {result.authors.join(", ")}
-                        {result.releaseYear !== null && ` · ${result.releaseYear}`}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      <HardcoverBookSearch
+        // Seeded with the title minus any subtitle — ":" onwards is what most
+        // often keeps the catalogue from matching.
+        initialQuery={book.title.replace(/:.*$/, "").trim()}
+        search={search}
+        picked={picked?.id ?? null}
+        onPick={setPicked}
+      />
 
       {/* Asked only once a book is picked — before that it's noise under the
           results, and the answer belongs to a specific book. */}
-      {picked !== null && (
+      {picked && (
         <ReadDatePicker
           value={readDate}
           onChange={setReadDate}
           // The picked edition is the one being shelved, so its release year
           // bounds the answer; Calibre's date is the fallback.
-          publishedYear={
-            results?.find((r) => r.id === picked)?.releaseYear ?? publicationYear(book.published)
-          }
+          publishedYear={picked.releaseYear ?? publicationYear(book.published)}
           className="border-line border-t pt-3"
         />
       )}
@@ -261,7 +153,7 @@ function FinderBody({
           <Button variant="ghost" onClick={onCancel} disabled={confirming}>
             Cancel
           </Button>
-          <Button onClick={() => void confirm()} disabled={picked === null || confirming}>
+          <Button onClick={() => void confirm()} disabled={!picked || confirming}>
             {confirming && <Loader2 className="animate-spin" />}
             {rating === null ? "Add as read" : `Add and rate ${rating}★`}
           </Button>

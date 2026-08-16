@@ -40,6 +40,8 @@ const meta = {
     user: READERS[0],
     users: READERS,
     onPickUser: () => {},
+    // A linked reader, so the + beside the search is offered.
+    onAddBook: () => {},
   },
 } satisfies Meta<typeof AppHeader>;
 
@@ -75,7 +77,15 @@ export const NoReaderList: Story = {
   args: { users: undefined },
 };
 
-/** Below `sm` the wide search trigger collapses to an icon. */
+/** Below `sm` the wide search trigger and the + both collapse to icons. */
 export const Narrow: Story = {
   globals: { viewport: { value: "mobile1" } },
+};
+
+/**
+ * A reader with no Hardcover account: nowhere to add a book to, so the + is
+ * absent (docs/features/adding-a-book-from-hardcover.md).
+ */
+export const NoHardcover: Story = {
+  args: { user: READERS[1], onAddBook: undefined },
 };

@@ -42,7 +42,9 @@ in the input; the query resets on close.
 **Empty query.** The full command list, grouped: view (covers/list), sort
 (one entry per [sort key](library-sort-and-group.md), re-running the active
 one flips direction, same as the toolbar menu), group, readers (switch to each
-other reader, add one), sync now, settings by section, theme. Dynamic commands
+other reader, add one), library
+([add a book from Hardcover](adding-a-book-from-hardcover.md), for a linked
+reader), sync now, settings by section, theme. Dynamic commands
 name their target ("Switch to list view"), not their category.
 
 **Typing.** Book matches come first. The palette and the

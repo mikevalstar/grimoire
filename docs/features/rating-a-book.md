@@ -138,7 +138,10 @@ Each reader picks a **rating source** in the settings Hardcover section
     joins the Hardcover book into this work as a pinned manual grouping
     ([resolving duplicates](resolving-duplicates.md)), so from then on it is
     one card with both marks and an ordinary Hardcover rating. Cancelling
-    rates nothing; nothing falls back to local silently.
+    rates nothing; nothing falls back to local silently. The finder starts
+    from a book Grimoire already has; a book it doesn't comes in through
+    [adding a book from Hardcover](adding-a-book-from-hardcover.md), which
+    shares this search.
   - A failed Hardcover write rolls the stars back, like any failed write.
 
 ### Rating from either view
