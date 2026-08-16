@@ -37,7 +37,27 @@ export const PREF_KEYS = {
   hardcoverAbout: "hardcover.about",
   hardcoverTags: "hardcover.tags",
   hardcoverMoods: "hardcover.moods",
+  /**
+   * The odd one of the four: About, Tags and Moods are fetched live for an open
+   * panel, while a series is *stored* — sorting the shelf by one cannot wait on
+   * a request per book. So this decides which stored attachment wins, not
+   * whether to go and ask (ADR 0019).
+   */
+  hardcoverSeries: "hardcover.series",
 } as const;
+
+/**
+ * Where a work's attachment to a series came from (ADR 0019). Reconcile
+ * recomputes `calibre` and `hardcover` on every sweep and never touches
+ * `manual` — a person decided that one, the way they decide a work's cover.
+ */
+export const SERIES_SOURCE = {
+  calibre: "calibre",
+  hardcover: "hardcover",
+  manual: "manual",
+} as const;
+
+export type SeriesSource = (typeof SERIES_SOURCE)[keyof typeof SERIES_SOURCE];
 
 /** What a book record was ingested from. `books.source` holds one of these. */
 export const BOOK_SOURCE = {

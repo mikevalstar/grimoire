@@ -3,7 +3,10 @@ import type { CalibreBookRow } from "./calibre-books.ts";
 import { resolveDatabase } from "./db.ts";
 import type { HardcoverBookRow } from "./hardcover-books.ts";
 import { matchKey } from "./matching.ts";
-import type { Book } from "./schemas.ts";
+import type { Book, SeriesRef } from "./schemas.ts";
+import { hardcoverContentPrefs } from "./schemas.ts";
+import { orderSeries, SeriesStore } from "./series.ts";
+import { SettingsStore } from "./settings.ts";
 import { BOOK_SOURCE } from "./types.ts";
 
 interface BookRow {
@@ -101,7 +104,7 @@ function parseRecord(json: string): Record<string, string> {
  * **`id` is the work's id, not any member's** (ADR 0013). It is what a rating
  * keys on and what a cover URL names; the member row ids stay server-side.
  */
-function toBook(members: BookRow[]): Book {
+function toBook(members: BookRow[], series: readonly SeriesRef[], preferHardcover: boolean): Book {
   const rows = [...members].sort((a, b) => precedence(a.source) - precedence(b.source));
   const first = rows[0];
   if (!first) throw new Error("A work with no books");
@@ -136,6 +139,12 @@ function toBook(members: BookRow[]): Book {
   // whose chosen member lost one falls back to the rule rather than to nothing.
   const chosen = covers.find((cover) => cover.bookId === first.work_cover_book_id);
 
+  // Attachments first, the member rows' own string as the fallback (ADR 0019):
+  // a library that has not been reconciled since these tables arrived has no
+  // attachments yet, and must not lose its series line waiting for a sweep.
+  const seriesList = orderSeries(series, preferHardcover);
+  const primary = seriesList[0] ?? null;
+
   return {
     id: first.work_id,
     sources: [...new Set(rows.map((row) => row.source))],
@@ -147,8 +156,9 @@ function toBook(members: BookRow[]): Book {
     calibreId: pick((row) => row.calibre_id),
     title: first.title,
     authors: pickList((row) => row.authors),
-    series: pick((row) => row.series),
-    seriesIndex: pick((row) => row.series_index),
+    series: primary?.name ?? pick((row) => row.series),
+    seriesIndex: primary ? primary.position : pick((row) => row.series_index),
+    seriesList,
     tags: pickList((row) => row.tags),
     formats: pickList((row) => row.formats),
     publisher: pick((row) => row.publisher),
@@ -188,7 +198,11 @@ function toBook(members: BookRow[]): Book {
  * work's title is decided by merging its members, which SQL cannot do before it
  * orders.
  */
-function toBooks(rows: BookRow[]): Book[] {
+function toBooks(
+  rows: BookRow[],
+  series: Map<number, SeriesRef[]>,
+  preferHardcover: boolean,
+): Book[] {
   const works = new Map<number, BookRow[]>();
   for (const row of rows) {
     const members = works.get(row.work_id);
@@ -201,7 +215,7 @@ function toBooks(rows: BookRow[]): Book[] {
       const sorted = [...members].sort((a, b) => precedence(a.source) - precedence(b.source));
       const lead = sorted[0];
       return {
-        book: toBook(members),
+        book: toBook(members, series.get(lead?.work_id ?? -1) ?? [], preferHardcover),
         sortKey: (lead?.title_sort || lead?.title) ?? "",
       };
     })
@@ -218,14 +232,31 @@ function toBooks(rows: BookRow[]): Book[] {
  */
 export class BooksStore {
   private db: Database;
+  private series: SeriesStore;
+  private settings: SettingsStore;
 
   constructor(source?: Database | string) {
     this.db = resolveDatabase(source);
+    this.series = new SeriesStore(this.db);
+    this.settings = new SettingsStore(this.db);
+  }
+
+  /**
+   * Whether a Hardcover series outranks Calibre's, read per call rather than
+   * held: the switch applies the moment it is flipped (ADR 0019), and a primary
+   * decided at read time is what lets it.
+   */
+  private preferHardcoverSeries(): boolean {
+    return hardcoverContentPrefs(this.settings.all()).series;
   }
 
   /** The shelf: one entry per work, not per row (ADR 0013). */
   list(): Book[] {
-    return toBooks(this.db.query(`${MEMBER_ROWS} ORDER BY b.work_id`).all() as BookRow[]);
+    return toBooks(
+      this.db.query(`${MEMBER_ROWS} ORDER BY b.work_id`).all() as BookRow[],
+      this.series.all(),
+      this.preferHardcoverSeries(),
+    );
   }
 
   /** By *work* id — the id every payload speaks. */
@@ -233,7 +264,8 @@ export class BooksStore {
     const rows = this.db
       .query(`${MEMBER_ROWS} WHERE b.work_id = $workId`)
       .all({ $workId: workId }) as BookRow[];
-    return rows.length > 0 ? toBook(rows) : null;
+    if (rows.length === 0) return null;
+    return toBook(rows, this.series.forWork(workId), this.preferHardcoverSeries());
   }
 
   /**

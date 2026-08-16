@@ -28,6 +28,7 @@ function book(fixture: Fixture): LibraryBook {
     calibreId: fixture.id,
     series: null,
     seriesIndex: null,
+    seriesList: [],
     tags: [],
     publisher: null,
     languages: ["eng"],

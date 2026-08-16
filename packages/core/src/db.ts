@@ -297,6 +297,72 @@ function migrate(db: Database): void {
     )
   `);
 
+  // A series, as a thing rather than a string on each book (ADR 0019).
+  //
+  // Identity is `hardcover_id` where Hardcover named the series, and the folded
+  // name otherwise — the same `fold()` the matcher normalises titles with, so
+  // Calibre's "Discworld", "Discworld Novels" and "The Discworld Series" land on
+  // one row instead of scattering a shelf three ways.
+  //
+  // `match_key` is therefore only unique among the rows Hardcover has *not*
+  // named: two genuinely different Hardcover series may share a name, and they
+  // are still two series. Where a Hardcover series turns up whose fold matches a
+  // nameless row, the store adopts that row rather than adding a second.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS series (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      hardcover_id INTEGER UNIQUE,
+      name         TEXT NOT NULL,
+      match_key    TEXT NOT NULL,
+      slug         TEXT,
+      books_count  INTEGER,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    )
+  `);
+  db.run(
+    "CREATE UNIQUE INDEX IF NOT EXISTS series_match_key ON series(match_key) WHERE hardcover_id IS NULL",
+  );
+
+  // Which series a work is in, and where it sits in each. Keyed by work rather
+  // than book for the reason ratings and read states are: it is a statement
+  // about the book, not about one library's copy of it.
+  //
+  // `is_primary` records only a *manual* choice — which of the series somebody
+  // attached should head the shelf's series line. Everything else is derived at
+  // read time by the rule in ADR 0019, so flipping the Hardcover series
+  // preference re-decides the primary without rewriting a single row.
+  //
+  // `featured` is Hardcover's own flag on the attachment, kept because it is
+  // half of that rule: the series they consider the book's home wins before
+  // size does.
+  //
+  // **`source` is part of the key.** Calibre and Hardcover frequently name the
+  // same series, and one row per pair would mean the two sweeps overwriting each
+  // other's provenance — the row would say `calibre` or `hardcover` depending on
+  // which ran last, and either sweep clearing it would silently drop the other's
+  // claim. Each source states its own attachment and owns only its own rows; the
+  // read-time rule folds them back into one series per work.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS work_series (
+      work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+      series_id  INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+      position   REAL,
+      source     TEXT NOT NULL,
+      featured   INTEGER NOT NULL DEFAULT 0,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (work_id, series_id, source)
+    )
+  `);
+  db.run("CREATE INDEX IF NOT EXISTS work_series_series ON work_series(series_id)");
+  // At most one manual primary per work — the partial index is the constraint,
+  // since the rule below it can always name a primary without one.
+  db.run(
+    "CREATE UNIQUE INDEX IF NOT EXISTS work_series_primary ON work_series(work_id) WHERE is_primary = 1",
+  );
+
   backfillWorks(db);
   backfillMatchKeys(db);
 

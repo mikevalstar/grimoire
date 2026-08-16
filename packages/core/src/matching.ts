@@ -79,6 +79,42 @@ export function matchKey(title: string | null | undefined): string | null {
 }
 
 /**
+ * What a series name is called when it is the same series said differently.
+ * Calibre stores a series as free text typed by whoever tagged the book, so one
+ * shelf holds "Discworld", "Discworld Novels" and "The Discworld Series" —
+ * three strings, one series, three groups on the shelf.
+ *
+ * Dropped from the end because they say "this is a series", which is already
+ * known by the time anything is asking. Deliberately narrow: a word that could
+ * name a real series is not on the list, and nothing here touches the middle of
+ * a name — "The Book of the New Sun" keeps every word it needs.
+ */
+const SERIES_NOISE = /\s+(series|novels?|books?|saga|cycle|sequence|trilogy|chronicles?)$/;
+
+/**
+ * The identity of a series that Hardcover has not named (ADR 0019). Folded like
+ * a title, then stripped of a leading article and the words above, so Calibre's
+ * spellings of one series land on one row.
+ *
+ * Null when nothing survives — a series called "The Series" is not a series
+ * name, and folding it to nothing is better than filing books under "".
+ */
+export function seriesKey(name: string | null | undefined): string | null {
+  if (!name) return null;
+
+  let key = fold(name).replace(LEADING_ARTICLE, "");
+  // Repeatedly, because "The Discworld Series Books" is one name away from real
+  // and each pass can only see the last word.
+  let previous = "";
+  while (key !== previous) {
+    previous = key;
+    key = key.replace(SERIES_NOISE, "");
+  }
+
+  return key.trim() || null;
+}
+
+/**
  * The shortest a match key can be and still be worth treating as the start of
  * another one. `It` and `Us` are books; they are also the beginning of most
  * sentences, and suggesting every title starting with "it" helps nobody.

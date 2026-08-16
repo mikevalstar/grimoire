@@ -51,14 +51,25 @@ Two new tables in `grimoire.db`
 
 - `series` — the series itself: `name`, `slug`, `books_count`, and a nullable
   `hardcover_id` (UNIQUE) that is the identity when Hardcover named it. A series
-  Hardcover has no side of is identified by its folded name, using the same
-  `fold()` the [matcher](../features/book-matching.md) already normalises titles
-  with, so Calibre's three spellings of Discworld land on one row.
+  Hardcover has no side of is identified by `seriesKey()` — the
+  [matcher's](../features/book-matching.md) `fold()`, then a leading article and
+  a trailing "series", "novels", "saga" and friends removed. Folding alone is not
+  enough: "Discworld" and "Discworld Novels" differ by a word, not by spelling,
+  and Calibre stores whatever the person tagging the book typed.
 - `work_series` — the attachment: `work_id`, `series_id`, `position` (REAL,
   nullable — a series can hold a book whose place in it nobody has stated),
-  `is_primary`, and `source`. Primary key `(work_id, series_id)`, so a work
-  cannot be in one series twice, and a partial unique index on
-  `work_id WHERE is_primary = 1`, so it cannot have two primaries.
+  `featured`, `is_primary`, and `source`. Primary key
+  `(work_id, series_id, source)`, and a partial unique index on
+  `work_id WHERE is_primary = 1`.
+
+**`source` is part of that key rather than a column beside it.** Calibre and
+Hardcover routinely name the same series, and one row per `(work, series)` pair
+would have the two sweeps overwriting each other's provenance — the row would
+read `calibre` or `hardcover` depending on which ran last, and either sweep
+clearing its claim would silently take the other's with it. Each source states
+its own attachment and deletes only its own rows; the read-time rule below folds
+them into one series per work, keeping the best-ranked claim's provenance and
+taking a position from the other if the winner has none.
 
 **`source` on the attachment is what makes sync safe.** It holds `calibre`,
 `hardcover` or `manual`. Reconcile recomputes the first two from the mirrors on
@@ -69,6 +80,11 @@ every sweep and deletes what the mirrors no longer say; it never touches a
 later sync — applied to a table instead of a column.
 
 **One attachment is primary, and it is what the shelf means by "the series".**
+`is_primary` stores only a *manual* choice — which of the series somebody
+attached should head the line. Everything else is **derived at read time**, so
+the order below is a function and not a column: flipping the preference
+re-decides every work's primary without rewriting a row or running a sweep.
+
 The primary is decided in this order, highest first:
 
 1. A `manual` attachment — somebody said so.
@@ -109,9 +125,14 @@ answer, derived from them.
   ([ADR 0005](0005-calibre-content-server-as-the-data-source.md)) — so a series
   set here lives in `grimoire.db` and is invisible in Calibre. Where the two
   differ, the panel says which source the shelf is showing.
-- Reconcile grows a third thing to keep in step, and the primary is derived
-  state that must be recomputed when the preference flips — a settings toggle
-  that used to change a render now changes rows.
+- Reconcile grows a third thing to keep in step. The primary staying derived
+  keeps the settings toggle a render change rather than a migration, at the cost
+  of resolving it on every read — a few attachments per work, folded in memory
+  while the shelf is already being assembled.
+- A work with no attachment at all still shows the series string on its member
+  rows. That fallback is what stops a library losing its series line between
+  this landing and the next sweep, and it is the only thing still reading
+  `books.series`.
 - Merging or splitting works has to carry attachments with it, which
   [resolving duplicates](../features/resolving-duplicates.md) did not have to
   think about before.

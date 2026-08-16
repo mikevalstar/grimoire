@@ -458,6 +458,8 @@ export const HardcoverContentPrefsSchema = z.object({
   about: prefOn,
   tags: prefOn,
   moods: prefOn,
+  /** Whether a synced Hardcover series outranks Calibre's (ADR 0019). */
+  series: prefOn,
 });
 export type HardcoverContentPrefs = z.infer<typeof HardcoverContentPrefsSchema>;
 
@@ -467,6 +469,7 @@ export function hardcoverContentPrefs(preferences: Preferences | undefined): Har
     about: preferences?.[PREF_KEYS.hardcoverAbout],
     tags: preferences?.[PREF_KEYS.hardcoverTags],
     moods: preferences?.[PREF_KEYS.hardcoverMoods],
+    series: preferences?.[PREF_KEYS.hardcoverSeries],
   });
 }
 
@@ -558,6 +561,32 @@ export const ApiErrorSchema = z.object({
 // Calibre per page load (ADR 0011). This is the shape every library screen
 // renders; ratings are deliberately not on it, being per-reader.
 
+/**
+ * A work's attachment to one series (ADR 0019) — the series itself, where the
+ * book sits in it, and which source said so, since a series Calibre has no idea
+ * about is worth marking as such in the panel.
+ */
+export const SeriesRefSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  slug: z.string().nullable().default(null),
+  /** Hardcover's id, or null for a series only this library knows about. */
+  hardcoverId: z.number().nullable().default(null),
+  /** How many books the series holds, per Hardcover. Null when nobody said. */
+  booksCount: z.number().nullable().default(null),
+  /** This book's place in the series, or null when nobody stated one. */
+  position: z.number().nullable().default(null),
+  /**
+   * Hardcover's own flag for the series they consider the book's home. Half of
+   * the rule that picks a primary, which is why it crosses the wire.
+   */
+  featured: z.boolean().default(false),
+  source: z.enum(["calibre", "hardcover", "manual"]),
+  /** Whether this is the one `series` and `seriesIndex` above are reporting. */
+  primary: z.boolean().default(false),
+});
+export type SeriesRef = z.infer<typeof SeriesRefSchema>;
+
 export const BookSchema = z.object({
   /** Grimoire's id — what every Grimoire-owned row points at, and what names a cover file. */
   id: z.number(),
@@ -576,8 +605,19 @@ export const BookSchema = z.object({
   calibreId: z.number().nullable(),
   title: z.string(),
   authors: z.array(z.string()),
+  /**
+   * The primary series' name and the book's position in it — the string the
+   * shelf, sorting, search and OPDS have always read. Resolved from
+   * `seriesList` by the rule in ADR 0019 rather than taken off a member row.
+   */
   series: z.string().nullable(),
   seriesIndex: z.number().nullable(),
+  /**
+   * Every series this book is in, primary first. A book genuinely in two —
+   * Discworld and Witches — says so here, while `series` above stays the one
+   * answer every list view has room for.
+   */
+  seriesList: z.array(SeriesRefSchema).default([]),
   tags: z.array(z.string()),
   /** Uppercased, e.g. ["EPUB", "PDF"]. */
   formats: z.array(z.string()),
