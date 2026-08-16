@@ -349,6 +349,13 @@ function migrate(db: Database): void {
   // which ran last, and either sweep clearing it would silently drop the other's
   // claim. Each source states its own attachment and owns only its own rows; the
   // read-time rule folds them back into one series per work.
+  // A table that predates `source` joining the key has to be rebuilt: SQLite
+  // cannot alter a primary key, and an upsert naming a constraint the table
+  // does not have fails the whole sync with "ON CONFLICT clause does not match
+  // any PRIMARY KEY or UNIQUE constraint". Set aside here, filled below.
+  if (workSeriesIsKeyedWithoutSource(db)) {
+    db.run("ALTER TABLE work_series RENAME TO work_series_by_pair");
+  }
   db.run(`
     CREATE TABLE IF NOT EXISTS work_series (
       work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -362,6 +369,7 @@ function migrate(db: Database): void {
       PRIMARY KEY (work_id, series_id, source)
     )
   `);
+  rekeyWorkSeriesOnSource(db);
   db.run("CREATE INDEX IF NOT EXISTS work_series_series ON work_series(series_id)");
   // At most one manual primary per work — the partial index is the constraint,
   // since the rule below it can always name a primary without one.
@@ -445,6 +453,45 @@ function widenRatingsToHalves(db: Database): void {
     `);
     db.run("INSERT INTO ratings SELECT * FROM ratings_whole");
     db.run("DROP TABLE ratings_whole");
+  })();
+}
+
+/**
+ * True for a `work_series` created before `source` was part of its key. Read
+ * from the schema rather than a version counter, so the check is idempotent —
+ * and it names the *old* shape rather than the new one, so a table this
+ * migration just created is never mistaken for one needing it again.
+ */
+function workSeriesIsKeyedWithoutSource(db: Database): boolean {
+  const row = db
+    .query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'work_series'")
+    .get() as { sql: string } | null;
+  return row !== null && !row.sql.includes("PRIMARY KEY (work_id, series_id, source)");
+}
+
+/**
+ * Carry the old table's rows into the re-keyed one. Nothing is lost: the pairs
+ * were unique before, so they are unique with a third column too — and the
+ * `manual` attachments among them are the ones that could not simply be
+ * re-derived by the next sweep (ADR 0019).
+ */
+function rekeyWorkSeriesOnSource(db: Database): void {
+  const legacy = db
+    .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'work_series_by_pair'")
+    .get();
+  if (!legacy) return;
+
+  db.transaction(() => {
+    db.run(
+      `INSERT INTO work_series (work_id, series_id, position, source, featured, is_primary, created_at, updated_at)
+         SELECT work_id, series_id, position, source, featured, is_primary, created_at, updated_at
+           FROM work_series_by_pair
+          -- WHERE true is load-bearing: SQLite cannot tell an upsert's
+          -- ON CONFLICT from a SELECT's own without a WHERE before it.
+          WHERE true
+       ON CONFLICT (work_id, series_id, source) DO NOTHING`,
+    );
+    db.run("DROP TABLE work_series_by_pair");
   })();
 }
 
