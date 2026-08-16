@@ -164,20 +164,32 @@ most of the shelf.
 
 ## API
 
-`GET /api/books/:id/hardcover/series` is reader-scoped and answers with the
+`GET /api/books/:bookId/hardcover/series` is reader-scoped and answers with the
 series Hardcover has for the open book — id, name, slug, `booksCount`, this
-book's position, and `featured` — plus how many of each are already on the
-shelf. Empties rather than an error for a book Hardcover has no side of.
+book's position, and `featured` — plus Grimoire's own id for each, how many
+works are already in it, and whether this book is one of them. Their featured
+series comes first, then the largest, so the row the dialog preselects is the
+top one. A book Hardcover has no side of answers `hardcoverBookId: null` and no
+series, which is the dialog's cue to offer the finder;
+`?hardcoverBookId=` names the catalogue book explicitly once the reader has
+picked one out of it.
 
-`GET /api/hardcover/series/:hardcoverId/roster` answers with the series' books,
-each already matched against the library server-side: the Hardcover title and
-position, the work it matched (if any), how the match was made, and that work's
-current series. Matching happens on the server because that is where the
-matcher and the library live.
+`GET /api/hardcover/series/:hardcoverId/roster` answers with the series' books
+in position order, each already matched against the library server-side: the
+Hardcover title, authors and position, the work it matched (if any), whether the
+match agreed on an author or only on the title, and that work's current series
+where applying would replace it. Matching happens on the server because that is
+where the matcher and the library live, and it is deliberately looser than the
+[automatic pass](book-matching.md) — nothing is written, and a person reads
+every row. 409 for a reader with no linked account: unlike the read-outs, this
+was asked for by somebody who pressed something.
 
-`POST /api/series/apply` takes a series and a list of `{ workId, position }` and
-writes the `manual` attachments, answering with the works as they now are.
-Replacing an existing attachment is explicit in the request, never inferred.
+`POST /api/series/apply` takes the series — by Hardcover id *and* name, since
+the row may not exist here yet — and the whole list of `{ workId, position }`
+the reader agreed to. It writes `manual` attachments, optionally making the
+series primary on each work, and answers with those books as they now are. 404
+naming the first work that does not exist; re-applying the same series to the
+same works changes nothing.
 
 All three carry shared Zod schemas
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).

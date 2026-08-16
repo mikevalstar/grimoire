@@ -89,8 +89,11 @@ export class SeriesStore {
       if (known) {
         this.db
           .query(
-            "UPDATE series SET name = $name, match_key = $key, slug = $slug, " +
-              "books_count = $booksCount, updated_at = $now WHERE id = $id",
+            "UPDATE series SET name = $name, match_key = $key, slug = COALESCE($slug, slug), " +
+              // COALESCE, not assignment: a caller that knows the name and not
+              // the slug — the apply, re-run from a dialog that only kept the
+              // name — must not erase what a sync already learned.
+              "books_count = COALESCE($booksCount, books_count), updated_at = $now WHERE id = $id",
           )
           .run({
             $name: name,
@@ -109,8 +112,11 @@ export class SeriesStore {
       if (orphan) {
         this.db
           .query(
-            "UPDATE series SET hardcover_id = $hardcoverId, name = $name, slug = $slug, " +
-              "books_count = $booksCount, updated_at = $now WHERE id = $id",
+            "UPDATE series SET hardcover_id = $hardcoverId, name = $name, slug = COALESCE($slug, slug), " +
+              // COALESCE, not assignment: a caller that knows the name and not
+              // the slug — the apply, re-run from a dialog that only kept the
+              // name — must not erase what a sync already learned.
+              "books_count = COALESCE($booksCount, books_count), updated_at = $now WHERE id = $id",
           )
           .run({
             $hardcoverId: hardcoverId,

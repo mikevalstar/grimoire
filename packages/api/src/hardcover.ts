@@ -8,6 +8,8 @@ import {
   HcReadingHistoryResponseSchema,
   HcSearchResponseSchema,
   HcSeriesResponseSchema,
+  type HcSeriesRosterEntry,
+  HcSeriesRosterResponseSchema,
   HcUpdateUserBookReadResponseSchema,
   HcUpdateUserBookResponseSchema,
   type HcUserBook,
@@ -549,6 +551,38 @@ const BOOKS_BY_IDS_QUERY = `query Books($ids: [Int!]) {
   }
 }`;
 
+/**
+ * Every book in one series, with each book's place in it — the roster the
+ * dialog matches against the shelf
+ * (docs/features/setting-a-series-from-hardcover.md).
+ *
+ * Rooted at `book_series` rather than at `series`, so the join's own `position`
+ * is a field of the result rather than a level deeper. `cached_contributors` is
+ * how the authors come across within the depth limit, exactly as elsewhere.
+ */
+const SERIES_ROSTER_QUERY = `query Roster($seriesId: Int!, $limit: Int!) {
+  book_series(
+    where: { series_id: { _eq: $seriesId } }
+    order_by: { position: asc }
+    limit: $limit
+  ) {
+    position
+    featured
+    book {
+      id
+      title
+      cached_contributors
+    }
+  }
+}`;
+
+/**
+ * A stop rather than a target. The longest real series run to a few hundred;
+ * past this something is wrong with the query, and a roster nobody can read is
+ * not worth the request.
+ */
+export const ROSTER_LIMIT = 500;
+
 /** Series by id — the second half of the shelf sweep's two-step (see above). */
 const SERIES_BY_IDS_QUERY = `query Series($ids: [Int!]) {
   series(where: { id: { _in: $ids } }) {
@@ -656,6 +690,25 @@ export async function hydrateSeries(token: string, entries: readonly HcUserBook[
       if (series) link.series = series;
     }
   }
+}
+
+/**
+ * Every book in a series, in position order. Throws a `HardcoverError` worth
+ * relaying: unlike the read-outs above, this one was asked for by a person who
+ * pressed something and is owed an answer either way.
+ */
+export async function fetchSeriesRoster(
+  token: string,
+  seriesId: number,
+): Promise<HcSeriesRosterEntry[]> {
+  const result = await hardcoverQuery(
+    token,
+    SERIES_ROSTER_QUERY,
+    { seriesId, limit: ROSTER_LIMIT },
+    HcSeriesRosterResponseSchema,
+  );
+  if (!result.ok) throw new HardcoverError(result.error);
+  return result.data.data?.book_series ?? [];
 }
 
 /** One page of a reader's shelves, oldest book id first. */

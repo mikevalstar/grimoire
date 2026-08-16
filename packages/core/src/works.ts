@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { resolveDatabase } from "./db.ts";
-import { isPrefixable, keyPrefixes, sharesAuthor } from "./matching.ts";
+import { isPrefixable, keyPrefixes, matchKey, sharesAuthor } from "./matching.ts";
 import type {
   DuplicateCandidate,
   DuplicateReason,
@@ -155,6 +155,62 @@ export class WorksStore {
       book.work_id = target;
     }
     return moving.length;
+  }
+
+  /**
+   * Match a list of catalogue books — a Hardcover series' roster — against the
+   * shelf, answering one result per entry, in the order they were given
+   * (docs/features/setting-a-series-from-hardcover.md).
+   *
+   * Deliberately looser than `matchAll`: nothing is written, a person reads the
+   * result and can uncheck any row, so a title-only hit is worth *showing* and
+   * labelling where the automatic pass would refuse to act on it. The label is
+   * the whole point — `title-and-author` is checked by default and `title-only`
+   * is flagged.
+   *
+   * One pass over the library rather than a query per entry: a series can hold
+   * forty books and the shelf is already in memory's reach.
+   */
+  matchCatalogue(
+    entries: readonly { title: string; authors: readonly string[] }[],
+  ): ({ workId: number; title: string; match: "title-and-author" | "title-only" } | null)[] {
+    if (entries.length === 0) return [];
+
+    const rows = this.db
+      .query(
+        `SELECT id, work_id, source, title, authors, match_key
+           FROM books
+          WHERE match_key IS NOT NULL AND work_id IS NOT NULL`,
+      )
+      .all() as MemberRow[];
+
+    const byKey = new Map<string, MemberRow[]>();
+    for (const row of rows) {
+      if (!row.match_key) continue;
+      const group = byKey.get(row.match_key);
+      if (group) group.push(row);
+      else byKey.set(row.match_key, [row]);
+    }
+
+    return entries.map((entry) => {
+      const key = matchKey(entry.title);
+      const candidates = key ? (byKey.get(key) ?? []) : [];
+      if (candidates.length === 0) return null;
+
+      // An author in common is the difference between "the same book" and "two
+      // books called Foundation", so it decides which candidate wins as well as
+      // how the win is labelled.
+      const agreed = candidates.find((row) =>
+        sharesAuthor(entry.authors, parseAuthors(row.authors)),
+      );
+      const row = agreed ?? candidates[0];
+      if (!row) return null;
+      return {
+        workId: row.work_id,
+        title: row.title,
+        match: agreed ? "title-and-author" : "title-only",
+      };
+    });
   }
 
   /**
