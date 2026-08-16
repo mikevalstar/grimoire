@@ -6,7 +6,13 @@ import {
   UsersStore,
   WorksStore,
 } from "@grimoire/core";
-import { fetchShelfPage, HardcoverError, PAGE_SIZE, probeHardcover } from "./hardcover.ts";
+import {
+  fetchShelfPage,
+  HardcoverError,
+  hydrateSeries,
+  PAGE_SIZE,
+  probeHardcover,
+} from "./hardcover.ts";
 import { cacheRemoteCover, REMOTE_COVER_CONCURRENCY } from "./remote-covers.ts";
 
 /**
@@ -166,6 +172,10 @@ export class HardcoverSync {
       if (page > 0) await Bun.sleep(PAGE_PAUSE_MS);
 
       const entries = await fetchShelfPage(account.token, hardcoverUserId, page * PAGE_SIZE);
+      // The page carries series ids and no names — `user_books { book {
+      // book_series { series } } }` is depth 4 and their queries stop at 3 — so
+      // one more request per page names them before the mirror stores them.
+      await hydrateSeries(account.token, entries);
       for (const entry of entries) {
         this.mirror.upsert(userId, entry, now);
         seen.push(entry.book.id);
@@ -184,6 +194,12 @@ export class HardcoverSync {
     // The books that just arrived are the ones most likely to be the other half
     // of something already here from Calibre (docs/features/book-matching.md).
     if (reconciled.inserted > 0 || reconciled.updated > 0) this.works.matchAll();
+
+    // After matching, since attachments belong to works and matching is what
+    // decides which work a book is in. Unconditional, like the Calibre sync's:
+    // it writes nothing when nothing changed, and skipping it would leave a
+    // settled library without attachments until a book happened to change.
+    this.books.reconcileSeries();
 
     // Covers last, for the same reason the Calibre sync does it last: files are
     // named by the book id that reconcile assigns.

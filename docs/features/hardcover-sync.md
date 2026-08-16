@@ -61,9 +61,34 @@ whole reconcile is one transaction.
 ### What comes across
 
 Everything the shelf might want about the book — title, subtitle, description,
-pages, release date, contributors, tags, cover URL — and everything about the
-reader's relationship with it: status, their rating, whether they own a copy,
-how many times they've read it, and the added / first-read / last-read dates.
+pages, release date, contributors, tags, series, cover URL — and everything
+about the reader's relationship with it: status, their rating, whether they own
+a copy, how many times they've read it, and the added / first-read / last-read
+dates.
+
+**Series come across as records, not as a line of text.** Hardcover's
+`book_series` gives a book any number of series, each with a position and a
+`featured` flag, so a sweep writes the series themselves and the work's
+attachments to them
+([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)) rather
+than flattening them into one string.
+
+Getting the names costs a **second request per page**, for the depth limit
+below: `user_books { book { book_series { series } } }` is four levels and their
+queries stop at three, so a page can only carry series *ids*. One
+`series(where: { id: { _in: … } })` per page names them before the mirror stores
+them — the same two-step the finder makes, and for the same reason. A hydrate
+that fails costs that page its series names, not its books: an entry with no
+name is skipped by reconcile and picked up by the next sweep.
+
+**Their merges are followed.** A series carrying a `canonical_id` is one their
+librarians folded into another, so the canonical id is what gets stored. Without
+that, a merge on their side would leave two Discworlds here and split the shelf
+between them. Reconcile recomputes those attachments on
+every sweep and leaves any a person set by hand
+([setting a series from Hardcover](setting-a-series-from-hardcover.md)) alone.
+Whether a Hardcover series or Calibre's wins where both have one is the
+**Series** switch in [settings](settings.md).
 
 Statuses are Hardcover's own numbering, stored as the integer they send:
 
@@ -228,6 +253,7 @@ CREATE TABLE hardcover_books (
   release_date TEXT,
   slug         TEXT,                         -- builds a hardcover.app URL
   tags         TEXT NOT NULL DEFAULT '[]',   -- JSON array, from cached_tags
+  series       TEXT NOT NULL DEFAULT '[]',   -- JSON array, from book_series
   cover_url    TEXT,
   raw          TEXT NOT NULL,
   synced_at    TEXT NOT NULL
@@ -236,6 +262,13 @@ CREATE TABLE hardcover_books (
 
 Shared across readers: two people who both shelved a book get one row here and
 one row each below.
+
+`series` is the mirror's copy of `book_series` — one entry per series with its
+id, name, slug, size, this book's position and their `featured` flag. It stays a
+JSON column here for the same reason `tags` does: the mirror keeps what they
+said, and reconcile is what turns it into the `series` and `work_series` rows
+([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)) the
+shelf reads.
 
 `slug` is what makes a mirrored book addressable on their site:
 `https://hardcover.app/books/<slug>` is the public page, and it is a slug rather

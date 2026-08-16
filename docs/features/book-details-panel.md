@@ -59,7 +59,12 @@ the reader clicked.
 Its contents, in order:
 
 - **Header** — cover, title, authors, series and index, and the
-  [marks](book-list.md) saying which sources the book came from.
+  [marks](book-list.md) saying which sources the book came from. A book in more
+  than one series shows a chip each, the primary first
+  ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)), with
+  Hardcover's mark on a series that came from them or from
+  [setting one by hand](setting-a-series-from-hardcover.md) — Calibre has no
+  such series, so the shelf is showing something the library does not.
 - **The cover stack** — when the work has more than one cover, see below.
 - **Your rating** — the same control as on the shelf
   ([rating a book](rating-a-book.md)), at a larger size and always visible
@@ -266,7 +271,9 @@ precision and does not write them into Grimoire's mirror.
   else. A cover from disk or a URL would be a third kind of member row
   (`grimoire`), which is a bigger decision than this feature.
 - **The series strip.** Showing the whole series with the books you own filled
-  in needs series to be a queryable thing rather than a string on each book.
+  in needed series to be a queryable thing rather than a string on each book.
+  [ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md) makes it
+  one, so the strip is unblocked and waiting on its own feature.
 - **Crowd data.** Ratings, reader counts and the "you vs the crowd" line in the
   design idea wait on [Hardcover sync](hardcover-sync.md) storing per-book
   aggregates, which it does not yet.

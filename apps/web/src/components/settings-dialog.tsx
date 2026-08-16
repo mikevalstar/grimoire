@@ -390,6 +390,7 @@ function BookContentSettings() {
   const aboutId = useId();
   const tagsId = useId();
   const moodsId = useId();
+  const seriesId = useId();
 
   async function save(key: string, on: boolean) {
     setSaving(true);
@@ -402,6 +403,10 @@ function BookContentSettings() {
       // The panel reads these live per open book, so what's cached under the
       // old answer is what has to go.
       void queryClient.invalidateQueries({ queryKey: ["hardcover-content"] });
+      // Series are stored rather than fetched live, and the switch re-decides
+      // which of a work's is primary — so the shelf itself changes, not just
+      // an open panel (ADR 0019).
+      void queryClient.invalidateQueries({ queryKey: ["books"] });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -430,6 +435,13 @@ function BookContentSettings() {
       title: "Moods",
       description: "How their readers say a book felt. Calibre has nothing like it.",
       on: prefs.moods,
+    },
+    {
+      id: seriesId,
+      key: PREF_KEYS.hardcoverSeries,
+      title: "Series",
+      description: "Their series, instead of Calibre's series line. Turning it off hides nothing.",
+      on: prefs.series,
     },
   ];
 

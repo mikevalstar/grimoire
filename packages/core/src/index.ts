@@ -7,6 +7,7 @@ export * from "./matching.ts";
 export * from "./ratings.ts";
 export * from "./read-states.ts";
 export * from "./schemas.ts";
+export * from "./series.ts";
 export * from "./settings.ts";
 export * from "./types.ts";
 export * from "./users.ts";

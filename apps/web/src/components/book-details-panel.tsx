@@ -11,6 +11,7 @@ import {
 import { BookLinkPicker } from "@/components/book-link-picker";
 import { BookMarks } from "@/components/book-marks";
 import { BookReadDates } from "@/components/book-read-dates";
+import { BookSeriesChips } from "@/components/book-series-chips";
 import { HardcoverIcon } from "@/components/brand-icons";
 import { StarRating } from "@/components/star-rating";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,18 @@ export interface BookDetailsPanelProps {
    * action is shown disabled — the menu holds more than this one thing.
    */
   onRefetchCover?: () => Promise<{ attempted: number; fetched: number }>;
+  /**
+   * Open the set-series dialog for this book
+   * (docs/features/setting-a-series-from-hardcover.md). Without it the gear's
+   * item is shown disabled, which is what a reader with no linked Hardcover
+   * account gets — the action needs their token.
+   */
+  onSetSeries?: () => void;
+  /**
+   * Promote one of this book's series to the head of its line — a click on a
+   * chip in the header. Without it the chips stay a read-out.
+   */
+  onChoosePrimarySeries?: (seriesId: number) => void;
   /** Known finish dates, newest read first, at their original precision. */
   readDates?: string[];
   readDatesPending?: boolean;
@@ -114,6 +127,8 @@ export function BookDetailsPanel({
   onRate,
   onChooseCover,
   onRefetchCover,
+  onSetSeries,
+  onChoosePrimarySeries,
   readDates = [],
   readDatesPending = false,
   readDatesError,
@@ -209,12 +224,13 @@ export function BookDetailsPanel({
                   <SheetDescription className="mt-0.5 text-[13px]">
                     {shown.authors.length > 0 ? shown.authors.join(", ") : "Unknown author"}
                   </SheetDescription>
-                  {shown.series && (
-                    <p className="text-you-soft mt-1 text-[12px]">
-                      {shown.series}
-                      {shown.seriesIndex !== null && ` · Book ${shown.seriesIndex}`}
-                    </p>
-                  )}
+                  <BookSeriesChips
+                    series={shown.series}
+                    seriesIndex={shown.seriesIndex}
+                    seriesList={shown.seriesList}
+                    onChoosePrimary={onChoosePrimarySeries}
+                    className="mt-1.5"
+                  />
                   <BookMarks book={shown} className="mt-2" />
                 </div>
               </SheetHeader>
@@ -385,7 +401,11 @@ export function BookDetailsPanel({
                         Link a duplicate
                       </Button>
                     )}
-                    <BookActionsMenu onRefetchCover={onRefetchCover} className="ml-auto" />
+                    <BookActionsMenu
+                      onRefetchCover={onRefetchCover}
+                      onSetSeries={onSetSeries}
+                      className="ml-auto"
+                    />
                   </div>
                 </>
               )}

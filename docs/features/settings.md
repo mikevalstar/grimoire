@@ -82,24 +82,35 @@ setting ([ADR 0012](../adrs/0012-hardcover-as-a-second-source-with-per-reader-to
 An unlinked reader's card is the token form — paste, test, save — with a
 pointer to where a token comes from.
 
-Below the cards, **Book content from Hardcover**: three switches deciding which
-of Hardcover's writing about a book the
-[details panel](book-details-panel.md) shows instead of Calibre's —
+Below the cards, **Book content from Hardcover**: four switches deciding which
+of Hardcover's answers about a book Grimoire shows instead of Calibre's —
 
 - **About** — Hardcover's description in place of Calibre's comments.
 - **Tags** — Hardcover's genres and tags in place of Calibre's.
 - **Moods** — Hardcover's mood tags, which Calibre has no equivalent for, as
   their own section.
+- **Series** — the series [sync](hardcover-sync.md) pulled from Hardcover in
+  place of Calibre's series line
+  ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)).
 
-All three are **on** by default, including for libraries that predate them: the
+All four are **on** by default, including for libraries that predate them: the
 absent key reads as on, so nothing has to be migrated or re-answered. These are
 instance-wide preferences rather than per-reader ones — unlike the source
 toggles above, they say what a *book* looks like, not whose account an answer
 comes from — and they are stored in the `preferences` table under
-`hardcover.about`, `hardcover.tags` and `hardcover.moods`. Each applies the
-moment it is flipped. The content itself is fetched with the *reading* reader's
-token, so a reader with no linked account keeps Calibre's text whatever the
-switches say.
+`hardcover.about`, `hardcover.tags`, `hardcover.moods` and `hardcover.series`.
+Each applies the moment it is flipped. The first three fetch their content with
+the *reading* reader's token, so a reader with no linked account keeps Calibre's
+text whatever the switches say.
+
+**Series is the odd one of the four.** The other three are fetched live for an
+open panel and never stored; a series has to be stored, because sorting and
+grouping the shelf by it cannot wait on a request per book. So flipping this one
+re-decides which stored series a work shows rather than changing what gets
+asked for, and turning it off deletes nothing — Calibre's series line simply
+comes back. A series set by hand
+([setting a series from Hardcover](setting-a-series-from-hardcover.md)) outranks
+the switch in both positions.
 
 ### Readers
 

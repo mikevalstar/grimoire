@@ -41,6 +41,15 @@ import {
   ReadStateResultSchema,
   type ReadStates,
   ReadStatesSchema,
+  type SeriesApply,
+  SeriesApplyResultSchema,
+  type SeriesOption,
+  type SeriesOptions,
+  SeriesOptionsSchema,
+  type SeriesRef,
+  type SeriesRoster,
+  type SeriesRosterEntry,
+  SeriesRosterSchema,
   type SyncStatus,
   SyncStatusSchema,
   type User,
@@ -86,6 +95,12 @@ export type {
   ReadDates,
   ReadStateResult,
   ReadStates,
+  SeriesApply,
+  SeriesOption,
+  SeriesOptions,
+  SeriesRef,
+  SeriesRoster,
+  SeriesRosterEntry,
   SyncStatus,
   User,
   UserCreate,
@@ -263,6 +278,49 @@ export function fetchHardcoverReadDates(userId: number, bookId: number) {
 export function fetchHardcoverContent(userId: number, bookId: number) {
   return request(`/api/books/${bookId}/hardcover`, HardcoverContentSchema, {
     method: "GET",
+    userId,
+  });
+}
+
+/**
+ * The series Hardcover has for one book, with what Grimoire already knows about
+ * each (docs/features/setting-a-series-from-hardcover.md). `hardcoverBookId`
+ * names the catalogue book explicitly, for a Calibre-only book whose match the
+ * reader picked out of the finder.
+ */
+export function fetchHardcoverSeries(userId: number, bookId: number, hardcoverBookId?: number) {
+  const query = hardcoverBookId ? `?hardcoverBookId=${hardcoverBookId}` : "";
+  return request(`/api/books/${bookId}/hardcover/series${query}`, SeriesOptionsSchema, {
+    method: "GET",
+    userId,
+  });
+}
+
+/** Every book in a series, matched against the shelf server-side. */
+export function fetchSeriesRoster(userId: number, hardcoverId: number) {
+  return request(`/api/hardcover/series/${hardcoverId}/roster`, SeriesRosterSchema, {
+    method: "GET",
+    userId,
+  });
+}
+
+/**
+ * Promote one of a work's series to the head of its line — clicking a chip in
+ * the panel. Null hands the work back to the rule. Not reader-scoped: which
+ * series a book is filed under is what the book is, not an opinion about it.
+ */
+export function setPrimarySeries(bookId: number, seriesId: number | null) {
+  return request(`/api/books/${bookId}/series/primary`, BookSchema, {
+    method: "PUT",
+    body: { seriesId },
+  });
+}
+
+/** Put a series on every work the reader agreed to. */
+export function applySeries(userId: number, body: SeriesApply) {
+  return request("/api/series/apply", SeriesApplyResultSchema, {
+    method: "POST",
+    body,
     userId,
   });
 }

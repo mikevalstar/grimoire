@@ -56,6 +56,13 @@ export interface BookLibraryProps {
    */
   onRefetchCover?: (book: LibraryBook) => Promise<{ attempted: number; fetched: number }>;
   /**
+   * Open the set-series dialog for the book whose panel is open
+   * (docs/features/setting-a-series-from-hardcover.md).
+   */
+  onSetSeries?: (book: LibraryBook) => void;
+  /** Promote one of the open book's series to the head of its line. */
+  onChoosePrimarySeries?: (book: LibraryBook, seriesId: number) => void;
+  /**
    * Hardcover's about, tags and moods for the open book, where the instance
    * asked for them (docs/features/book-details-panel.md). The panel falls back
    * to Calibre's for anything missing.
@@ -84,6 +91,8 @@ export function BookLibrary({
   readDatesError,
   onChooseCover,
   onRefetchCover,
+  onSetSeries,
+  onChoosePrimarySeries,
   openBookHardcover,
 }: BookLibraryProps) {
   const [view, setView] = useViewMode();
@@ -254,6 +263,12 @@ export function BookLibrary({
         // source to ask is server-side knowledge, and the run says so when the
         // answer is none (docs/features/book-actions.md).
         onRefetchCover={onRefetchCover && openBook ? () => onRefetchCover(openBook) : undefined}
+        onSetSeries={onSetSeries && openBook ? () => onSetSeries(openBook) : undefined}
+        onChoosePrimarySeries={
+          onChoosePrimarySeries && openBook
+            ? (seriesId) => onChoosePrimarySeries(openBook, seriesId)
+            : undefined
+        }
         readDates={openBookReadDates}
         readDatesPending={readDatesPending}
         readDatesError={readDatesError}

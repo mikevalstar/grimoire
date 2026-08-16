@@ -1,4 +1,13 @@
-import type { CalibreServerTest, HardcoverContent, User } from "@grimoire/core";
+import type {
+  CalibreServerTest,
+  HardcoverContent,
+  SeriesApplyResult,
+  SeriesOption,
+  SeriesOptions,
+  SeriesRoster,
+  SeriesRosterEntry,
+  User,
+} from "@grimoire/core";
 import {
   BooksStore,
   CalibreTestRequestSchema,
@@ -17,6 +26,7 @@ import {
   hardcoverAuthors,
   hardcoverBookUrl,
   hardcoverCoverUrl,
+  hardcoverSeries,
   hardcoverTagsByCategory,
   isCoverSize,
   openDatabase,
@@ -26,6 +36,10 @@ import {
   RatingUpdateSchema,
   ReadStatesStore,
   ReadStateUpdateSchema,
+  SERIES_SOURCE,
+  SeriesApplySchema,
+  SeriesPrimarySchema,
+  SeriesStore,
   SettingsStore,
   SyncSettingsUpdateSchema,
   USER_HEADER,
@@ -44,6 +58,7 @@ import {
   clearReadDates,
   fetchHardcoverBook,
   fetchReadingHistory,
+  fetchSeriesRoster,
   fetchUserBook,
   HardcoverError,
   insertUserBook,
@@ -182,6 +197,7 @@ export function createApi(options: ApiOptions = {}) {
   let hardcover: HardcoverSync | null = null;
   let hardcoverBooks: HardcoverBooksStore | null = null;
   let works: WorksStore | null = null;
+  let series: SeriesStore | null = null;
   const getDb = () => (db ??= openDatabase(options.databasePath));
   const getSettings = (): SettingsStore => (settings ??= new SettingsStore(getDb()));
   const getUsers = (): UsersStore => (users ??= new UsersStore(getDb()));
@@ -203,6 +219,7 @@ export function createApi(options: ApiOptions = {}) {
   const getHardcoverBooks = (): HardcoverBooksStore =>
     (hardcoverBooks ??= new HardcoverBooksStore(getDb()));
   const getWorks = (): WorksStore => (works ??= new WorksStore(getDb()));
+  const getSeries = (): SeriesStore => (series ??= new SeriesStore(getDb()));
 
   /**
    * The reader a user-scoped request is acting as (ADR 0008). No header, a
@@ -790,6 +807,234 @@ export function createApi(options: ApiOptions = {}) {
       throw err;
     }
   });
+
+  /**
+   * The series Hardcover has for one book, with what Grimoire already knows
+   * about each alongside — its own id for it, how many works are in it, and
+   * whether this book is one of them
+   * (docs/features/setting-a-series-from-hardcover.md).
+   *
+   * `?hardcoverBookId=` names the catalogue book explicitly, for a Calibre-only
+   * book whose match the reader picked out of the finder themselves. Without it
+   * the work's own Hardcover side is used, and a book that has none answers
+   * `hardcoverBookId: null` with no series — the dialog's cue to offer the
+   * finder rather than to say something went wrong.
+   */
+  app.get("/api/books/:bookId/hardcover/series", async (c) => {
+    const userId = requireUser(c);
+    const bookId = Number(c.req.param("bookId"));
+    if (!Number.isInteger(bookId) || bookId <= 0) {
+      return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+    }
+    if (!getBooks().get(bookId)) return c.json({ error: `No book with id ${bookId}.` }, 404);
+
+    const named = c.req.query("hardcoverBookId");
+    const hardcoverBookId = named
+      ? Number(named)
+      : (getHardcoverBooks().shelfEntryForWork(userId, bookId)?.hardcoverBookId ?? null);
+
+    const account = getUsers().hardcoverAccount(userId);
+    if (!account || !hardcoverBookId || !Number.isInteger(hardcoverBookId)) {
+      return c.json({ hardcoverBookId: null, series: [] } satisfies SeriesOptions);
+    }
+
+    try {
+      const book = await fetchHardcoverBook(account.token, hardcoverBookId);
+      const attached = new Set(
+        getSeries()
+          .forWork(bookId)
+          .map((ref) => ref.hardcoverId),
+      );
+      const options = hardcoverSeries(book?.book_series).flatMap((entry) => {
+        // A series the hydrate never named cannot be offered — there would be
+        // nothing to put on the row.
+        if (!entry.name) return [];
+        const known = getSeries().byHardcoverId(entry.seriesId);
+        return [
+          {
+            hardcoverId: entry.seriesId,
+            name: entry.name,
+            slug: entry.slug,
+            booksCount: entry.booksCount,
+            position: entry.position,
+            featured: entry.featured,
+            seriesId: known?.id ?? null,
+            onShelf: known ? getSeries().workIdsIn(known.id).length : 0,
+            attached: attached.has(entry.seriesId),
+          } satisfies SeriesOption,
+        ];
+      });
+
+      // Their featured series first, then the biggest — the same order the
+      // primary rule uses, so the row the dialog preselects is the top one.
+      options.sort(
+        (a, b) =>
+          Number(b.featured) - Number(a.featured) || (b.booksCount ?? 0) - (a.booksCount ?? 0),
+      );
+      return c.json({ hardcoverBookId, series: options } satisfies SeriesOptions);
+    } catch (err) {
+      if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+      throw err;
+    }
+  });
+
+  /**
+   * Every book in a series, matched against the shelf. Matching happens here
+   * because this is where the matcher and the library both are — and because
+   * the client has no business learning the whole catalogue to do it.
+   *
+   * Looser than the automatic matcher on purpose: a title-only hit is returned
+   * and *labelled*, for a person to accept or drop. Nothing is written.
+   */
+  app.get("/api/hardcover/series/:hardcoverId/roster", async (c) => {
+    const userId = requireUser(c);
+    const hardcoverId = Number(c.req.param("hardcoverId"));
+    if (!Number.isInteger(hardcoverId) || hardcoverId <= 0) {
+      return c.json({ error: `"${c.req.param("hardcoverId")}" is not a series id.` }, 400);
+    }
+
+    const account = getUsers().hardcoverAccount(userId);
+    if (!account) {
+      return c.json({ error: "This reader has no Hardcover account linked." }, 409);
+    }
+
+    try {
+      const roster = await fetchSeriesRoster(account.token, hardcoverId);
+      const books = roster.flatMap((entry) =>
+        entry.book
+          ? [
+              {
+                hardcoverBookId: entry.book.id,
+                title: entry.book.title?.trim() || "Untitled",
+                authors: hardcoverAuthors(entry.book.cached_contributors),
+                position: entry.position ?? null,
+              },
+            ]
+          : [],
+      );
+
+      const matched = getWorks().matchCatalogue(books);
+      const shelf = new Map(
+        getBooks()
+          .list()
+          .map((book) => [book.id, book]),
+      );
+      const known = getSeries().byHardcoverId(hardcoverId);
+
+      const entries = books.map((book, index) => {
+        const hit = matched[index];
+        const work = hit ? shelf.get(hit.workId) : undefined;
+        return {
+          ...book,
+          workId: hit?.workId ?? null,
+          workTitle: hit?.title ?? null,
+          match: hit?.match ?? "none",
+          // What applying would replace, and only when it *would*: a work
+          // already in this series is not a conflict with itself.
+          currentSeries:
+            work && work.seriesList[0]?.id !== known?.id ? (work.series ?? null) : null,
+          currentPosition:
+            work && work.seriesList[0]?.id !== known?.id ? (work.seriesIndex ?? null) : null,
+        } satisfies SeriesRosterEntry;
+      });
+
+      return c.json({
+        series: {
+          hardcoverId,
+          name: known?.name ?? "",
+          slug: known?.slug ?? null,
+          booksCount: known?.booksCount ?? books.length,
+          position: null,
+          featured: false,
+          seriesId: known?.id ?? null,
+          onShelf: entries.filter((entry) => entry.workId !== null).length,
+          attached: false,
+        },
+        entries,
+      } satisfies SeriesRoster);
+    } catch (err) {
+      if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+      throw err;
+    }
+  });
+
+  /**
+   * Put one series on every work the reader agreed to. Writes `manual`
+   * attachments — a person's decision, which no later sync may take back
+   * (ADR 0019) — and answers with the books as they now are, so the shelf and
+   * the open panel redraw without a refetch.
+   *
+   * Idempotent: re-applying the same series to the same works changes nothing,
+   * which is what makes the dialog safe to run again when a series gains a book.
+   */
+  app.post("/api/series/apply", zValidator("json", SeriesApplySchema, invalid), (c) => {
+    const body = c.req.valid("json");
+
+    const known = getBooks();
+    const missing = body.entries.filter((entry) => !known.get(entry.workId));
+    if (missing.length > 0) {
+      return c.json({ error: `No book with id ${missing[0]?.workId}.` }, 404);
+    }
+
+    const seriesId = getSeries().upsert({
+      name: body.name,
+      hardcoverId: body.hardcoverId,
+      slug: body.slug,
+      booksCount: body.booksCount,
+    });
+
+    getSeries().attach(
+      SERIES_SOURCE.manual,
+      body.entries.map((entry) => ({
+        workId: entry.workId,
+        seriesId,
+        position: entry.position,
+      })),
+    );
+    if (body.primary) {
+      for (const entry of body.entries) getSeries().setPrimary(entry.workId, seriesId);
+    }
+
+    return c.json({
+      seriesId,
+      applied: body.entries.length,
+      books: body.entries.flatMap((entry) => known.get(entry.workId) ?? []),
+    } satisfies SeriesApplyResult);
+  });
+
+  /**
+   * Promote one of a work's series to the head of its line — the chip a reader
+   * clicked in the panel (docs/features/setting-a-series-from-hardcover.md).
+   *
+   * Not reader-scoped, and deliberately: which series a book is filed under is
+   * what the book *is*, not what somebody thinks of it — the same reasoning
+   * that put the cover choice on the work rather than on a reader
+   * (docs/features/book-details-panel.md).
+   *
+   * `seriesId: null` clears the choice and hands the work back to the rule.
+   */
+  app.put(
+    "/api/books/:bookId/series/primary",
+    zValidator("json", SeriesPrimarySchema, invalid),
+    (c) => {
+      const bookId = Number(c.req.param("bookId"));
+      if (!Number.isInteger(bookId) || bookId <= 0) {
+        return c.json({ error: `"${c.req.param("bookId")}" is not a book id.` }, 400);
+      }
+      const book = getBooks().get(bookId);
+      if (!book) return c.json({ error: `No book with id ${bookId}.` }, 404);
+
+      const { seriesId } = c.req.valid("json");
+      // A series the work is not in is not a choice that could be honoured —
+      // the same refusal choosing a cover makes for a member that has none.
+      if (seriesId !== null && !book.seriesList.some((ref) => ref.id === seriesId)) {
+        return c.json({ error: `That book is not in series ${seriesId}.` }, 404);
+      }
+
+      getSeries().setPrimary(bookId, seriesId);
+      return c.json(getBooks().get(bookId));
+    },
+  );
 
   /**
    * A read book's full reread history. This deliberately bypasses the mirror:

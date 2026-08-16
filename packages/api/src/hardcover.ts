@@ -7,6 +7,9 @@ import {
   HcMeResponseSchema,
   HcReadingHistoryResponseSchema,
   HcSearchResponseSchema,
+  HcSeriesResponseSchema,
+  type HcSeriesRosterEntry,
+  HcSeriesRosterResponseSchema,
   HcUpdateUserBookReadResponseSchema,
   HcUpdateUserBookResponseSchema,
   type HcUserBook,
@@ -65,6 +68,28 @@ const ME_QUERY = `query Test {
  * (re-reads, merges) into the one the mirror is keyed by, and doubles as the
  * ordering that makes offset paging stable.
  */
+/**
+ * The series a book is in, as much of it as the depth limit allows.
+ *
+ * A query rooted at `books` can afford the nested series; one rooted at
+ * `user_books` cannot — `user_books { book { book_series { series } } }` is
+ * depth 4 — so the shelf sweep asks for `series_id` alone and hydrates the ids
+ * afterwards (see `fetchSeries`). Both shapes parse to the same thing.
+ */
+const BOOK_SERIES_FIELDS = `book_series {
+      series_id
+      position
+      featured
+      compilation
+      series {
+        id
+        name
+        slug
+        books_count
+        canonical_id
+      }
+    }`;
+
 const USER_BOOK_FIELDS = `
     id
     book_id
@@ -87,6 +112,12 @@ const USER_BOOK_FIELDS = `
       cached_contributors
       cached_image
       cached_tags
+      book_series {
+        series_id
+        position
+        featured
+        compilation
+      }
     }`;
 
 const LIBRARY_QUERY = `query Library($userId: Int!, $limit: Int!, $offset: Int!) {
@@ -516,6 +547,50 @@ const BOOKS_BY_IDS_QUERY = `query Books($ids: [Int!]) {
     cached_contributors
     cached_image
     cached_tags
+    ${BOOK_SERIES_FIELDS}
+  }
+}`;
+
+/**
+ * Every book in one series, with each book's place in it — the roster the
+ * dialog matches against the shelf
+ * (docs/features/setting-a-series-from-hardcover.md).
+ *
+ * Rooted at `book_series` rather than at `series`, so the join's own `position`
+ * is a field of the result rather than a level deeper. `cached_contributors` is
+ * how the authors come across within the depth limit, exactly as elsewhere.
+ */
+const SERIES_ROSTER_QUERY = `query Roster($seriesId: Int!, $limit: Int!) {
+  book_series(
+    where: { series_id: { _eq: $seriesId } }
+    order_by: { position: asc }
+    limit: $limit
+  ) {
+    position
+    featured
+    book {
+      id
+      title
+      cached_contributors
+    }
+  }
+}`;
+
+/**
+ * A stop rather than a target. The longest real series run to a few hundred;
+ * past this something is wrong with the query, and a roster nobody can read is
+ * not worth the request.
+ */
+export const ROSTER_LIMIT = 500;
+
+/** Series by id — the second half of the shelf sweep's two-step (see above). */
+const SERIES_BY_IDS_QUERY = `query Series($ids: [Int!]) {
+  series(where: { id: { _in: $ids } }) {
+    id
+    name
+    slug
+    books_count
+    canonical_id
   }
 }`;
 
@@ -582,6 +657,58 @@ export async function fetchUserBook(token: string, userBookId: number): Promise<
   );
   if (!result.ok) return null;
   return result.data.data?.user_books?.[0] ?? null;
+}
+
+/**
+ * Hydrate the series ids a shelf page carried into the series themselves, and
+ * write them onto the entries in place — so everything downstream reads one
+ * shape whether the books came from a shelf sweep or from a `books` query
+ * (ADR 0019).
+ *
+ * Silent on failure: a page whose series could not be named still mirrors the
+ * books, and the next sweep tries again. Losing a whole page of somebody's
+ * shelves over a series name would be a poor trade.
+ */
+export async function hydrateSeries(token: string, entries: readonly HcUserBook[]): Promise<void> {
+  const ids = [
+    ...new Set(
+      entries.flatMap((entry) =>
+        (entry.book.book_series ?? []).flatMap((link) => link.series_id ?? link.series?.id ?? []),
+      ),
+    ),
+  ];
+  if (ids.length === 0) return;
+
+  const result = await hardcoverQuery(token, SERIES_BY_IDS_QUERY, { ids }, HcSeriesResponseSchema);
+  if (!result.ok) return;
+
+  const byId = new Map((result.data.data?.series ?? []).map((series) => [series.id, series]));
+  for (const entry of entries) {
+    for (const link of entry.book.book_series ?? []) {
+      const id = link.series_id ?? link.series?.id;
+      const series = id === undefined || id === null ? undefined : byId.get(id);
+      if (series) link.series = series;
+    }
+  }
+}
+
+/**
+ * Every book in a series, in position order. Throws a `HardcoverError` worth
+ * relaying: unlike the read-outs above, this one was asked for by a person who
+ * pressed something and is owed an answer either way.
+ */
+export async function fetchSeriesRoster(
+  token: string,
+  seriesId: number,
+): Promise<HcSeriesRosterEntry[]> {
+  const result = await hardcoverQuery(
+    token,
+    SERIES_ROSTER_QUERY,
+    { seriesId, limit: ROSTER_LIMIT },
+    HcSeriesRosterResponseSchema,
+  );
+  if (!result.ok) throw new HardcoverError(result.error);
+  return result.data.data?.book_series ?? [];
 }
 
 /** One page of a reader's shelves, oldest book id first. */

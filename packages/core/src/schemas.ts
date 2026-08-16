@@ -157,6 +157,74 @@ export const HcMeResponseSchema = z.object({
 });
 
 /**
+ * A series in Hardcover's catalogue. `canonical_id` is their own dedupe
+ * pointer: where a series has one, this row is a duplicate of that series, and
+ * attaching to the canonical instead is how their librarians' merges reach
+ * Grimoire (ADR 0019).
+ */
+export const HcSeriesSchema = z.object({
+  id: z.number(),
+  name: z.string().nullish(),
+  slug: z.string().nullish(),
+  books_count: z.number().nullish(),
+  canonical_id: z.number().nullish(),
+});
+export type HcSeries = z.infer<typeof HcSeriesSchema>;
+
+export const HcSeriesResponseSchema = z.object({
+  data: z.object({ series: z.array(HcSeriesSchema) }).nullish(),
+  ...hcErrors,
+});
+
+/**
+ * One row of a series' roster: the join's position, and the book it points at.
+ * `title` is nullish for the same reason it is on `HcBookSchema` — their
+ * catalogue holds records without one, and a roster is worth showing anyway.
+ */
+export const HcSeriesRosterEntrySchema = z.object({
+  position: z.number().nullish(),
+  featured: z.boolean().nullish(),
+  book: z
+    .object({
+      id: z.number(),
+      title: z.string().nullish(),
+      cached_contributors: z.unknown().optional(),
+    })
+    .nullish(),
+});
+export type HcSeriesRosterEntry = z.infer<typeof HcSeriesRosterEntrySchema>;
+
+export const HcSeriesRosterResponseSchema = z.object({
+  data: z.object({ book_series: z.array(HcSeriesRosterEntrySchema) }).nullish(),
+  ...hcErrors,
+});
+
+/**
+ * One row of Hardcover's `book_series` join, with the series it points at.
+ *
+ * `position` is their `float8` and genuinely nullable — a series can hold a
+ * book nobody has numbered. `featured` is their flag for the series they treat
+ * as the book's home, and half of the rule that picks a primary (ADR 0019).
+ * `canonical_id` is their own dedupe pointer: where a series has one, it is a
+ * duplicate of that series, and attaching to it rather than to this row is how
+ * their merge reaches Grimoire.
+ */
+export const HcBookSeriesSchema = z.object({
+  /**
+   * Present on the shelf sweep, which cannot afford the nested `series` — that
+   * would be depth 4 and their queries stop at 3. A second query hydrates these
+   * ids into the object below, exactly as the finder hydrates search results.
+   */
+  series_id: z.number().nullish(),
+  position: z.number().nullish(),
+  featured: z.boolean().nullish(),
+  /** Their omnibus flag. Carried but not yet acted on. */
+  compilation: z.boolean().nullish(),
+  series: HcSeriesSchema.nullish(),
+});
+export type HcBookSeries = z.infer<typeof HcBookSeriesSchema>;
+
+/**
  * A book as Hardcover's library query returns it. The `cached_*` fields are
  * JSON blobs with no documented shape, so they are carried as `unknown` and
  * read defensively in `hardcover-books.ts` — they are also the *only* way to
@@ -178,6 +246,12 @@ export const HcBookSchema = z.object({
   cached_contributors: z.unknown().optional(),
   cached_image: z.unknown().optional(),
   cached_tags: z.unknown().optional(),
+  /**
+   * Their `book_series` join — real fields rather than a cached blob, so this
+   * one is modelled (ADR 0019). Nullish throughout: a book in no series has an
+   * empty array, and a query that asked for less must not fail the page.
+   */
+  book_series: z.array(HcBookSeriesSchema).nullish(),
 });
 
 export type HcBook = z.infer<typeof HcBookSchema>;
@@ -458,6 +532,8 @@ export const HardcoverContentPrefsSchema = z.object({
   about: prefOn,
   tags: prefOn,
   moods: prefOn,
+  /** Whether a synced Hardcover series outranks Calibre's (ADR 0019). */
+  series: prefOn,
 });
 export type HardcoverContentPrefs = z.infer<typeof HardcoverContentPrefsSchema>;
 
@@ -467,6 +543,7 @@ export function hardcoverContentPrefs(preferences: Preferences | undefined): Har
     about: preferences?.[PREF_KEYS.hardcoverAbout],
     tags: preferences?.[PREF_KEYS.hardcoverTags],
     moods: preferences?.[PREF_KEYS.hardcoverMoods],
+    series: preferences?.[PREF_KEYS.hardcoverSeries],
   });
 }
 
@@ -558,6 +635,32 @@ export const ApiErrorSchema = z.object({
 // Calibre per page load (ADR 0011). This is the shape every library screen
 // renders; ratings are deliberately not on it, being per-reader.
 
+/**
+ * A work's attachment to one series (ADR 0019) — the series itself, where the
+ * book sits in it, and which source said so, since a series Calibre has no idea
+ * about is worth marking as such in the panel.
+ */
+export const SeriesRefSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  slug: z.string().nullable().default(null),
+  /** Hardcover's id, or null for a series only this library knows about. */
+  hardcoverId: z.number().nullable().default(null),
+  /** How many books the series holds, per Hardcover. Null when nobody said. */
+  booksCount: z.number().nullable().default(null),
+  /** This book's place in the series, or null when nobody stated one. */
+  position: z.number().nullable().default(null),
+  /**
+   * Hardcover's own flag for the series they consider the book's home. Half of
+   * the rule that picks a primary, which is why it crosses the wire.
+   */
+  featured: z.boolean().default(false),
+  source: z.enum(["calibre", "hardcover", "manual"]),
+  /** Whether this is the one `series` and `seriesIndex` above are reporting. */
+  primary: z.boolean().default(false),
+});
+export type SeriesRef = z.infer<typeof SeriesRefSchema>;
+
 export const BookSchema = z.object({
   /** Grimoire's id — what every Grimoire-owned row points at, and what names a cover file. */
   id: z.number(),
@@ -576,8 +679,19 @@ export const BookSchema = z.object({
   calibreId: z.number().nullable(),
   title: z.string(),
   authors: z.array(z.string()),
+  /**
+   * The primary series' name and the book's position in it — the string the
+   * shelf, sorting, search and OPDS have always read. Resolved from
+   * `seriesList` by the rule in ADR 0019 rather than taken off a member row.
+   */
   series: z.string().nullable(),
   seriesIndex: z.number().nullable(),
+  /**
+   * Every series this book is in, primary first. A book genuinely in two —
+   * Discworld and Witches — says so here, while `series` above stays the one
+   * answer every list view has room for.
+   */
+  seriesList: z.array(SeriesRefSchema).default([]),
   tags: z.array(z.string()),
   /** Uppercased, e.g. ["EPUB", "PDF"]. */
   formats: z.array(z.string()),
@@ -634,6 +748,117 @@ export const BookSchema = z.object({
 export type Book = z.infer<typeof BookSchema>;
 
 export const BooksSchema = z.array(BookSchema);
+
+// --- Setting a series from Hardcover ---------------------------------------
+// docs/features/setting-a-series-from-hardcover.md
+
+/**
+ * One series Hardcover has for a book, with what Grimoire already knows about
+ * it alongside — the counts are what tell a reader the size of what they are
+ * about to do before they do it.
+ */
+export const SeriesOptionSchema = z.object({
+  hardcoverId: z.number(),
+  name: z.string(),
+  slug: z.string().nullable().default(null),
+  /** How many books the series holds, per Hardcover. */
+  booksCount: z.number().nullable().default(null),
+  /** Where the open book sits in it. */
+  position: z.number().nullable().default(null),
+  /** Their flag for the series they treat as the book's home. */
+  featured: z.boolean().default(false),
+  /** Grimoire's own id for it, when a sync has already created the row. */
+  seriesId: z.number().nullable().default(null),
+  /** Works already in it — "12 on your shelf". */
+  onShelf: z.number().default(0),
+  /** Whether the open book is in it already. */
+  attached: z.boolean().default(false),
+});
+export type SeriesOption = z.infer<typeof SeriesOptionSchema>;
+
+/**
+ * What GET /api/books/:bookId/hardcover/series answers with. `hardcoverBookId`
+ * is null for a book Hardcover has no side of — the dialog's cue to offer the
+ * finder rather than an empty list.
+ */
+export const SeriesOptionsSchema = z.object({
+  hardcoverBookId: z.number().nullable().default(null),
+  series: z.array(SeriesOptionSchema).default([]),
+});
+export type SeriesOptions = z.infer<typeof SeriesOptionsSchema>;
+
+/**
+ * One book in a series, matched against the library server-side — where the
+ * matcher and the shelf both live (ADR 0019).
+ *
+ * `match` is how the row was found, not how sure we are it is right:
+ * `title-and-author` is the one worth checking by default, `title-only` is the
+ * one worth a glance.
+ */
+export const SeriesRosterEntrySchema = z.object({
+  hardcoverBookId: z.number(),
+  title: z.string(),
+  authors: z.array(z.string()).default([]),
+  position: z.number().nullable().default(null),
+  workId: z.number().nullable().default(null),
+  workTitle: z.string().nullable().default(null),
+  match: z.enum(["title-and-author", "title-only", "none"]).default("none"),
+  /** What that work's series line says now — what applying would replace. */
+  currentSeries: z.string().nullable().default(null),
+  currentPosition: z.number().nullable().default(null),
+});
+export type SeriesRosterEntry = z.infer<typeof SeriesRosterEntrySchema>;
+
+export const SeriesRosterSchema = z.object({
+  series: SeriesOptionSchema,
+  entries: z.array(SeriesRosterEntrySchema).default([]),
+});
+export type SeriesRoster = z.infer<typeof SeriesRosterSchema>;
+
+/**
+ * Body of POST /api/series/apply — the series, and every work that should be in
+ * it. The series is named by its Hardcover id *and* its name: the row may not
+ * exist here yet, and a client that had to create it first would be two
+ * requests where one will do.
+ *
+ * `primary` asks for the series to head each work's line; without it the
+ * attachment is made and the rule decides. `entries` is the whole answer, not a
+ * delta — the dialog shows every row and the reader unchecks what they don't
+ * want, so what arrives is what they agreed to.
+ */
+export const SeriesApplySchema = z.object({
+  hardcoverId: z.number().int().positive().nullable().default(null),
+  name: z.string().min(1),
+  slug: z.string().nullable().default(null),
+  booksCount: z.number().int().nullable().default(null),
+  primary: z.boolean().default(true),
+  entries: z
+    .array(
+      z.object({
+        workId: z.number().int().positive(),
+        position: z.number().nullable().default(null),
+      }),
+    )
+    .min(1),
+});
+export type SeriesApply = z.infer<typeof SeriesApplySchema>;
+
+/** What the apply answers with: the books as they now are, and the count. */
+export const SeriesApplyResultSchema = z.object({
+  seriesId: z.number(),
+  applied: z.number(),
+  books: z.array(BookSchema).default([]),
+});
+export type SeriesApplyResult = z.infer<typeof SeriesApplyResultSchema>;
+
+/**
+ * Body of PUT /api/books/:bookId/series/primary — which of a work's series
+ * heads its line. Null clears the choice and hands the work back to the rule.
+ */
+export const SeriesPrimarySchema = z.object({
+  seriesId: z.number().int().positive().nullable(),
+});
+export type SeriesPrimary = z.infer<typeof SeriesPrimarySchema>;
 
 /** Body of PUT /api/books/:id/cover — which member's cover this work should show. */
 export const CoverChoiceSchema = z.object({

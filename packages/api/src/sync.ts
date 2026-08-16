@@ -225,6 +225,14 @@ export class CalibreSync {
     // every time: one indexed query and a handful of updates.
     if (reconciled.inserted > 0 || reconciled.updated > 0) this.works.matchAll();
 
+    // Series into their own tables (ADR 0019), after matching decided which
+    // work each book is in. Run every tick rather than only when phase 1 saw a
+    // change: it writes nothing when nothing moved, and a library that was
+    // already settled when this arrived would otherwise sit without attachments
+    // until Calibre next edited a book — the same trap `match_key` needed a
+    // backfill to escape.
+    this.books.reconcileSeries();
+
     const coversFetched = await this.phaseCovers(base, full);
 
     return {

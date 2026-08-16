@@ -116,11 +116,17 @@ function migrate(db: Database): void {
       release_date TEXT,
       slug         TEXT,
       tags         TEXT NOT NULL DEFAULT '[]',
+      series       TEXT NOT NULL DEFAULT '[]',
       cover_url    TEXT,
       raw          TEXT NOT NULL,
       synced_at    TEXT NOT NULL
     )
   `);
+  // The mirror's copy of their `book_series` join — one entry per series with
+  // its id, name, slug, size, this book's position and their featured flag
+  // (ADR 0019). JSON here for the same reason `tags` is: the mirror keeps what
+  // they said, and reconcile is what turns it into `series` and `work_series`.
+  addColumn(db, "hardcover_books", "series", "TEXT NOT NULL DEFAULT '[]'");
 
   // One reader's relationship with one book: status, their rating, the dates.
   // Rows here *are* deleted when a book leaves someone's shelves — this mirrors
@@ -297,6 +303,80 @@ function migrate(db: Database): void {
     )
   `);
 
+  // A series, as a thing rather than a string on each book (ADR 0019).
+  //
+  // Identity is `hardcover_id` where Hardcover named the series, and the folded
+  // name otherwise — the same `fold()` the matcher normalises titles with, so
+  // Calibre's "Discworld", "Discworld Novels" and "The Discworld Series" land on
+  // one row instead of scattering a shelf three ways.
+  //
+  // `match_key` is therefore only unique among the rows Hardcover has *not*
+  // named: two genuinely different Hardcover series may share a name, and they
+  // are still two series. Where a Hardcover series turns up whose fold matches a
+  // nameless row, the store adopts that row rather than adding a second.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS series (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      hardcover_id INTEGER UNIQUE,
+      name         TEXT NOT NULL,
+      match_key    TEXT NOT NULL,
+      slug         TEXT,
+      books_count  INTEGER,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    )
+  `);
+  db.run(
+    "CREATE UNIQUE INDEX IF NOT EXISTS series_match_key ON series(match_key) WHERE hardcover_id IS NULL",
+  );
+
+  // Which series a work is in, and where it sits in each. Keyed by work rather
+  // than book for the reason ratings and read states are: it is a statement
+  // about the book, not about one library's copy of it.
+  //
+  // `is_primary` records only a *manual* choice — which of the series somebody
+  // attached should head the shelf's series line. Everything else is derived at
+  // read time by the rule in ADR 0019, so flipping the Hardcover series
+  // preference re-decides the primary without rewriting a single row.
+  //
+  // `featured` is Hardcover's own flag on the attachment, kept because it is
+  // half of that rule: the series they consider the book's home wins before
+  // size does.
+  //
+  // **`source` is part of the key.** Calibre and Hardcover frequently name the
+  // same series, and one row per pair would mean the two sweeps overwriting each
+  // other's provenance — the row would say `calibre` or `hardcover` depending on
+  // which ran last, and either sweep clearing it would silently drop the other's
+  // claim. Each source states its own attachment and owns only its own rows; the
+  // read-time rule folds them back into one series per work.
+  // A table that predates `source` joining the key has to be rebuilt: SQLite
+  // cannot alter a primary key, and an upsert naming a constraint the table
+  // does not have fails the whole sync with "ON CONFLICT clause does not match
+  // any PRIMARY KEY or UNIQUE constraint". Set aside here, filled below.
+  if (workSeriesIsKeyedWithoutSource(db)) {
+    db.run("ALTER TABLE work_series RENAME TO work_series_by_pair");
+  }
+  db.run(`
+    CREATE TABLE IF NOT EXISTS work_series (
+      work_id    INTEGER NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+      series_id  INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+      position   REAL,
+      source     TEXT NOT NULL,
+      featured   INTEGER NOT NULL DEFAULT 0,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (work_id, series_id, source)
+    )
+  `);
+  rekeyWorkSeriesOnSource(db);
+  db.run("CREATE INDEX IF NOT EXISTS work_series_series ON work_series(series_id)");
+  // At most one manual primary per work — the partial index is the constraint,
+  // since the rule below it can always name a primary without one.
+  db.run(
+    "CREATE UNIQUE INDEX IF NOT EXISTS work_series_primary ON work_series(work_id) WHERE is_primary = 1",
+  );
+
   backfillWorks(db);
   backfillMatchKeys(db);
 
@@ -373,6 +453,45 @@ function widenRatingsToHalves(db: Database): void {
     `);
     db.run("INSERT INTO ratings SELECT * FROM ratings_whole");
     db.run("DROP TABLE ratings_whole");
+  })();
+}
+
+/**
+ * True for a `work_series` created before `source` was part of its key. Read
+ * from the schema rather than a version counter, so the check is idempotent —
+ * and it names the *old* shape rather than the new one, so a table this
+ * migration just created is never mistaken for one needing it again.
+ */
+function workSeriesIsKeyedWithoutSource(db: Database): boolean {
+  const row = db
+    .query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'work_series'")
+    .get() as { sql: string } | null;
+  return row !== null && !row.sql.includes("PRIMARY KEY (work_id, series_id, source)");
+}
+
+/**
+ * Carry the old table's rows into the re-keyed one. Nothing is lost: the pairs
+ * were unique before, so they are unique with a third column too — and the
+ * `manual` attachments among them are the ones that could not simply be
+ * re-derived by the next sweep (ADR 0019).
+ */
+function rekeyWorkSeriesOnSource(db: Database): void {
+  const legacy = db
+    .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'work_series_by_pair'")
+    .get();
+  if (!legacy) return;
+
+  db.transaction(() => {
+    db.run(
+      `INSERT INTO work_series (work_id, series_id, position, source, featured, is_primary, created_at, updated_at)
+         SELECT work_id, series_id, position, source, featured, is_primary, created_at, updated_at
+           FROM work_series_by_pair
+          -- WHERE true is load-bearing: SQLite cannot tell an upsert's
+          -- ON CONFLICT from a SELECT's own without a WHERE before it.
+          WHERE true
+       ON CONFLICT (work_id, series_id, source) DO NOTHING`,
+    );
+    db.run("DROP TABLE work_series_by_pair");
   })();
 }
 

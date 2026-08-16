@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { resolveDatabase } from "./db.ts";
-import type { HcUserBook } from "./schemas.ts";
+import type { HcBookSeries, HcUserBook } from "./schemas.ts";
 
 /**
  * A book as the Hardcover mirror holds it — their payload, flattened. JSON
@@ -16,6 +16,8 @@ export interface HardcoverBookRow {
   release_date: string | null;
   slug: string | null;
   tags: string;
+  /** JSON array of `MirroredSeries` — their `book_series`, flattened. */
+  series: string;
   cover_url: string | null;
   raw: string;
   synced_at: string;
@@ -77,6 +79,66 @@ export function hardcoverAuthors(cached: unknown): string[] {
   // A book with two contributions by the same person is common enough (author
   // and narrator) that deduping here is worth the line.
   return [...new Set(names)];
+}
+
+/**
+ * One series a book is in, as the mirror stores it (ADR 0019). Flattened from
+ * their `book_series` join so reconcile reads one shape, whether the entry came
+ * from a shelf sweep — which can only afford the series *id*, their queries
+ * stopping at depth 3 — or from a `books` query that could nest the series
+ * itself. An entry the hydrate never named keeps a null `name`, and reconcile
+ * skips it rather than inventing one.
+ */
+export interface MirroredSeries {
+  seriesId: number;
+  name: string | null;
+  slug: string | null;
+  booksCount: number | null;
+  position: number | null;
+  featured: boolean;
+}
+
+/**
+ * Their `book_series` entries, flattened and deduped.
+ *
+ * **A series with a `canonical_id` is a duplicate of that one**, per their own
+ * librarians, so the canonical id is what gets stored — otherwise a merge on
+ * their side would leave two Discworlds here, and the roster of one of them
+ * would come back nearly empty. The name still comes from the row we were
+ * given: it is the only one we have, and `upsert` corrects it the moment the
+ * canonical series is seen properly.
+ */
+export function hardcoverSeries(
+  entries: readonly HcBookSeries[] | null | undefined,
+): MirroredSeries[] {
+  if (!entries) return [];
+
+  const byId = new Map<number, MirroredSeries>();
+  for (const entry of entries) {
+    const series = entry.series;
+    const id = series?.canonical_id ?? series?.id ?? entry.series_id;
+    if (typeof id !== "number") continue;
+
+    const mirrored: MirroredSeries = {
+      seriesId: id,
+      name: series?.name?.trim() || null,
+      slug: series?.slug ?? null,
+      booksCount: series?.books_count ?? null,
+      position: entry.position ?? null,
+      featured: entry.featured === true,
+    };
+    // Two rows collapsing onto one canonical series keep the featured one, and
+    // a position over none — the same "an answer beats no answer" the resolver
+    // applies a layer up.
+    const existing = byId.get(id);
+    if (!existing) byId.set(id, mirrored);
+    else {
+      if (!existing.featured && mirrored.featured) existing.featured = true;
+      if (existing.position === null) existing.position = mirrored.position;
+      if (!existing.name) existing.name = mirrored.name;
+    }
+  }
+  return [...byId.values()];
 }
 
 /** Tag names out of `cached_tags`, which groups them by category. */
@@ -201,16 +263,16 @@ export class HardcoverBooksStore {
         .query(
           `INSERT INTO hardcover_books (
              hardcover_id, title, subtitle, authors, description, pages,
-             release_date, slug, tags, cover_url, raw, synced_at
+             release_date, slug, tags, series, cover_url, raw, synced_at
            ) VALUES (
              $id, $title, $subtitle, $authors, $description, $pages,
-             $releaseDate, $slug, $tags, $coverUrl, $raw, $now
+             $releaseDate, $slug, $tags, $series, $coverUrl, $raw, $now
            )
            ON CONFLICT (hardcover_id) DO UPDATE SET
              title = excluded.title, subtitle = excluded.subtitle,
              authors = excluded.authors, description = excluded.description,
              pages = excluded.pages, release_date = excluded.release_date,
-             slug = excluded.slug, tags = excluded.tags,
+             slug = excluded.slug, tags = excluded.tags, series = excluded.series,
              cover_url = excluded.cover_url, raw = excluded.raw,
              synced_at = excluded.synced_at`,
         )
@@ -224,6 +286,7 @@ export class HardcoverBooksStore {
           $releaseDate: book.release_date ?? null,
           $slug: book.slug ?? null,
           $tags: JSON.stringify(hardcoverTags(book.cached_tags)),
+          $series: JSON.stringify(hardcoverSeries(book.book_series)),
           $coverUrl: hardcoverCoverUrl(book.cached_image),
           $raw: JSON.stringify(book),
           $now: now,

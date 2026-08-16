@@ -29,5 +29,6 @@ Add one with `okq new feature "<title>"`.
 | OPDS catalog | [opds-catalog.md](opds-catalog.md) |
 | Rating a book | [rating-a-book.md](rating-a-book.md) |
 | Resolving duplicates | [resolving-duplicates.md](resolving-duplicates.md) |
+| Setting a series from Hardcover | [setting-a-series-from-hardcover.md](setting-a-series-from-hardcover.md) |
 | Settings | [settings.md](settings.md) |
 <!-- okq:index:end -->
