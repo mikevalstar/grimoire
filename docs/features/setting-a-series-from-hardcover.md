@@ -66,7 +66,16 @@ Rows are checkboxes, not radios — a book genuinely in two series is the case
 this feature exists to stop flattening. Exactly one checked row is **primary**,
 which is the one the shelf's series line and its sorting will use. Hardcover's
 `featured` flag preselects it, the larger `books_count` breaks a tie, and the
-reader can move it.
+reader can move it to any checked row. Unchecking the primary hands the mark to
+another rather than leaving the book without one. A series the book is
+[already in](hardcover-sync.md) arrives checked, so re-running the action is how
+a series catches up rather than a way to lose the others.
+
+**Only the primary is spread across the shelf.** The next step is one series'
+roster, because "the rest of the series" is a question about one series — so the
+other checked ones are attached to *this book only*, never primary, and the
+confirm says so. Spreading a second series is the same action run again with a
+different primary.
 
 The counts are the point of this screen. "12 on your shelf" is how the reader
 knows what the next step is about to touch before they get there.
@@ -105,9 +114,15 @@ replaced."*
 
 **What gets written.** A `manual` attachment per book
 ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)) — a
-decision a person made, which reconcile leaves alone on every later sync. The
-book the dialog was opened from is written the same way as the other twelve; it
-has no special status once the series exists.
+decision a person made, which reconcile leaves alone on every later sync. One
+apply per series: the primary carrying every book the reader confirmed, then one
+each for the other checked series carrying the open book alone.
+
+The book the dialog was opened from is in the apply whether or not the roster
+found it — a series can hold a book the matcher missed, and the reader was
+looking at that book when they said yes. The exception is a book the roster
+*did* offer and the reader unchecked: that is an answer, and re-adding it would
+override the one row they were looking straight at.
 
 **Running it again** is how a series that gained a book catches up. The dialog
 opens on the series already attached, the roster comes back with the new entry
@@ -139,27 +154,27 @@ most of the shelf.
 
 ## Acceptance criteria
 
-- [ ] The gear menu offers **Set series…** for every book, disabled with a
+- [x] The gear menu offers **Set series…** for every book, disabled with a
       reason for a reader with no linked Hardcover account.
-- [ ] The dialog lists every series Hardcover has for the book, each with the
+- [x] The dialog lists every series Hardcover has for the book, each with the
       book's position, the series' size, and how many of it are on the shelf.
-- [ ] More than one series can be attached, exactly one is primary, and the
+- [x] More than one series can be attached, exactly one is primary, and the
       primary is what the shelf's series line and sorting use.
-- [ ] A book Hardcover has no series for offers a typed name and position
+- [x] A book Hardcover has no series for offers a typed name and position
       instead of an error.
-- [ ] Continuing shows the series' books split into on-the-shelf, already-in-a-
+- [x] Continuing shows the series' books split into on-the-shelf, already-in-a-
       series, and not-owned, with the first group checked and the second not.
-- [ ] A match made on title alone is flagged as such.
-- [ ] The primary button states how many books will change, and a confirm step
+- [x] A match made on title alone is flagged as such.
+- [x] The primary button states how many books will change, and a confirm step
       names the replacements separately before anything is written.
-- [ ] Applying writes `manual` attachments that survive a Calibre sync and a
+- [x] Applying writes `manual` attachments that survive a Calibre sync and a
       Hardcover sync.
-- [ ] Re-running the action on the same series changes nothing and does not
+- [x] Re-running the action on the same series changes nothing and does not
       duplicate an attachment.
-- [ ] The panel and the shelf behind it show the new series without a reload.
-- [ ] With the **Series** switch on, a synced Hardcover series wins over
+- [x] The panel and the shelf behind it show the new series without a reload.
+- [x] With the **Series** switch on, a synced Hardcover series wins over
       Calibre's; with it off, Calibre's shows and nothing is lost.
-- [ ] The dialog has Storybook stories covering: several series, none, a roster
+- [x] The dialog has Storybook stories covering: several series, none, a roster
       with conflicts, and a reader with no token.
 
 ## API

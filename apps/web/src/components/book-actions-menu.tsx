@@ -1,4 +1,4 @@
-import { ImageDown, Loader2, Settings2 } from "lucide-react";
+import { ImageDown, ListOrdered, Loader2, Settings2 } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -21,6 +21,13 @@ export interface BookActionsMenuProps {
    * (docs/features/book-actions.md).
    */
   onRefetchCover?: () => Promise<{ attempted: number; fetched: number }>;
+  /**
+   * Open the set-series dialog
+   * (docs/features/setting-a-series-from-hardcover.md). Undefined leaves the
+   * item disabled — which is what a reader with no linked Hardcover account
+   * gets, since asking their catalogue needs their token.
+   */
+  onSetSeries?: () => void;
   className?: string;
 }
 
@@ -29,7 +36,7 @@ export interface BookActionsMenuProps {
  * the open book, as opposed to everything above it, which is a read-out or a
  * reader's own opinion. See docs/features/book-actions.md.
  */
-export function BookActionsMenu({ onRefetchCover, className }: BookActionsMenuProps) {
+export function BookActionsMenu({ onRefetchCover, onSetSeries, className }: BookActionsMenuProps) {
   const [state, setState] = useState<RunState>("idle");
 
   async function refetchCover() {
@@ -85,6 +92,13 @@ export function BookActionsMenu({ onRefetchCover, className }: BookActionsMenuPr
             <ImageDown size={14} aria-hidden="true" />
           )}
           Re-fetch cover
+        </DropdownMenuItem>
+
+        {/* Unlike the re-fetch above, this one hands off to a dialog, so the
+            menu closes behind it in the ordinary way. */}
+        <DropdownMenuItem disabled={!onSetSeries} onSelect={() => onSetSeries?.()}>
+          <ListOrdered size={14} aria-hidden="true" />
+          Set series…
         </DropdownMenuItem>
 
         {state !== "idle" && state !== "running" && (

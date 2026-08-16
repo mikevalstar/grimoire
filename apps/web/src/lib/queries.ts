@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import { useEffect, useRef } from "react";
 import {
   addHardcoverBook,
+  applySeries,
   chooseBookCover,
   type DuplicateCandidate,
   type Duplicates,
@@ -11,10 +12,12 @@ import {
   fetchHardcoverContent,
   fetchHardcoverRatings,
   fetchHardcoverReadDates,
+  fetchHardcoverSeries,
   fetchPendingDuplicates,
   fetchPreferences,
   fetchRatings,
   fetchReadStates,
+  fetchSeriesRoster,
   fetchSyncStatus,
   fetchUsers,
   type HardcoverAdd,
@@ -25,6 +28,7 @@ import {
   type Ratings,
   type ReadStates,
   refetchBookCover,
+  type SeriesApply,
   saveRating,
   saveReadState,
   saveSyncInterval,
@@ -128,6 +132,72 @@ export function hardcoverContentQuery(
     queryKey: ["hardcover-content", userId, bookId],
     queryFn: () => fetchHardcoverContent(userId as number, bookId as number),
     enabled: enabled && userId != null && bookId != null,
+  });
+}
+
+/**
+ * The series Hardcover has for the open book
+ * (docs/features/setting-a-series-from-hardcover.md). Live, like the content
+ * above: it is asked for when a dialog opens, and what it reports — how many of
+ * a series are on the shelf — changes as the library does.
+ *
+ * `hardcoverBookId` is part of the key rather than a detail of the fetch: the
+ * finder picking a different catalogue book is a different question, not a
+ * stale answer to the same one.
+ */
+export function hardcoverSeriesQuery(
+  userId: number | null | undefined,
+  bookId: number | null,
+  hardcoverBookId: number | null,
+  enabled: boolean,
+) {
+  return queryOptions({
+    queryKey: ["hardcover-series", userId, bookId, hardcoverBookId],
+    queryFn: () =>
+      fetchHardcoverSeries(userId as number, bookId as number, hardcoverBookId ?? undefined),
+    enabled: enabled && userId != null && bookId != null,
+  });
+}
+
+/**
+ * Every book in a series, matched against the shelf. Enabled only once a series
+ * is chosen — the roster is a request per series, and the first step of the
+ * dialog is where a reader decides which one they meant.
+ */
+export function seriesRosterQuery(
+  userId: number | null | undefined,
+  hardcoverId: number | null,
+  enabled = true,
+) {
+  return queryOptions({
+    queryKey: ["series-roster", userId, hardcoverId],
+    queryFn: () => fetchSeriesRoster(userId as number, hardcoverId as number),
+    enabled: enabled && userId != null && hardcoverId != null,
+  });
+}
+
+/**
+ * Put a series on every work the reader confirmed. Nothing optimistic: this
+ * writes to a dozen books at once, and guessing the result of that on screen
+ * before the server has taken it is exactly the wrong place to be clever.
+ */
+export function useApplySeries(userId: number | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (apply: SeriesApply) => applySeries(userId as number, apply),
+
+    onSuccess(result) {
+      // The books it answered with, straight into the cache — the panel and the
+      // shelf behind it redraw without a refetch of the whole library.
+      const updated = new Map(result.books.map((book) => [book.id, book]));
+      queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
+        books?.map((book) => updated.get(book.id) ?? book),
+      );
+      // The counts on the first step ("12 on your shelf") are now wrong.
+      void queryClient.invalidateQueries({ queryKey: ["hardcover-series"] });
+      void queryClient.invalidateQueries({ queryKey: ["series-roster"] });
+    },
   });
 }
 

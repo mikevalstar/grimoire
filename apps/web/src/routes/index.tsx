@@ -5,10 +5,12 @@ import { BookLibrary } from "@/components/book-library";
 import { HardcoverFindDialog, type PendingFind } from "@/components/hardcover-find-dialog";
 import { HardcoverShelveDialog, type PendingShelve } from "@/components/hardcover-shelve-dialog";
 import { type PendingReadState, ReadStateDialog } from "@/components/read-state-dialog";
+import { SetSeriesDialog } from "@/components/set-series-dialog";
 import {
   BOOK_SOURCE,
   bookIsRead,
   bookRating,
+  fetchSeriesRoster,
   hardcoverContentPrefs,
   type LibraryBook,
   searchHardcover,
@@ -20,9 +22,11 @@ import {
   hardcoverContentQuery,
   hardcoverRatingsQuery,
   hardcoverReadDatesQuery,
+  hardcoverSeriesQuery,
   preferencesQuery,
   ratingsQuery,
   readStatesQuery,
+  useApplySeries,
   useChooseCover,
   useRateBook,
   useRefetchCover,
@@ -204,6 +208,16 @@ function LibraryScreen() {
   // not what a reader thinks of it (docs/features/book-actions.md).
   const refetchCover = useRefetchCover();
 
+  // The book whose series is being set, held while the dialog is open. Its own
+  // state rather than the open panel's: the panel stays open behind the dialog,
+  // and closing one must not close the other
+  // (docs/features/setting-a-series-from-hardcover.md).
+  const [settingSeries, setSettingSeries] = useState<LibraryBook | null>(null);
+  const seriesOptions = useQuery(
+    hardcoverSeriesQuery(currentUser?.id, settingSeries?.id ?? null, null, settingSeries !== null),
+  );
+  const applySeries = useApplySeries(currentUser?.id);
+
   return (
     <>
       <BookLibrary
@@ -228,6 +242,30 @@ function LibraryScreen() {
         openBookHardcover={openBookHardcover}
         onChooseCover={(book, bookId) => chooseCover.mutate({ workId: book.id, bookId })}
         onRefetchCover={(book) => refetchCover.mutateAsync(book.id)}
+        // Needs the reader's token to ask Hardcover at all, so a session with
+        // nobody chosen leaves the gear's item disabled rather than opening a
+        // dialog that could only fail.
+        onSetSeries={currentUser ? setSettingSeries : undefined}
+      />
+
+      <SetSeriesDialog
+        open={settingSeries !== null}
+        onOpenChange={(open) => !open && setSettingSeries(null)}
+        bookTitle={settingSeries?.title ?? ""}
+        workId={settingSeries?.id ?? 0}
+        options={seriesOptions.data?.series ?? []}
+        loadingOptions={seriesOptions.isPending && settingSeries !== null}
+        optionsError={
+          seriesOptions.error instanceof Error
+            ? seriesOptions.error.message
+            : currentUser?.hardcoverUsername
+              ? null
+              : "This reader has no Hardcover account linked. Set a series by hand:"
+        }
+        loadRoster={(hardcoverId) => fetchSeriesRoster(currentUser?.id as number, hardcoverId)}
+        onApply={async (apply) => {
+          await applySeries.mutateAsync(apply);
+        }}
       />
 
       <HardcoverFindDialog
