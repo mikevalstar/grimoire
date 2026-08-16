@@ -11,6 +11,7 @@ Add one with `okq new feature "<title>"`.
 
 | Title | File |
 |-------|------|
+| Adding a book from Hardcover | [adding-a-book-from-hardcover.md](adding-a-book-from-hardcover.md) |
 | Application shell | [application-shell.md](application-shell.md) |
 | Book actions | [book-actions.md](book-actions.md) |
 | Book details panel | [book-details-panel.md](book-details-panel.md) |

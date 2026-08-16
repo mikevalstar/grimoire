@@ -9,6 +9,7 @@ import {
   DuplicateLinkSchema,
   DuplicateUserError,
   defaultDataDir,
+  HardcoverAddSchema,
   HardcoverBooksStore,
   HardcoverLinkSchema,
   HardcoverSearchRequestSchema,
@@ -628,12 +629,37 @@ export function createApi(options: ApiOptions = {}) {
     rating: number | null,
     finishedAt: string | undefined,
   ): Promise<void> => {
+    const newWork = await shelveNewHardcoverBook(userId, token, hardcoverBookId, 3, {
+      rating,
+      finishedAt,
+    });
+    if (newWork && newWork !== workId) getWorks().link(workId, newWork);
+  };
+
+  /**
+   * The shelving underneath: put a catalogue book on the reader's shelves at a
+   * status, mirror it, and reconcile it into the library — answering the work
+   * it landed in, or null when Hardcover's read replica wouldn't hand the
+   * entry back in time. On its own this is
+   * docs/features/adding-a-book-from-hardcover.md; `shelveOnHardcover` above
+   * adds the join into an existing work.
+   */
+  const shelveNewHardcoverBook = async (
+    userId: number,
+    token: string,
+    hardcoverBookId: number,
+    statusId: number,
+    extras: { rating?: number | null; finishedAt?: string } = {},
+  ): Promise<number | null> => {
+    const { rating = null, finishedAt } = extras;
     const now = new Date().toISOString();
-    const userBookId = await insertUserBook(token, hardcoverBookId, 3, {
+    const userBookId = await insertUserBook(token, hardcoverBookId, statusId, {
       rating: rating ?? undefined,
       finishedAt,
     });
-    if (!finishedAt) await clearDefaultReadDates(token, userBookId);
+    // Only a Read gets stamped with a read entry to begin with, so only a Read
+    // with no answer has one to clear.
+    if (statusId === 3 && !finishedAt) await clearDefaultReadDates(token, userBookId);
 
     // Their read replica can lag the write that just made this entry — give
     // it a few tries before settling for the minimal record.
@@ -642,21 +668,59 @@ export function createApi(options: ApiOptions = {}) {
       await new Promise((resolve) => setTimeout(resolve, 1_000));
       shelved = await fetchUserBook(token, userBookId);
     }
+
+    let workId: number | null = null;
     if (shelved) {
       getHardcoverBooks().upsert(userId, shelved, now);
       getBooks().reconcileFromHardcover(getHardcoverBooks().allBooks(), now);
-      const newWork = getBooks().workForHardcoverId(hardcoverBookId);
-      if (newWork && newWork !== workId) getWorks().link(workId, newWork);
+      workId = getBooks().workForHardcoverId(hardcoverBookId);
     } else {
       // Hardcover accepted the writes but wouldn't answer with the entry;
       // keep what we know and let the next sweep fill in the book.
-      getHardcoverBooks().recordShelfEntry(userId, hardcoverBookId, userBookId, 3, rating);
+      getHardcoverBooks().recordShelfEntry(userId, hardcoverBookId, userBookId, statusId, rating);
     }
 
     void getHardcoverSync()
       .syncUser(userId)
       .catch(() => {});
+
+    return workId;
   };
+
+  /**
+   * Add a book Grimoire has no side of yet: the reader picked it out of
+   * Hardcover's catalogue, so shelving it there is what puts it in the library
+   * (docs/features/adding-a-book-from-hardcover.md). Reader-scoped by path,
+   * like the search that found it.
+   */
+  app.post(
+    "/api/users/:id/hardcover/books",
+    zValidator("json", HardcoverAddSchema, invalid),
+    async (c) => {
+      const user = readerFromPath(c);
+      const account = getUsers().hardcoverAccount(user.id);
+      if (!account) {
+        return c.json({ error: `${user.name} has no Hardcover account linked.` }, 400);
+      }
+
+      const { hardcoverBookId, statusId, finishedAt } = c.req.valid("json");
+      try {
+        const bookId = await shelveNewHardcoverBook(
+          user.id,
+          account.token,
+          hardcoverBookId,
+          statusId,
+          // A finish date belongs to a book they finished; anywhere else it is
+          // an answer to a question the dialog never asked.
+          { finishedAt: statusId === 3 ? finishedAt : undefined },
+        );
+        return c.json({ bookId });
+      } catch (err) {
+        if (err instanceof HardcoverError) return c.json({ error: err.message }, 502);
+        throw err;
+      }
+    },
+  );
 
   // The current reader's stars (docs/features/rating-a-book.md). Two sources
   // since ADR 0014 — their own rows here, or their Hardcover shelves — and

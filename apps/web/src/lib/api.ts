@@ -11,6 +11,8 @@ import {
   type DuplicateReason,
   type Duplicates,
   DuplicatesSchema,
+  type HardcoverAdd,
+  HardcoverAddResultSchema,
   type HardcoverContent,
   type HardcoverContentPrefs,
   HardcoverContentSchema,
@@ -68,6 +70,7 @@ export type {
   DuplicateCandidate,
   DuplicateReason,
   Duplicates,
+  HardcoverAdd,
   HardcoverContent,
   HardcoverContentPrefs,
   HardcoverRatings,
@@ -272,6 +275,19 @@ export function searchHardcover(userId: number, query: string) {
   return request(`/api/users/${userId}/hardcover/search`, HardcoverSearchResultsSchema, {
     method: "POST",
     body: { query },
+  });
+}
+
+/**
+ * Add a book Grimoire has no side of at all: shelve the reader's catalogue pick
+ * on Hardcover, which is what puts it in the library
+ * (docs/features/adding-a-book-from-hardcover.md). Answers the new work's id,
+ * or null when it will only arrive on the next sweep.
+ */
+export function addHardcoverBook(userId: number, add: HardcoverAdd) {
+  return request(`/api/users/${userId}/hardcover/books`, HardcoverAddResultSchema, {
+    method: "POST",
+    body: add,
   });
 }
 

@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import {
+  addHardcoverBook,
   chooseBookCover,
   type DuplicateCandidate,
   type Duplicates,
@@ -16,6 +17,7 @@ import {
   fetchReadStates,
   fetchSyncStatus,
   fetchUsers,
+  type HardcoverAdd,
   type HardcoverRatings,
   type LibraryBook,
   linkDuplicate,
@@ -249,6 +251,32 @@ export function useRefetchCover() {
       queryClient.setQueryData<LibraryBook[]>(booksQuery.queryKey, (books) =>
         books?.map((book) => (book.id === result.book.id ? result.book : book)),
       );
+    },
+  });
+}
+
+/**
+ * Add a book from Hardcover's catalogue to this reader's shelves, and so to the
+ * library (docs/features/adding-a-book-from-hardcover.md). Nothing optimistic:
+ * the library gains a book only once Hardcover has taken the write, and what it
+ * gains — cover, authors, id — is the server's answer, not something this side
+ * could have guessed.
+ */
+export function useAddHardcoverBook(userId: number | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (add: HardcoverAdd) => addHardcoverBook(userId as number, add),
+
+    // Awaited, so the mutation settles once the library actually holds the new
+    // book — the caller opens its panel the moment this resolves.
+    async onSuccess() {
+      // The shelf gained a book, and — for a Read — the reader gained a shelf
+      // entry the corners and stars read from.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: booksQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: ["hardcover-ratings", userId] }),
+      ]);
     },
   });
 }

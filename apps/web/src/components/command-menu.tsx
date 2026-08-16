@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   List,
   Moon,
+  Plus,
   RefreshCw,
   Sun,
   UserPlus,
@@ -59,6 +60,12 @@ export interface CommandMenuProps {
   onSync?: () => void;
   onOpenSettings?: (section: SettingsSection) => void;
   onOpenBook?: (id: number) => void;
+  /**
+   * Opens the add-a-book dialog, mirroring the header's **+** — absent, like
+   * that button, for a reader with no linked Hardcover account
+   * (docs/features/adding-a-book-from-hardcover.md).
+   */
+  onAddBook?: () => void;
 }
 
 /**
@@ -84,6 +91,7 @@ export function CommandMenu({
   onSync,
   onOpenSettings,
   onOpenBook,
+  onAddBook,
 }: CommandMenuProps) {
   const [query, setQuery] = useState("");
   const [view, setView] = useViewMode();
@@ -174,6 +182,17 @@ export function CommandMenu({
       });
     }
 
+    if (onAddBook) {
+      list.push({
+        id: "book-add",
+        section: "Library",
+        label: "Add a book from Hardcover",
+        icon: <Plus size={14} />,
+        keywords: "add book new hardcover shelf read",
+        run: onAddBook,
+      });
+    }
+
     if (onSync) {
       list.push({
         id: "sync-now",
@@ -220,6 +239,7 @@ export function CommandMenu({
     onPickUser,
     onSync,
     onOpenSettings,
+    onAddBook,
   ]);
 
   // Command matching folds accents exactly like book search does, so "Sòrt"
