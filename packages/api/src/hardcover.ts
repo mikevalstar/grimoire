@@ -16,6 +16,7 @@ import {
   HcUserBookReadsResponseSchema,
 } from "@grimoire/core";
 import type { z } from "zod";
+import { HARDCOVER_RATE_LIMIT, limiterFor, retryAfterMs } from "./hardcover-rate-limit.ts";
 
 /**
  * Talking to hardcover.app (ADR 0012). Server-side only, and not by our
@@ -35,6 +36,18 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 /** Shelf entries per request. Paged with limit/offset — their API has no cursor. */
 export const PAGE_SIZE = 100;
+
+/**
+ * A 429 despite the bucket (hardcover-rate-limit.ts) means their accounting
+ * disagrees with ours — a second client on the same token, or a window that
+ * started earlier than we think. Waiting a window out and trying again clears
+ * both; three tries is enough that a sweep survives it, and few enough that a
+ * genuinely exhausted quota still reaches the reader as an error.
+ */
+const RATE_LIMIT_RETRIES = 3;
+
+/** Fallback backoff when a 429 carries no `Retry-After`: a window, then two. */
+const RATE_LIMIT_BACKOFF_MS = 60_000;
 
 /**
  * Build the Authorization value. Hardcover's own settings page hands out a
@@ -138,10 +151,21 @@ const USER_BOOK_QUERY = `query UserBook($id: Int!) {
 
 type QueryResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
+/** Not an answer: their gateway said 429, and here is how long it wants. */
+type RateLimited = { rateLimited: true; retryAfter: number | null };
+
+const RATE_LIMITED_MESSAGE = `Hardcover is rate limiting us (${HARDCOVER_RATE_LIMIT} requests a minute, under their 60). Try again shortly.`;
+
 /**
  * Run one GraphQL request and answer rather than throw: every failure here is
  * something a reader can act on, and each has a different fix, so they are kept
  * apart instead of collapsed into "couldn't connect".
+ *
+ * The only place this process fetches a Hardcover URL, which is what lets one
+ * token bucket pace everything — the shelf sweep and the panel's interactive
+ * reads alike (hardcover-rate-limit.ts). A 429 in spite of that is retried
+ * behind a process-wide pause rather than handed straight back, so a sweep
+ * survives one instead of losing every page it hadn't reached yet.
  */
 async function hardcoverQuery<S extends z.ZodType>(
   token: string,
@@ -151,6 +175,27 @@ async function hardcoverQuery<S extends z.ZodType>(
 ): Promise<QueryResult<z.infer<S>>> {
   if (!token.trim()) return { ok: false, error: "No Hardcover token." };
 
+  const limiter = limiterFor(token);
+
+  for (let attempt = 0; ; attempt++) {
+    // The permit, and — after a 429 — the penalty, are both waited out here.
+    await limiter.take();
+
+    const outcome = await attemptQuery(token, query, variables, schema);
+    if (!("rateLimited" in outcome)) return outcome;
+
+    if (attempt >= RATE_LIMIT_RETRIES - 1) return { ok: false, error: RATE_LIMITED_MESSAGE };
+    // Their own number if they sent one; otherwise a window, then two, then three.
+    limiter.penalize(outcome.retryAfter ?? RATE_LIMIT_BACKOFF_MS * (attempt + 1));
+  }
+}
+
+async function attemptQuery<S extends z.ZodType>(
+  token: string,
+  query: string,
+  variables: Record<string, unknown>,
+  schema: S,
+): Promise<QueryResult<z.infer<S>> | RateLimited> {
   let res: Response;
   try {
     res = await fetch(HARDCOVER_GRAPHQL_URL, {
@@ -185,12 +230,7 @@ async function hardcoverQuery<S extends z.ZodType>(
       error: `Hardcover didn't accept that token${reported ? ` (${reported})` : ""}. Tokens expire a year after they're issued — check yours at hardcover.app/account/api.`,
     };
   }
-  if (res.status === 429) {
-    return {
-      ok: false,
-      error: "Hardcover is rate limiting us (60 requests a minute). Try again shortly.",
-    };
-  }
+  if (res.status === 429) return { rateLimited: true, retryAfter: retryAfterMs(res.headers) };
   if (!res.ok) {
     return { ok: false, error: reported ?? `Hardcover responded ${res.status} ${res.statusText}` };
   }
