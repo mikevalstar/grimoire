@@ -24,5 +24,12 @@ app.get("*", async (c) => {
   );
 });
 
-const server = Bun.serve({ port: PORT, fetch: app.fetch });
+// Bun's default idleTimeout is 10s, which kills long in-request work: a
+// Hardcover sweep (POST /api/users/:id/hardcover/sync) waits on the rate
+// limiter's bucket for two requests a page (hardcover-rate-limit.ts), and a
+// cover refetch alone allows 30s upstream. 30s lets the
+// common case finish and report a real error instead of a dropped socket. A
+// very large Hardcover sweep can still exceed it — the durable fix is to make
+// that endpoint return 202 and poll.
+const server = Bun.serve({ port: PORT, idleTimeout: 30, fetch: app.fetch });
 console.log(`Grimoire server running at http://localhost:${server.port}`);
