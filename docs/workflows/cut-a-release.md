@@ -56,3 +56,19 @@ signed builds until certificate-backed signing is added to CI.
 
   On Linux, add `--add-host=host.docker.internal:host-gateway` when Calibre runs
   on the Docker host.
+
+- Repeat with a **bind mount**, which is what most self-hosters use. The image
+  runs as uid 1000 and never as root, so the host directory has to be owned by
+  it — a root-owned one is refused by
+  [`scripts/docker-entrypoint.sh`](../../scripts/docker-entrypoint.sh) with a
+  message naming the directory and the uid, rather than crash-looping on an
+  opaque SQLite error:
+
+      sudo mkdir -p /srv/grimoire && sudo chown -R 1000:1000 /srv/grimoire
+      docker run --rm -p 4747:4747 -v /srv/grimoire:/data \
+        ghcr.io/mikevalstar/grimoire:0.1.0
+
+- `docker inspect --format '{{.State.Health.Status}}' <container>` reports
+  `healthy`. The healthcheck fetches `/api/preferences`, which reads
+  `grimoire.db` — `/` would answer from static files with a broken database
+  behind it.

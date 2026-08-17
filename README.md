@@ -102,6 +102,32 @@ docker run --rm -p 4747:4747 \
   grimoire
 ```
 
+The container runs as the unprivileged `bun` user, **uid 1000**, and writes
+`grimoire.db` plus the cover cache to `/data`. A named volume (above) is created
+with the right ownership. A **bind mount keeps the host directory's ownership**,
+so give it to that uid first — otherwise the container refuses to start and says
+so:
+
+```bash
+sudo mkdir -p /srv/grimoire && sudo chown -R 1000:1000 /srv/grimoire
+docker run --rm -p 4747:4747 -v /srv/grimoire:/data grimoire
+```
+
+There is no `PUID`/`PGID` handling: Grimoire never needs root at runtime, and
+starting as root to chown and drop privileges is more machinery than a one-time
+`chown` on the host is worth.
+
+Container environment variables:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `PORT` | `4747` | Port the server listens on |
+| `GRIMOIRE_DATA_DIR` | `/data` | Where `grimoire.db` and cached covers live ([ADR 0007](docs/adrs/0007-user-data-and-asset-storage-location.md)) |
+| `CALIBRE_SERVER` | `http://localhost:8080` | Fallback content server URL, until one is saved in settings |
+
+On Linux, add `--add-host=host.docker.internal:host-gateway` when Calibre runs
+on the Docker host.
+
 Version tags matching `vX.Y.Z` publish Linux, Windows, and macOS desktop ZIPs,
 a multi-architecture GHCR image, and a GitHub Release with generated notes. See
 [Cut a release](docs/workflows/cut-a-release.md) for the release process. The
