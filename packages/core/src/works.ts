@@ -141,13 +141,26 @@ export class WorksStore {
 
   /**
    * Put a cluster in one work, keeping the *oldest* of the works involved: it is
-   * the one a rating is most likely already attached to, and keeping it means
-   * grouping a book never moves the stars someone already gave it.
+   * the one a reader's stars are most likely already attached to. Everything the
+   * losing works carried is moved onto the survivor first (`carryWorkState`),
+   * because `deleteEmptyWorks` cascades — a book that was rated under its own
+   * work keeps that rating when the matcher folds it into another.
    */
   private mergeIntoOneWork(cluster: Candidate[]): number {
     const target = Math.min(...cluster.map((book) => book.work_id));
     const moving = cluster.filter((book) => book.work_id !== target);
     if (moving.length === 0) return 0;
+
+    // Only for works this leaves empty. A work keeping a row of its own keeps
+    // its ratings too, and copying them onto the survivor would put one reader's
+    // stars on two books.
+    const leaving = new Map<number, number>();
+    for (const book of moving) leaving.set(book.work_id, (leaving.get(book.work_id) ?? 0) + 1);
+    const size = this.db.query("SELECT COUNT(*) AS n FROM books WHERE work_id = $workId");
+    for (const [losing, count] of leaving) {
+      const held = size.get({ $workId: losing }) as { n: number };
+      if (held.n === count) this.carryWorkState(target, losing);
+    }
 
     const move = this.db.query("UPDATE books SET work_id = $workId WHERE id = $id");
     for (const book of moving) {
@@ -155,6 +168,68 @@ export class WorksStore {
       book.work_id = target;
     }
     return moving.length;
+  }
+
+  /**
+   * Move everything held *about* a work onto the work that is about to absorb
+   * it. Ratings, read states, series attachments and the chosen cover all hang
+   * off `works.id` with `ON DELETE CASCADE`, so a merge that only re-pointed
+   * `books.work_id` would let the losing work's row take them with it — silently,
+   * since nothing else references them (docs/features/resolving-duplicates.md).
+   *
+   * Conflict rule, where both works hold a row for the same reader: **the
+   * survivor's answer stands**, except for stars, where the higher of the two
+   * does — the rule ADR 0013's migration set. Read is read, so an argument about
+   * *when* is not worth a merge changing someone's answer.
+   *
+   * Only `manual` series attachments come across. A `calibre` or `hardcover` one
+   * is re-derived by the next reconcile sweep from the rows that just moved; a
+   * manual one is by design never re-derived, so this is its only way over.
+   */
+  private carryWorkState(target: number, losing: number): void {
+    this.db
+      .query(
+        `INSERT INTO ratings (user_id, work_id, rating, updated_at)
+           SELECT user_id, $target, rating, updated_at FROM ratings WHERE work_id = $losing
+         ON CONFLICT (user_id, work_id) DO UPDATE
+           SET rating = MAX(rating, excluded.rating), updated_at = excluded.updated_at`,
+      )
+      .run({ $target: target, $losing: losing });
+
+    this.db
+      .query(
+        `INSERT INTO read_states (user_id, work_id, finished_at, updated_at)
+           SELECT user_id, $target, finished_at, updated_at
+             FROM read_states WHERE work_id = $losing
+         ON CONFLICT (user_id, work_id) DO NOTHING`,
+      )
+      .run({ $target: target, $losing: losing });
+
+    // At most one attachment per work may be primary (the partial unique index
+    // in db.ts), so a promotion only comes across if the survivor has none —
+    // otherwise the row lands unpromoted rather than failing the merge.
+    this.db
+      .query(
+        `INSERT INTO work_series
+             (work_id, series_id, position, source, featured, is_primary, created_at, updated_at)
+           SELECT $target, series_id, position, source, featured,
+                  CASE WHEN EXISTS (SELECT 1 FROM work_series held
+                                     WHERE held.work_id = $target AND held.is_primary = 1)
+                       THEN 0 ELSE is_primary END,
+                  created_at, updated_at
+             FROM work_series WHERE work_id = $losing AND source = 'manual'
+         ON CONFLICT (work_id, series_id, source) DO NOTHING`,
+      )
+      .run({ $target: target, $losing: losing });
+
+    // A cover somebody chose outlives its work; the rule only picks again if
+    // nobody ever chose for the survivor.
+    this.db
+      .query(
+        `UPDATE works SET cover_book_id = (SELECT cover_book_id FROM works WHERE id = $losing)
+          WHERE id = $target AND cover_book_id IS NULL`,
+      )
+      .run({ $target: target, $losing: losing });
   }
 
   /**
@@ -402,26 +477,10 @@ export class WorksStore {
     const losing = Math.max(workId, otherWorkId);
 
     this.db.transaction(() => {
-      // Before the row goes: ratings cascade off `works`, so a merge that
-      // deleted first would take the losing work's stars with it. Where both
-      // were rated the higher stands — the rule ADR 0013's migration set.
-      this.db
-        .query(
-          `INSERT INTO ratings (user_id, work_id, rating, updated_at)
-             SELECT user_id, $target, rating, updated_at FROM ratings WHERE work_id = $losing
-           ON CONFLICT (user_id, work_id) DO UPDATE
-             SET rating = MAX(rating, excluded.rating), updated_at = excluded.updated_at`,
-        )
-        .run({ $target: target, $losing: losing });
-
-      // A cover somebody chose outlives its work; the rule only picks again if
-      // nobody ever chose for the survivor.
-      this.db
-        .query(
-          `UPDATE works SET cover_book_id = (SELECT cover_book_id FROM works WHERE id = $losing)
-            WHERE id = $target AND cover_book_id IS NULL`,
-        )
-        .run({ $target: target, $losing: losing });
+      // Before the row goes: everything keyed by work cascades off `works`, so a
+      // merge that deleted first would take the losing work's stars, read states,
+      // manual series and chosen cover with it.
+      this.carryWorkState(target, losing);
 
       // "Same book" retracts an earlier "not the same book" about the same two
       // rows — a reader is allowed to change their mind, and leaving the old

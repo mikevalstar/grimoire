@@ -64,6 +64,23 @@ still refusing to merge two unrelated books that happen to share a title.
 A title alone is never enough. `Persuasion` is a book by Jane Austen and a book
 by Robert Cialdini.
 
+### Merging
+
+The **oldest** work in a cluster survives and the others' rows move into it. The
+survivor is picked that way because it is the one a reader's stars are most
+likely already on — but that is a preference, not a safeguard: everything held
+*about* a losing work is carried onto the survivor before it is deleted, since
+ratings, read states, series attachments and the chosen cover all hang off
+`works.id` and cascade with it.
+
+Where both works hold an answer from the same reader, **the survivor's stands** —
+except for stars, where the higher of the two does, matching the rule
+[ADR 0013](../adrs/0013-group-duplicate-books-into-works.md)'s migration set.
+Only `manual` series attachments are carried: a `calibre` or `hardcover` one is
+re-derived by the next reconcile sweep from the rows that just moved, and a
+manual one never is. Same operation, same rules, when a person merges two works
+by hand — [resolving duplicates](resolving-duplicates.md).
+
 ### What it refuses to do
 
 - **Never groups two rows from the same source.** Two Calibre rows with one
@@ -146,7 +163,11 @@ and client ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md
 - [x] A book in both Calibre and Hardcover with the same title and author
       becomes one card carrying both marks.
 - [x] Its rating is one rating, and survives the grouping happening after it was
-      set.
+      set — on either of the works involved, not only the one that survives.
+- [x] A read state, a manual series attachment and a chosen cover on the losing
+      work survive the grouping too.
+- [x] Where both works carry an answer from one reader, the higher rating wins
+      and the surviving work's read state stands.
 - [x] Titles differing only by case, punctuation, diacritics, a leading or
       trailing article, a bracketed series suffix or an edition suffix still
       match, and `Corey, James S.A.` is the same author as `James S.A. Corey`.
