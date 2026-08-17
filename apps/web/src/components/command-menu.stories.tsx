@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/tanstack-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@/lib/api";
+import { LIBRARY_VIEW_DEFAULTS, type LibraryView, publishLibraryView } from "@/lib/library-view";
 import { SAMPLE_BOOKS } from "@/lib/sample-books";
 import { CommandMenu } from "./command-menu";
 
@@ -69,6 +70,33 @@ export const CommandsOnly: Story = {
     onPickUser: undefined,
     onSync: undefined,
     onOpenSettings: undefined,
+  },
+};
+
+/**
+ * Over the library screen: sort and group come from the shelf the route holds
+ * in the URL, not from this device's stored order, and the commands write back
+ * there (ADR 0020). The markers start on "My rating ↓" and "Group by author";
+ * running a Sort or Group command moves them.
+ */
+export const OverTheLibrary: Story = {
+  render: function OverTheLibrary(args) {
+    const [view, setView] = useState<LibraryView>({
+      ...LIBRARY_VIEW_DEFAULTS,
+      sort: "rating",
+      dir: "desc",
+      group: "author",
+    });
+    // The library route does this; a story stands in for it so the palette has
+    // a shelf to read and write.
+    useEffect(() => {
+      publishLibraryView({
+        view,
+        set: ({ patch }) => setView((current) => ({ ...current, ...patch })),
+      });
+      return () => publishLibraryView(null);
+    }, [view]);
+    return <CommandMenu {...args} />;
   },
 };
 

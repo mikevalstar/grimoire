@@ -168,12 +168,22 @@ export function BookLibrary({
   // so each control's counts describe what the ones before it left
   // (docs/features/library-source-filter.md).
   const sources = useMemo(() => librarySources(books), [books]);
+  // A URL can name sources this library doesn't hold — a link shared out of a
+  // mixed library, opened against a Calibre-only one — and the filter is hidden
+  // entirely below two sources, so an unmet selection would be an empty shelf
+  // with no control to clear it. The selection is dropped instead, which is
+  // what the source filter already does internally
+  // (docs/features/library-source-filter.md).
+  const selectedSources = useMemo(
+    () => (sources.length < 2 ? [] : shelf.sources.filter((source) => sources.includes(source))),
+    [shelf.sources, sources],
+  );
   const sourcedBooks = useMemo(
     () =>
-      shelf.sources.length === 0
+      selectedSources.length === 0
         ? searchedBooks
-        : searchedBooks.filter((book) => matchesSourceFilter(book, shelf.sources)),
-    [searchedBooks, shelf.sources],
+        : searchedBooks.filter((book) => matchesSourceFilter(book, selectedSources)),
+    [searchedBooks, selectedSources],
   );
 
   const effectiveReadFilter = isRead ? shelf.read : "all";
@@ -251,7 +261,7 @@ export function BookLibrary({
           {/* Absent, not disabled, in a single-source library. */}
           <LibrarySourceFilter
             sources={sources}
-            value={shelf.sources}
+            value={selectedSources}
             onValueChange={(next) => changeShelf({ patch: { sources: next }, push: true })}
           />
           <SortMenu order={order} onOrder={(next) => changeShelf({ patch: next, push: true })} />
@@ -288,7 +298,7 @@ export function BookLibrary({
           <LibraryNoMatches
             filter={parsed}
             readFilter={effectiveReadFilter}
-            sourceFiltered={shelf.sources.length > 0}
+            sourceFiltered={selectedSources.length > 0}
           />
         ) : view === "covers" ? (
           <BookGrid
