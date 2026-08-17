@@ -16,6 +16,7 @@
     "storybook": "bun run --cwd apps/web storybook",
     "build:storybook": "bun run --cwd apps/web build-storybook",
     "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun test",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "format": "biome format --write",
