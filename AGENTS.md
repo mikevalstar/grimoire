@@ -82,6 +82,8 @@ Rules:
 - `bun run dev:desktop` — desktop dev with HMR
 - `bun run storybook` — component workshop on :4748
 - `bun run typecheck` — all workspaces (tsc, TypeScript 7)
+- `bun run test` — `bun test` across the repo; CI gates on it alongside lint and
+  typecheck. Tests live next to their subject (`works.test.ts`)
 - `bun run lint` — Biome check (lint + format + import order), no writes;
   `lint:fix` applies safe fixes, `format` formats only
 - `bun run build:web` / `build:desktop` / `build:storybook` / `start:server`

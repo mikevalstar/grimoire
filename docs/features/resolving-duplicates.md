@@ -114,9 +114,16 @@ button's conflict count was always pointing at.
 **Same book** joins the two works. It is the same operation the matcher performs
 and obeys the same rules ([ADR 0013](../adrs/0013-group-duplicate-books-into-works.md)):
 no row is merged away or deleted, the **older** work survives so a rating stays
-where it was, and the members of the other work move into it. A rating on the
-work that loses is carried across rather than cascaded away; where both were
-rated, the higher stands, matching the rule the ADR 0013 migration already set.
+where it was, and the members of the other work move into it.
+
+Everything the losing work carried moves with them — its ratings, read states,
+`manual` series attachments and chosen cover — because all of it hangs off
+`works.id` and would otherwise cascade away with the row. Where both works hold
+an answer from one reader the survivor's stands, except for stars, where the
+higher of the two does, matching the rule the ADR 0013 migration already set.
+Only `manual` series attachments are carried; a synced one is re-derived by the
+next reconcile sweep. See [book matching](book-matching.md#merging), which does
+the same thing automatically.
 
 Every member of the result is **pinned**. A grouping a person made is not the
 matcher's to reconsider, and pinning is how that survives the next sync.
@@ -218,6 +225,9 @@ has a shared schema
       open on the result.
 - [x] A rating on either work survives the merge; where both were rated, the
       higher stands.
+- [x] A read state, a manual series attachment and a chosen cover on the losing
+      work survive the merge; where both readers' rows collide, the surviving
+      work's read state stands.
 - [x] Merging pins every member, and a later sync does not undo it.
 - [x] **Not the same** removes the candidate, survives a reload, and the
       automatic matcher never groups that pair afterwards.

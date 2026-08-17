@@ -51,7 +51,11 @@ when the selection does, exactly as they already track the text query. Sorting
 and grouping apply to whatever survives.
 
 The control is hidden — and any selection dropped — while the library holds one
-source or none.
+source or none. The same applies to a single named source the library doesn't
+hold: the selection travels in the URL
+([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)), so a link
+shared out of a mixed library can name sources its recipient's library has
+never had. Those names are ignored rather than emptying the shelf.
 
 ## Acceptance criteria
 

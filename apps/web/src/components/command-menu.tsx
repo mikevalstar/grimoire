@@ -27,7 +27,14 @@ import { Kbd } from "@/components/ui/kbd";
 import { UserAvatar } from "@/components/user-avatar";
 import type { LibraryBook, User } from "@/lib/api";
 import { rankBooks } from "@/lib/book-search";
-import { chooseSort, GROUP_OPTIONS, SORT_OPTIONS, useLibraryOrder } from "@/lib/library-order";
+import {
+  chooseSort,
+  GROUP_OPTIONS,
+  type LibraryOrder,
+  SORT_OPTIONS,
+  useLibraryOrder,
+} from "@/lib/library-order";
+import { useLibraryViewController } from "@/lib/library-view";
 import { useTheme } from "@/lib/theme";
 import { useViewMode } from "@/lib/view-mode";
 
@@ -95,7 +102,29 @@ export function CommandMenu({
 }: CommandMenuProps) {
   const [query, setQuery] = useState("");
   const [view, setView] = useViewMode();
-  const [order, setOrder] = useLibraryOrder();
+  // Sort and group belong to the shelf the library route holds in the URL, and
+  // an explicit parameter outranks this device's stored order (ADR 0020) — so
+  // the commands have to write where that route reads, not into the mirror.
+  // Without a library route mounted (a story) the mirror is all there is.
+  const shelf = useLibraryViewController();
+  const [storedOrder, setStoredOrder] = useLibraryOrder();
+  const shelfView = shelf?.view;
+  const order: LibraryOrder = useMemo(
+    () =>
+      shelfView
+        ? { sort: shelfView.sort, dir: shelfView.dir, group: shelfView.group }
+        : storedOrder,
+    [shelfView, storedOrder],
+  );
+  const setOrder = useMemo<(next: LibraryOrder) => void>(
+    () =>
+      shelf
+        ? // A sort or group choice is a navigation worth undoing, same as the
+          // toolbar's menus.
+          (next) => shelf.set({ patch: next, push: true })
+        : setStoredOrder,
+    [shelf, setStoredOrder],
+  );
   const { theme, toggle: toggleTheme } = useTheme();
 
   // The app-wide shortcut lives with the palette, so it ships with the feature.

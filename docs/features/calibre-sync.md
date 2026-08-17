@@ -47,6 +47,13 @@ Only one sync runs at a time per Grimoire instance. The scheduler lives in
 `packages/api`, so the desktop app, the hosted server and `bun dev` each get
 exactly one syncer no matter how many browser tabs are open.
 
+One database, one scheduler: a second process syncing the same `grimoire.db`
+would put two writers on one WAL file. The desktop shell
+([`apps/desktop/src/bun/index.ts`](../../apps/desktop/src/bun/index.ts)) claims
+the default API port before it builds the API, and a launch that loses that race
+— another instance, or the standalone server, already running — starts with
+`sync: false` and serves the UI only.
+
 ### Mirroring incrementally
 
 Calibre reports a `last_modified` per book and can sort by it, which gives us

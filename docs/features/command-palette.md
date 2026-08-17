@@ -47,6 +47,14 @@ other reader, add one), library
 reader), sync now, settings by section, theme. Dynamic commands
 name their target ("Switch to list view"), not their category.
 
+**The commands move the same state the toolbar does.** Sort and group live in
+the URL ([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)), so
+the palette reads its markers — the active key's direction arrow, the active
+grouping's check — from the shelf the URL describes and writes back there,
+pushing a history entry the way clicking the toolbar menu does. The
+`localStorage` mirror is only what it falls back to on a surface with no
+library screen behind it, such as a Storybook story.
+
 **Typing.** Book matches come first. The palette and the
 [library quick filter](library-quick-filter.md) call the same ranked matcher,
 so title, author, series, Amazon, ISBN, Google, multi-token, accent, and typo

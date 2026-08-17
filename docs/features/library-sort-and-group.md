@@ -78,6 +78,10 @@ grouped shelf is a link ([ADR 0020](../adrs/0020-library-view-state-lives-in-the
 The `localStorage` mirror stays, demoted to the *default* for a URL that
 doesn't name them: sorting is still how you hold the shelf on this device, but
 an explicit parameter always wins, so a link opens the way its sender saw it.
+Every surface that changes the order writes to the URL — the toolbar menus and
+the [command palette](command-palette.md)'s Sort and Group commands alike —
+since anything writing only the mirror would be outranked by the parameter and
+appear to do nothing.
 
 **Counts.** The toolbar's book count keeps counting books, not sections.
 

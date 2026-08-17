@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { z } from "zod";
 import type { ReadStatusFilterValue } from "@/components/read-status-filter";
 import {
@@ -113,5 +114,44 @@ export interface LibraryViewChange {
 }
 
 export type SetLibraryView = (change: LibraryViewChange) => void;
+
+/** The library route's live view, and the way to move it. */
+export interface LibraryViewController {
+  view: LibraryView;
+  set: SetLibraryView;
+}
+
+/**
+ * The live view of the library, published by the route that owns the URL, as a
+ * tiny global store — the same shape as open-book.ts, in the other direction.
+ *
+ * The command palette is mounted in the shell, above the outlet, so it has no
+ * props from the library screen; without this it could only move the shelf
+ * through the `localStorage` order mirror, which an explicit URL parameter
+ * outranks (ADR 0020) — the commands would write a preference and leave the
+ * shelf where it was. Null while no library route is mounted (a story, a
+ * future screen), which is the caller's cue to fall back to the mirror.
+ */
+let controller: LibraryViewController | null = null;
+
+const listeners = new Set<() => void>();
+
+export function publishLibraryView(next: LibraryViewController | null) {
+  controller = next;
+  for (const listener of listeners) listener();
+}
+
+export function useLibraryViewController(): LibraryViewController | null {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    () => controller,
+    () => null,
+  );
+}
 
 export type { GroupKey, LibraryOrder, SortDir, SortKey };

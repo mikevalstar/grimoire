@@ -131,11 +131,39 @@ Three of their limits shape it:
   name } }` their examples use is out of reach. The book's cached JSON columns —
   contributors, image, tags — carry the same information one level shallower,
   and are what the mirror reads.
-- **60 requests a minute.** Pages are paced so a large library cannot spend the
-  budget, and a paged sweep stops at a page limit rather than running forever.
+- **60 requests a minute, per account.** See
+  [Staying under the rate limit](#staying-under-the-rate-limit) — a sweep also
+  stops at a page limit rather than running forever.
 - **Tokens expire after a year**, so a sync failing with "not accepted" is a
   normal end state, not a bug. It is recorded against the reader and shown next
   to their name in [settings](settings.md).
+
+### Staying under the rate limit
+
+A sweep is not the only thing spending the budget, and a page is not one
+request. The sweep costs **two per page** — the shelf page, then the query that
+names its series — and at the same time an open
+[details panel](book-details-panel.md) is reading a book live, the finder is
+searching, and a rating is being written back. All of it is one reader's token
+against one 60-a-minute ceiling.
+
+So the pacing is not in the sweep. Every Hardcover request this process makes
+goes through a **token bucket**, one per token, in
+[`hardcover-rate-limit.ts`](../../packages/api/src/hardcover-rate-limit.ts) —
+placed under the single function that fetches their URL at all, so nothing can
+route around it. It refills at 55 a minute, under their 60 for headroom, and
+holds a burst of the same size: an idle Grimoire answers a panel's two or three
+reads instantly, and a sweep of thousands settles to the sustained rate on its
+own. The sweep's loop simply asks for pages and waits however long the bucket
+makes it wait.
+
+**A 429 is survived, not fatal.** Their accounting can still disagree with ours
+— a second client on the same token, a window that began earlier than we think.
+A rate-limited request pauses *every* request on that token, honouring
+`Retry-After` when their gateway sends one and backing off a window at a time
+when it doesn't, then retries. Only after three attempts does the error reach
+the reader. Before this, one 429 mid-sweep failed the whole sync; with no
+partial-progress resume, the next hourly run then failed at the same page.
 
 Their shapes are parsed at the boundary with Zod
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)), and the
@@ -334,7 +362,9 @@ hardcover_sync_error TEXT
 
 - `POST /api/users/:id/hardcover/sync` — sync that reader now, answering with
   their updated record. Runs to completion in the request; there is no progress
-  readout yet.
+  readout yet. Pacing makes that request long, so every host serves with a 30s
+  idle timeout rather than Bun's 10s default; a very large shelf can still
+  outlast it, and the fix for that is a 202-plus-poll endpoint we have not built.
 - `GET /api/users` carries each reader's Hardcover username, book count, status
   counts, last sync time and last sync error — everything
   [settings](settings.md) shows, and never the token.
@@ -361,8 +391,10 @@ hardcover_sync_error TEXT
 - [x] A rating serialised as a string, and a book missing its `cached_*` blobs,
       both survive rather than failing the page they arrived on.
 - [ ] A library larger than one page pages through it, without exceeding
-      Hardcover's rate limit. *(Paging and pacing are written; only a real
-      account can prove it.)*
+      Hardcover's rate limit. *(Paging is written and the bucket is tested on a
+      fake clock; only a real account can prove the ceiling itself.)*
+- [x] A 429 mid-sweep pauses and is retried rather than failing the sync, and a
+      `Retry-After` is honoured when one is sent.
 - [x] An expired token fails the sync, records the reason against that reader,
       and leaves every other reader syncing.
 - [x] Unlinking a reader takes their shelf entries with it and leaves `books`
@@ -376,8 +408,13 @@ hardcover_sync_error TEXT
   Hardcover — their depth-3 limit put `editions` out of reach of this sweep — so
   [book matching](book-matching.md) runs on titles and authors alone. Fetching
   them is a second query against ids already mirrored.
-- **Full sweeps only.** `user_books.updated_at` is mirrored and unused; an
-  incremental sweep is the obvious next step for anyone with a large shelf.
+- **Full sweeps only, and no resume.** `user_books.updated_at` is mirrored and
+  unused; an incremental sweep is the obvious next step for anyone with a large
+  shelf. A sweep that fails part-way also discards the pages it did read and
+  starts from offset 0 an hour later — survivable now that a 429 is retried,
+  but a timeout or a dropped connection still costs the whole sweep. Resuming
+  needs the offset persisted against the reader and a rule for when a stale
+  one is no longer safe to trust.
 - **A book un-shelved on Hardcover keeps its `books` row forever**, exactly as a
   book deleted from Calibre does — except this one may never have been read,
   owned or rated. "Sync never deletes" was written for books someone had a

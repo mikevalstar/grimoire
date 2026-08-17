@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookLibrary } from "@/components/book-library";
 import { HardcoverFindDialog, type PendingFind } from "@/components/hardcover-find-dialog";
 import { HardcoverShelveDialog, type PendingShelve } from "@/components/hardcover-shelve-dialog";
@@ -23,6 +23,7 @@ import {
   librarySearchSchema,
   libraryViewFromSearch,
   libraryViewToSearch,
+  publishLibraryView,
   type SetLibraryView,
   touchesOrder,
 } from "@/lib/library-view";
@@ -66,21 +67,34 @@ function useLibraryView(): [LibraryView, SetLibraryView] {
   const navigate = Route.useNavigate();
   const [storedOrder] = useLibraryOrder();
 
-  const view = libraryViewFromSearch(search, storedOrder);
+  // Memoised so the published controller below is stable between changes.
+  const view = useMemo(() => libraryViewFromSearch(search, storedOrder), [search, storedOrder]);
   // The URL already names the order, or this change is about to.
   const ordered =
     search.sort !== undefined || search.dir !== undefined || search.group !== undefined;
 
-  const setView: SetLibraryView = ({ patch, push }) => {
-    const next = { ...view, ...patch };
-    // Keep the per-device mirror in step, so the *next* bare visit opens the
-    // way this one was left.
-    if (touchesOrder(patch)) setLibraryOrder({ sort: next.sort, dir: next.dir, group: next.group });
-    void navigate({
-      search: libraryViewToSearch(next, ordered || touchesOrder(patch)),
-      replace: !push,
-    });
-  };
+  const setView: SetLibraryView = useCallback(
+    ({ patch, push }) => {
+      const next = { ...view, ...patch };
+      // Keep the per-device mirror in step, so the *next* bare visit opens the
+      // way this one was left.
+      if (touchesOrder(patch))
+        setLibraryOrder({ sort: next.sort, dir: next.dir, group: next.group });
+      void navigate({
+        search: libraryViewToSearch(next, ordered || touchesOrder(patch)),
+        replace: !push,
+      });
+    },
+    [view, ordered, navigate],
+  );
+
+  // Surfaces outside the route need this too: the command palette is mounted
+  // in the shell, above the outlet, and its Sort/Group commands have to move
+  // the URL rather than the `localStorage` mirror the URL outranks (ADR 0020).
+  useEffect(() => {
+    publishLibraryView({ view, set: setView });
+    return () => publishLibraryView(null);
+  }, [view, setView]);
 
   return [view, setView];
 }

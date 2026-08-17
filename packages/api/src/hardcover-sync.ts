@@ -27,13 +27,6 @@ import { cacheRemoteCover, REMOTE_COVER_CONCURRENCY } from "./remote-covers.ts";
  */
 
 /**
- * Their limit is 60 requests a minute. Pacing pages a second apart keeps a
- * large library inside it without any bookkeeping — and a sweep is sequential,
- * so this is the whole rate limiter.
- */
-const PAGE_PAUSE_MS = 1_000;
-
-/**
  * A stop, not a target: 200 pages is 20,000 books, past which something is
  * wrong with the paging rather than with the reader's ambitions.
  */
@@ -168,9 +161,12 @@ export class HardcoverSync {
     const now = new Date().toISOString();
     const seen: number[] = [];
 
+    // No pacing here: the sweep costs *two* requests a page, and the panel reads
+    // spend the same per-account budget at the same time, so a pause between
+    // pages was never the rate limiter it claimed to be. The token bucket every
+    // Hardcover request passes through is (hardcover-rate-limit.ts) — this loop
+    // just asks, and waits as long as the bucket makes it wait.
     for (let page = 0; page < MAX_PAGES; page++) {
-      if (page > 0) await Bun.sleep(PAGE_PAUSE_MS);
-
       const entries = await fetchShelfPage(account.token, hardcoverUserId, page * PAGE_SIZE);
       // The page carries series ids and no names — `user_books { book {
       // book_series { series } } }` is depth 4 and their queries stop at 3 — so
