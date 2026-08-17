@@ -12,6 +12,32 @@ A better way to organize and browse your books. Grimoire is a UI over your
 (Electrobun), a self-hosted web server, or a local web app — all from the same
 codebase.
 
+![The library as a wall of covers](docs/screenshots/library-covers.png)
+
+## Screenshots
+
+Your whole library on one shelf — filter, sort and group it, and every view is
+a URL you can send to someone. `⌘K` searches every book from anywhere, so you
+never have to go find the filter box.
+
+![The command menu, searching for an author](docs/screenshots/command-menu.png)
+
+A book you own *and* track is one card, not two: the flyout shows the Calibre
+row and the Hardcover row it was matched with, and lets you separate them if
+the match is wrong.
+
+![A book's details flyout, showing its Calibre and Hardcover rows](docs/screenshots/book-details.png)
+
+The same shelf as a table, here narrowed to what's been read and grouped by the
+year it was finished. Light and dark both ship.
+
+![The read shelf as a list, grouped by read year](docs/screenshots/read-shelf.png)
+
+Settings is where the sources live: point Grimoire at your Calibre content
+server, watch it sync, and link a Hardcover account per reader.
+
+![Settings, showing the Calibre content server and sync state](docs/screenshots/settings-calibre.png)
+
 ## Sources
 
 Grimoire keeps its own SQLite database and syncs into it, rather than reading a
