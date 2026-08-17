@@ -21,7 +21,10 @@ signed builds until certificate-backed signing is added to CI.
 ## Steps
 
 1. Merge the intended changes to `main` and wait for the **Build and release**
-   workflow to pass on that commit.
+   workflow to pass on that commit. Pull requests only build the `linux-x64`
+   desktop target, so this is the first run that proves Windows and macOS still
+   package — treat a failure here as a blocker, not a flake
+   ([`ci-release.yml`](../../.github/workflows/ci-release.yml)).
 2. Ensure merged pull requests have one useful changelog label: `feature` or
    `enhancement`, `bug` or `fix`, `documentation`, `chore`, `dependencies`, or
    `breaking-change`. Use `skip-changelog` only for changes readers should not
