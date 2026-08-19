@@ -18,21 +18,22 @@ Accepted.
 The frontend talks to the API over HTTP and nothing else
 ([ADR 0002](0002-one-http-api-three-delivery-targets.md)), so nothing checks
 that the two agree. Today the shapes are hand-written TypeScript interfaces the
-API casts to and the client casts from — the compiler is satisfied on both
-sides while the wire format is whatever the server actually sent. Request
-validation is hand-rolled per route, and payloads that pass through the Calibre
-content server proxy are cast from `any` at the call site.
+API casts to and the client casts from. The compiler is happy on both sides
+while the wire format is whatever the server actually sent. Each route
+hand-rolls its own request validation, and the call site casts payloads coming
+through the Calibre content server proxy from `any`.
 
-Version skew makes this worse than a normal monorepo: a hosted server can be
-newer than the bundle a browser has cached, and a desktop build ships its own
-frontend and API together but talks to a Calibre server it does not control.
+Version skew makes this worse than it would be in a normal monorepo. A hosted
+server can be newer than the bundle a browser has cached, and a desktop build
+ships its own frontend and API together but talks to a Calibre server it does
+not control.
 
 ## Decision
 
 [Zod](https://zod.dev) schemas are the single source of truth for every API
 payload. They live in `packages/core/src/schemas.ts`, exported as
-`@grimoire/core/schemas` — browser-safe, no bun-only imports, same rule as
-`types.ts`.
+`@grimoire/core/schemas`. That file stays browser-safe, with no bun-only
+imports, same rule as `types.ts`.
 
 - **Types are derived, never written twice.** `z.infer<typeof X>` replaces the
   hand-written interface.
@@ -52,8 +53,8 @@ payload. They live in `packages/core/src/schemas.ts`, exported as
 Wire-format drift becomes a caught error with a path to the offending field
 instead of a crash somewhere downstream, and adding a field means editing one
 schema. Zod ships to the browser, costing bundle size, and every response pays
-a parse. Schemas must stay tolerant of fields we do not model — Calibre's
-included — so they are not written strict by default.
+a parse. Schemas must stay tolerant of fields we do not model, Calibre's
+included, so we never write them strict by default.
 
 This does not give us compile-time coupling between a route and its client
 call; the schema is shared, but the URL and method are still strings on both

@@ -5,7 +5,7 @@ okf_version: "0.2"
 # Knowledge base
 
 An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf)
-(OKF) bundle — Markdown + YAML frontmatter, one concept per file. Query it with okq:
+(OKF) bundle. Markdown + YAML frontmatter, one concept per file. Query it with okq:
 
     okq find --type adr
     okq search "<topic>"

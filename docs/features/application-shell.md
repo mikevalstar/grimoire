@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Application shell
-description: The persistent frame every screen renders inside — an ambient backdrop, a top header carrying the wordmark, search, sync, settings and the current reader, and a full-width content region.
+description: The persistent frame every screen renders inside. An ambient backdrop, a top header carrying the wordmark, search, sync, settings and the current reader, and a full-width content region.
 tags: [frontend, ui, navigation]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-10 }
@@ -18,29 +18,29 @@ width of the window.
 ## Motivation
 
 Before any library feature exists there needs to be somewhere to put it. The
-shell fixes the things that should not be re-decided per screen — where the app
-identity sits, where global actions live, how wide content may run — so feature
-work is about the feature.
+shell fixes the things that should not be re-decided per screen: where the app
+identity sits, where global actions live, how wide content may run. Feature work
+is then about the feature.
 
-It is also where the visual language is established, so new components land
-close to the design instead of needing a rewrite.
+It also sets the visual language, so new components land close to the design
+instead of needing a rewrite.
 
 ## Behavior
 
-**The palette.** Two accents are used strictly: an indigo `--you-*` marks
-anything that is the reader's *own* — rating, progress, selection, focus — and
-an amber `--hc-*` is reserved for data that comes from other readers. The
-shadcn tokens are defined against these. Reader colours are a separate plane
-and identify a *person*, never library data
+**The palette.** Two accents, used strictly. An indigo `--you-*` marks anything
+that is the reader's *own*: rating, progress, selection, focus. An amber
+`--hc-*` is only for data that comes from other readers. The shadcn tokens
+derive from these two. Reader colours are a separate plane and identify a
+*person*, never library data
 ([setup wizard](first-run-setup-wizard.md)).
 
 **Two themes.** Dark is the design's home and the default; light is the same
 structure inverted. Components draw their chrome from a small set of layer
 tokens rather than naming colours, so the two themes flip with no per-component
 branching. The choice is per-device, kept in `localStorage` rather than in
-preferences — a phone browsing the same self-hosted library should not have to
-match the desktop — and applies before first paint so there is no flash of the
-wrong canvas.
+preferences, because a phone browsing the same self-hosted library should not
+have to match the desktop. It applies before first paint, so there is no flash
+of the wrong canvas.
 
 **Header.** Sticky, translucent over scrolled content, holding left to right:
 the wordmark linking to the library root; a search trigger, which opens the
@@ -49,15 +49,15 @@ the wordmark linking to the library root; a search trigger, which opens the
 current reader is linked; a theme toggle; the
 [sync indicator](calibre-sync.md); [settings](settings.md); and the current
 reader as an avatar chip. It sheds the least essential of those on narrow
-screens — the sync indicator stays, because it is also the error surface.
+screens. The sync indicator stays, because it also reports errors.
 
 **Avatar menu.** The avatar chip is a menu: every reader, with the current one
-marked — picking switches this device's reader instantly (a per-device
-convenience, not a credential —
-[ADR 0008](../adrs/0008-multiple-users-without-authentication.md)) — plus **Add
-reader**, which opens [settings](settings.md) on its Readers section, and
-**Settings** itself, which is also how narrow screens reach settings once the
-gear is shed.
+marked. Picking switches this device's reader instantly, a per-device
+convenience rather than a credential
+([ADR 0008](../adrs/0008-multiple-users-without-authentication.md)). The menu
+also carries **Add reader**, which opens [settings](settings.md) on its Readers
+section, and **Settings** itself, which is also how narrow screens reach
+settings once the gear is shed.
 
 **Content region.** Everything else. It scrolls independently of the header and
 runs full width with no max-width clamp, so screens render their own content
@@ -66,23 +66,22 @@ screen to fill it.
 
 **Tooltips.** The shell mounts the app's one and only tooltip
 ([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)). Anything that
-wants a hover explanation — a source mark in the
+wants a hover explanation opts in with data attributes rather than wrapping
+itself in a tooltip component: a source mark in the
 [book list](book-list.md), a control in the
-[details panel](book-details-panel.md), the sync indicator — opts in with data
-attributes rather than wrapping itself in a tooltip component. It portals to the
+[details panel](book-details-panel.md), the sync indicator. It portals to the
 body and sits above the sheet, so a tooltip inside the details panel is neither
 clipped nor underneath it.
 
 Every icon-only control in the header carries one, and it explains rather than
-names: the theme toggle says which theme the click moves *to*, the gear names
+names. The theme toggle says which theme the click moves *to*, the gear names
 what settings holds, and the avatar names the current reader and what the menu
-offers — which, with a single reader, is adding another rather than switching.
-The avatar's tooltip is dropped while its menu is open, so it never sits on top
-of the menu it just opened. Every one of them keeps its `aria-label`
-underneath.
+offers. With a single reader, that is adding another rather than switching. The
+avatar's tooltip is dropped while its menu is open, so it never sits on top of
+the menu it just opened. Every one of them keeps its `aria-label` underneath.
 
 **Setup gate.** The [first-run setup wizard](first-run-setup-wizard.md) renders
-*above* the shell, not inside it: until preferences are configured there is no
+*above* the shell, not inside it. Until preferences are configured there is no
 library to frame.
 
 ## Acceptance criteria
@@ -110,5 +109,5 @@ library to frame.
 
 - There is no wordmark. The header is plain type until one is designed.
 - The theme toggle is a two-way flip with no "follow the system" state.
-- Latitude puts a third region — the Pulse rail — beside the library. Out of
+- Latitude puts a third region, the Pulse rail, beside the library. Out of
   scope unless the hardcover.app integration lands.
