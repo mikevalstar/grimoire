@@ -17,16 +17,16 @@ Accepted.
 
 Calibre exposes a library two ways: the `metadata.db` SQLite file on disk, and
 the content server's HTTP API. Reading the file directly is faster and needs
-nothing running, but the schema is Calibre's private business, it changes
-between releases, and concurrent access while Calibre is writing is a hazard we
-would have to handle ourselves. Grimoire is read-only against Calibre for now —
-Calibre stays the source of truth.
+nothing running. But the schema is Calibre's private business and it changes
+between releases, and we would have to handle concurrent access ourselves while
+Calibre is writing. Grimoire is read-only against Calibre for now, so Calibre
+stays the source of truth.
 
 ## Decision
 
 Grimoire reads library data only through a running Calibre content server.
 `packages/api` reverse-proxies it at `/api/cs/*` (`/api/cs/ajax/search`,
-`/api/cs/ajax/books`, …). The target is resolved per request from the
+`/api/cs/ajax/books`, …). The API resolves the target per request from the
 `calibre.serverUrl` preference, falling back to `CALIBRE_SERVER` and then
 `http://localhost:8080`, so changing it in the UI takes effect without a
 restart. `POST /api/calibre/test` probes a candidate URL server-side, which also
@@ -38,10 +38,10 @@ reads for bulk sync, but the default answer is no.
 
 ## Consequences
 
-We are insulated from schema churn and from fighting Calibre for the file, and
-one code path serves every delivery target. In return, Calibre must be running
-for Grimoire to show anything — a real setup burden, and the reason first-run
-setup collects and tests a server URL. We also inherit the content server's
-query vocabulary and its per-request latency, which is what makes local
+Schema churn no longer reaches us, we never fight Calibre for the file, and one
+code path serves every delivery target. In return, Calibre must be running
+before Grimoire can show anything. That is a real setup burden, and the reason
+first-run setup collects and tests a server URL. We also inherit the content
+server's query vocabulary and its per-request latency, which is what makes local
 supplemental storage ([ADR 0006](0006-grimoire-owned-sqlite-for-supplemental-data.md))
 worth having.

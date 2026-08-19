@@ -15,8 +15,9 @@ Accepted.
 
 ## Context
 
-We need to record the architectural decisions made on this project — the
-significant, hard-to-reverse ones — so the reasoning survives turnover and time.
+We need to record the architectural decisions made on this project, the
+significant and hard-to-reverse ones, so the reasoning survives turnover and
+time.
 
 ## Decision
 
@@ -27,6 +28,5 @@ Decision / Consequences.
 
 ## Consequences
 
-The rationale behind decisions is preserved and queryable
-(`okq find --type adr`). One lightweight step is added when making a
-significant decision.
+ADRs keep the reasoning behind decisions and make it queryable
+(`okq find --type adr`). Every significant decision costs one extra step.

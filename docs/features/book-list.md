@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Book list
-description: The library screen — every book Grimoire knows about, shown either as a grid of covers or a dense table, with search, ordering, read-status filtering, and view controls.
+description: The library screen. Every book Grimoire knows about, shown either as a grid of covers or a dense table, with search, ordering, read-status filtering, and view controls.
 tags: [frontend, ui, library, calibre]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-11 }
@@ -11,21 +11,22 @@ generated: { by: okq/0.8.0, at: 2026-08-11 }
 
 ## Summary
 
-The app's home screen: every book Grimoire knows about — synced from the
+The app's home screen. Sync pulls every book from the
 [Calibre content server](../adrs/0005-calibre-content-server-as-the-data-source.md)
-into its own database ([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md))
-— rendered either as a grid of covers or as a dense table, with a toolbar above
-that switches between the two views.
+into Grimoire's own database
+([ADR 0011](../adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md)),
+and the screen renders them either as a grid of covers or as a dense table,
+with a toolbar above that switches between the two views.
 
 ## Motivation
 
-This is the first real library surface, and it settles two things everything
+This is the first real library screen. It settles two things everything
 downstream depends on: how a book is represented (cover, title, author, series,
 rating), and that a *view* is a swappable presentation of one query rather than
 a separate screen.
 
-Both views exist because they answer different questions — browsing ("what do I
-feel like?") wants covers, looking something up ("do I own this, and in what
+Both views exist because they answer different questions. Browsing ("what do I
+feel like?") wants covers; looking something up ("do I own this, and in what
 format?") wants columns. Building both off one book model keeps a third view
 (spines) and the filter/sort layer from needing a rewrite.
 
@@ -33,21 +34,21 @@ format?") wants columns. Building both off one book model keeps a third view
 
 **The toolbar.** One sticky row above the library: text search, the
 [source filter](library-source-filter.md), sort, and group controls on the left;
-a three-way **All / To read / Read** segmented filter and the view switcher on
-the right. The read filter replaces the former result count and shows the count
-for each state. Its counts reflect the text- and source-filtered set before read
+a three-way All / To read / Read segmented filter and the view switcher on the
+right. The read filter replaces the former result count and shows the count for
+each state. Its counts reflect the text- and source-filtered set before read
 status is applied, so switching status does not make the other choices
 disappear. Read state is the current reader's state; until a reader is
 selected, the control stays on All and is unavailable.
 
-The active read filter is immediate browser-side state and composes with text
-search, sorting, and grouping without refetching. Lower breathing room and a
-quiet, center-weighted rule separate the controls from the scrolling shelf
-without turning them into a second panel.
+The active read filter is browser-side state and composes with text search,
+sorting, and grouping without refetching. Padding below the controls and a
+center-weighted rule separate them from the scrolling shelf without turning
+them into a second panel.
 
 **Covers view.** An auto-filling grid with no max width, reflowing from two
 columns on a phone to as many as the window allows. Each card is a cover, title,
-author, series line, and the stars — which are a control, not a read-out
+author, series line, and the stars. The stars are a control, not a read-out
 ([rating a book](rating-a-book.md)). Every card spends the same number of lines
 on metadata whether or not the book has a series, so cards are the same height
 and the stars line up across a row where they can be aimed at.
@@ -56,8 +57,8 @@ The author and series lines are *links into the shelf*: each author name, and
 the series name, filters the library to it by writing an `author:` or `series:`
 term into the [quick filter](library-quick-filter.md). A card names identities,
 not prose, and the obvious thing to want from an author's name is the rest of
-their books. A card with several authors makes each one separately clickable,
-and the series index stays plain text beside the name — `#3` is not a thing to
+their books. A card with several authors makes each one separately clickable.
+The series index stays plain text beside the name, since `#3` is not a thing to
 filter by. These are the same rules the
 [details panel](book-details-panel.md) header follows.
 
@@ -65,36 +66,36 @@ filter by. These are the same rules the
 thumbnail, title, author, series, your rating, formats, date added, and a
 trailing actions column. Columns are fixed for now; a picker is a later feature.
 
-**Marks.** Small icons in the bottom-left corner of a cover — and beside the
-title in list view, which has no corner to use — saying where the book came
+**Marks.** Small icons in the bottom-left corner of a cover, and beside the
+title in list view, which has no corner to use. They say where the book came
 from and what has happened to it since: in Calibre, on someone's
 [Hardcover](hardcover-sync.md) shelves, or kept by Grimoire after Calibre
 dropped it.
 
-A book carries a *list* of marks, not one: a card is a work, and a work is every
+A book carries a *list* of marks, not one. A card is a work, and a work is every
 row [matching](book-matching.md) decided is the same book, so one held in both
 libraries shows both marks
 ([ADR 0013](../adrs/0013-group-duplicate-books-into-works.md)). The same list is
-where anything else worth stating about a book — owned, borrowed, unmatched —
-would go.
+where anything else worth stating about a book would go: owned, borrowed,
+unmatched.
 
-A source wears its own logo — calibre's shelf of books, Hardcover's bookmark,
-each the real mark rather than a stand-in glyph, because these name applications
-people already recognise on sight ([brand-icons.tsx](../../apps/web/src/components/brand-icons.tsx)).
-Marks about what happened to a book rather than where it came from — Calibre
-dropped it — stay generic icons, since there is no logo for an absence.
+A source wears its own logo: calibre's shelf of books, Hardcover's bookmark.
+Each is the real mark rather than a stand-in glyph, because these name
+applications people already recognise on sight
+([brand-icons.tsx](../../apps/web/src/components/brand-icons.tsx)).
+Marks about what happened to a book rather than where it came from, such as
+Calibre dropping it, stay generic icons. There is no logo for an absence.
 
 Icons only, with the short name as the accessible name and the longer
-explanation in the tooltip. Nearly
-every book in a Calibre library carries the same mark, and a list of two hundred
-rows each spelling out "Calibre" is a word repeated until it stops being read,
-while the icons still separate the handful saying something else. Books with no
-cover reserve that corner in their placeholder, so a mark never lands on the
-title standing in for one.
+explanation in the tooltip. Nearly every book in a Calibre library carries the
+same mark, and a list of two hundred rows each spelling out "Calibre" is a word
+repeated until it stops being read. The icons still separate the handful saying
+something else. Books with no cover reserve that corner in their placeholder, so
+a mark never lands on the title standing in for one.
 
 **Hover.** Pointing at a book is how it offers to do something. A card lifts and
 takes the user accent; a row takes a raised fill; in both, a download button
-fades into place and the stars come up from hollow. Two rules hold this
+fades into place and the stars come up from hollow. Three rules hold this
 together, and they apply to every hover affordance Grimoire adds:
 
 - **Nothing appears on hover that a keyboard can't reach.** Revealed controls
@@ -103,30 +104,30 @@ together, and they apply to every hover affordance Grimoire adds:
 - **Hover never moves anything a click is aimed at.** Revealed controls occupy
   their space from the start and only fade in; the actions column holds its
   width; motion is `motion-safe` only.
-- **A tooltip explains, it never names.** The small marks and icon buttons on a
-  book — source marks, the cover stack, the download chip, the dog-ear, the
-  clear-rating × — all point at the app's one shared tooltip
-  ([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)), and all
-  keep their own accessible name underneath it. One instance for the whole
+- **A tooltip explains, it never names.** Every small mark and icon button on a
+  book points at the app's one shared tooltip
+  ([ADR 0016](../adrs/0016-react-tooltip-for-hover-affordances.md)): source
+  marks, the cover stack, the download chip, the dog-ear, the clear-rating ×.
+  Each keeps its own accessible name underneath it. One instance for the whole
   screen is what makes this free in a virtualized shelf
   ([ADR 0015](../adrs/0015-virtualize-library-views-with-tanstack-virtual.md)):
   a row scrolling past mounts data attributes, not a tooltip.
 
 **Downloading.** The download button hands over the file straight from Calibre
 through the `/api/cs` proxy, which names it. This is the one thing on the shelf
-still fetched live, and it needs a *Calibre* id — so a book that has left the
+still fetched live, and it needs a *Calibre* id. A book that has left the
 library shows no download button and says why ([Calibre sync](calibre-sync.md)).
 Grimoire kept the record; the file was always Calibre's.
 
 The button answers to how many formats a book has: one format downloads
 directly, several open a menu of them most-portable-first, none shows no button.
-Guessing a format silently is the wrong guess for a reader who came for the PDF;
-the cost is a click, and only on books that actually have a choice.
+Guessing a format is the wrong guess for a reader who came for the PDF; the cost
+is a click, and only on books that have a choice.
 
 **Covers** come from Grimoire's own cache, fetched and scaled ahead of time by
 [sync](calibre-sync.md), so the shelf draws with the content server stopped.
 Each view asks for the nearest of three fixed sizes rather than arbitrary
-pixels. A book with no cover — or one sync hasn't reached — falls back to a
+pixels. A book with no cover, or one sync hasn't reached, falls back to a
 drawn placeholder, so a coverless library reads as a shelf rather than as broken
 images.
 
@@ -175,7 +176,7 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] Both views virtualize off-screen rows while preserving grouped headings
       and one continuous scrollbar.
 - [x] Loading, empty and error states are handled in both views.
-- [x] Every hover affordance is reachable — and visible — from the keyboard, and
+- [x] Every hover affordance is reachable and visible from the keyboard, and
       hovering never reflows the library.
 - [x] The download button fetches a real file named by Calibre, offers every
       format when there is a choice, and is absent for a book with none.
@@ -188,12 +189,12 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 ## Open questions
 
 - **Books from two sources share one shelf.** A book in both Calibre and
-  hardcover.app is one card carrying both marks — unless
-  [matching](book-matching.md) can't tell they are the same book, in which case
-  it is two, and stays two until manual resolution exists.
+  hardcover.app is one card carrying both marks, unless
+  [matching](book-matching.md) can't tell they are the same book. Then it is
+  two, and stays two until manual resolution exists.
 
 - **Structured filters.** Author and series filtering exists as
-  [filter terms](library-quick-filter.md) typed into — or clicked into — the
+  [filter terms](library-quick-filter.md) typed into, or clicked into, the
   quick filter box. Tag, format and rating are the same shape and unbuilt, and
   none of them are *pills* yet: the terms live as text in one box rather than
   as removable chips. The table's column headers are still not a sort entry

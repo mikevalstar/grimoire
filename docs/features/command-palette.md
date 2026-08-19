@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Command palette
-description: A Cmd+K menu that drops down from the header search trigger — find and open a book, or run any global action, without leaving the keyboard.
+description: A Cmd+K menu that drops down from the header search trigger. Find and open a book, or run any global action, without leaving the keyboard.
 tags: [frontend, ui, library, navigation]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-15 }
@@ -13,31 +13,31 @@ generated: { by: okq/0.8.0, at: 2026-08-15 }
 
 Pressing Cmd+K (or clicking the header's search trigger) opens a panel that
 drops down beneath the trigger. Typing searches the library and the app's
-commands at once: pick a book to open its
-[details panel](book-details-panel.md), or run an action — switch view, sort,
-group, change reader, sync, open a settings section, flip the theme — and the
-panel closes.
+commands at once. Pick a book to open its
+[details panel](book-details-panel.md), or run an action: switch view, sort,
+group, change reader, sync, open a settings section, flip the theme. Either
+way the panel closes.
 
 ## Motivation
 
 The [application shell](application-shell.md) has carried an inert search
-trigger since it landed; this makes it real. Everything the palette does is
-already reachable through toolbar menus and header buttons — the palette's job
-is speed: one keystroke, a few characters, Enter. It is also a keyboard-first
-entry point to the same search used by the
-[library quick filter](library-quick-filter.md).
+trigger since it landed. This makes it real. Everything the palette does is
+already reachable through toolbar menus and header buttons, so the palette's
+job is speed. One keystroke, a few characters, Enter. It is also a
+keyboard-first way into the same search the
+[library quick filter](library-quick-filter.md) uses.
 
 ## Behavior
 
 **A dropdown, not a takeover.** The panel hangs under the header search
-trigger rather than floating over a dimmed screen — the library stays fully
-visible behind it. Structurally it is still a dialog (focus moves into it,
-Esc and clicking elsewhere dismiss it), but the overlay is transparent, so it
+trigger rather than floating over a dimmed screen, so the library stays
+visible behind it. Structurally it is still a dialog: focus moves into it, and
+Esc or a click elsewhere dismisses it. But the overlay is transparent, so it
 reads as the trigger expanding rather than a mode switch.
 
-**Opening.** Cmd+K or Ctrl+K from anywhere — pressing it again closes. Both
-header triggers (the wide bar and the narrow-screen icon) open it. Focus lands
-in the input; the query resets on close.
+**Opening.** Cmd+K or Ctrl+K opens it from anywhere, and pressing it again
+closes it. Both header triggers (the wide bar and the narrow-screen icon) open
+it. Focus lands in the input; the query resets on close.
 
 **Empty query.** The full command list, grouped: view (covers/list), sort
 (one entry per [sort key](library-sort-and-group.md), re-running the active
@@ -48,20 +48,20 @@ reader), sync now, settings by section, theme. Dynamic commands
 name their target ("Switch to list view"), not their category.
 
 **The commands move the same state the toolbar does.** Sort and group live in
-the URL ([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)), so
-the palette reads its markers — the active key's direction arrow, the active
-grouping's check — from the shelf the URL describes and writes back there,
+the URL ([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)). The
+palette reads its markers, the active key's direction arrow and the active
+grouping's check, from the shelf the URL describes. It writes back there too,
 pushing a history entry the way clicking the toolbar menu does. The
-`localStorage` mirror is only what it falls back to on a surface with no
-library screen behind it, such as a Storybook story.
+`localStorage` mirror is only the fallback on a screen with no library behind
+it, such as a Storybook story.
 
 **Typing.** Book matches come first. The palette and the
 [library quick filter](library-quick-filter.md) call the same ranked matcher,
 so title, author, series, Amazon, ISBN, Google, multi-token, accent, and typo
-behavior cannot drift between the two surfaces. The palette only caps that
-shared ranked result at six. Commands whose label or keywords match follow;
-Enter runs the highlighted row, arrow keys move, and a footer strip shows the
-key hints. No matches shows a plain empty state.
+behavior cannot drift between the two. The palette's only change is capping
+that shared ranked result at six. Commands whose label or keywords match
+follow. Enter runs the highlighted row, arrow keys move the highlight, and a
+footer strip shows the key hints. No matches shows a plain empty state.
 
 **Out of scope for now.** A "filter the library for this text" row that hands
 the palette query into the toolbar filter. Per-command shortcut keys and

@@ -17,27 +17,27 @@ Accepted.
 
 Grimoire ships three ways from one codebase: a desktop app, a self-hosted
 server, and a local web app. The obvious failure mode is the desktop build
-growing native shortcuts — direct file reads, IPC calls — that the hosted build
-cannot have, after which the two drift into separate products.
+growing native shortcuts the hosted build cannot have, like direct file reads
+and IPC calls. After that, the two drift into separate products.
 
 ## Decision
 
 `packages/api` exports `createApi()`, returning a Hono app mounted at `/api`.
 Every target embeds that same app: `apps/server` serves it alongside the built
 web bundle, `apps/desktop` starts it in-process, and Vite proxies to it in dev.
-The frontend talks HTTP and nothing else — no privileged bridge, no
+The frontend talks HTTP and nothing else. No privileged bridge, no
 mode-conditional data path.
 
-The API opens the library lazily so it can boot unconfigured and answer 503
-with a hint, which is what makes first-run setup work identically everywhere.
+The API opens the library lazily, so it can boot unconfigured and answer 503
+with a hint. That is what makes first-run setup work the same everywhere.
 
 ## Consequences
 
 Any feature that works in one mode works in all three, and the API is testable
 without a shell around it. The cost is that desktop-only capabilities (native
-file dialogs, watching the library directory) must either be expressed as API
-endpoints or kept strictly presentational. Local IPC also has real latency,
-unlike a direct function call.
+file dialogs, watching the library directory) either become API endpoints or
+stay presentational. Local IPC also has real latency, unlike a direct function
+call.
 
 Related: [Electrobun for the desktop shell](0003-electrobun-for-the-desktop-shell.md),
 [Calibre content server as the data source](0005-calibre-content-server-as-the-data-source.md).

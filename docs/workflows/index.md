@@ -1,8 +1,8 @@
 # Workflows
 
-End-to-end flows this project supports — pointing Grimoire at a library, adding
-a UI component, cutting a desktop build — written from the operator's point of
-view. List them:
+End-to-end flows this project supports: pointing Grimoire at a library, adding
+a UI component, cutting a desktop build. Each is written from the operator's
+point of view. List them:
 
     okq find --type workflow
 
@@ -19,7 +19,7 @@ status: draft
 ---
 ```
 
-Body convention: **When to use** / **Steps** / **Verify** — keep each step
+Body convention: **When to use** / **Steps** / **Verify**. Keep each step
 runnable.
 
 <!-- okq:index:begin -->

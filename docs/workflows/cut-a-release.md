@@ -15,15 +15,15 @@ Use this flow when a commit on `main` is ready to become a public Grimoire
 release. Releases use semantic tags such as `v0.1.0`. The tag controls the
 desktop application version, the GHCR image tags, and the GitHub Release.
 
-Desktop outputs are currently unsigned and unnotarized. Do not describe them as
-signed builds until certificate-backed signing is added to CI.
+Desktop outputs are unsigned and unnotarized today. Do not describe them as
+signed builds until CI does certificate-backed signing.
 
 ## Steps
 
 1. Merge the intended changes to `main` and wait for the **Build and release**
    workflow to pass on that commit. Pull requests only build the `linux-x64`
    desktop target, so this is the first run that proves Windows and macOS still
-   package — treat a failure here as a blocker, not a flake
+   package. Treat a failure here as a blocker, not a flake
    ([`ci-release.yml`](../../.github/workflows/ci-release.yml)).
 2. Ensure merged pull requests have one useful changelog label: `feature` or
    `enhancement`, `bug` or `fix`, `documentation`, `chore`, `dependencies`, or
@@ -61,11 +61,10 @@ signed builds until certificate-backed signing is added to CI.
   on the Docker host.
 
 - Repeat with a **bind mount**, which is what most self-hosters use. The image
-  runs as uid 1000 and never as root, so the host directory has to be owned by
-  it — a root-owned one is refused by
-  [`scripts/docker-entrypoint.sh`](../../scripts/docker-entrypoint.sh) with a
-  message naming the directory and the uid, rather than crash-looping on an
-  opaque SQLite error:
+  runs as uid 1000 and never as root, so uid 1000 has to own the host
+  directory. [`scripts/docker-entrypoint.sh`](../../scripts/docker-entrypoint.sh)
+  refuses a root-owned one with a message naming the directory and the uid,
+  rather than crash-looping on an opaque SQLite error:
 
       sudo mkdir -p /srv/grimoire && sudo chown -R 1000:1000 /srv/grimoire
       docker run --rm -p 4747:4747 -v /srv/grimoire:/data \
@@ -73,5 +72,5 @@ signed builds until certificate-backed signing is added to CI.
 
 - `docker inspect --format '{{.State.Health.Status}}' <container>` reports
   `healthy`. The healthcheck fetches `/api/preferences`, which reads
-  `grimoire.db` — `/` would answer from static files with a broken database
-  behind it.
+  `grimoire.db`. A request to `/` would answer from static files with a broken
+  database behind it.

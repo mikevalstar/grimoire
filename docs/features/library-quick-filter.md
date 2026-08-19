@@ -16,9 +16,9 @@ controls narrows the shelf as somebody types. It searches the title, authors,
 series, and the Amazon, ISBN, and Google identifier values already held on each
 book, then presents the strongest matches first.
 
-It also accepts **field terms** — `author:Ursula Le Guin`,
-`series:Earthsea` — separated by semicolons, which narrow to one field instead
-of ranking across all of them. The whole query lives in the URL
+It also accepts field terms separated by semicolons, such as
+`author:Ursula Le Guin` or `series:Earthsea`. A term narrows to one field
+instead of ranking across all of them. The whole query lives in the URL
 ([ADR 0020](../adrs/0020-library-view-state-lives-in-the-url.md)), so a filtered
 shelf is a link.
 
@@ -31,7 +31,7 @@ round trip or the extra ceremony of the [command palette](command-palette.md).
 
 Ranked free text answers "find me this book". It answers "show me everything by
 this author" badly: a common surname pulls in titles, and there is no way to say
-*which* field the words belong to. Field terms are that missing half — and they
+*which* field the words belong to. Field terms are that missing half. They also
 give the app one place to send a click on an author or a series name, rather
 than inventing a second filtering mechanism for pills.
 
@@ -59,42 +59,42 @@ all and stays free text, so a query like `note: to self` filters on the literal
 words rather than silently matching nothing. Field names are matched
 case-insensitively.
 
-A term matches when the folded value appears anywhere in the folded field —
-`author:le guin` finds "Ursula K. Le Guin" — which is what makes both a typed
+A term matches when the folded value appears anywhere in the folded field, so
+`author:le guin` finds "Ursula K. Le Guin". That is what makes both a typed
 fragment and a whole name pasted in by a click work. Authors are matched one at
 a time, so a term matches a book credited to that person among others. Series
 are matched against every series a book belongs to
 ([ADR 0019](../adrs/0019-series-as-records-with-a-primary-per-work.md)), not
-only the primary one. Unlike free text, terms are exact-substring: no typo
+only the primary one. Unlike free text, terms are exact-substring with no typo
 allowance, because a term is usually a click rather than a guess.
 
 **Combining.** Semicolons split the query into segments; leading and trailing
 whitespace on each is ignored, and empty ones are dropped. Then:
 
-- terms on the **same field OR** — `author:Sanderson; author:Gaiman` is
-  everything by either;
-- **different fields AND** — `author:Sanderson; series:Mistborn` is the
+- terms on the same field OR: `author:Sanderson; author:Gaiman` is everything
+  by either;
+- different fields AND: `author:Sanderson; series:Mistborn` is the
   intersection;
-- any segments that are **not** terms are rejoined with spaces into one free-
-  text query, ANDed with the rest and still supplying the relevance ranking.
+- any segments that are not terms rejoin with spaces into one free-text query,
+  ANDed with the rest and still supplying the relevance ranking.
 
 **Ordering.** Relevance is the primary ordering while a free-text query is
-active; the chosen library sort breaks ties and still determines order when
-there is none — a query of nothing but field terms is ordered entirely by the
-library's own sort. Grouping continues to split matching results into the
-selected sections.
+active. The chosen library sort breaks ties, and it sets the order outright
+when there is no free text, so a query of nothing but field terms is ordered
+entirely by the library's own sort. Grouping continues to split matching
+results into the selected sections.
 
 **Filling it.** Author names and series names are clickable wherever the app
-shows them as an identity rather than as prose — on a cover card and in the
+shows them as an identity rather than as prose: on a cover card and in the
 [details panel](book-details-panel.md) header. Clicking one replaces the whole
 query with the corresponding term; the details panel closes behind it, since
 the click was a request to look at the shelf. See [book list](book-list.md).
 
-**Clearing.** The toolbar count is the number of matches. Clearing the box —
-with its visible clear button or by deleting the text — restores the complete
-shelf and its normal order. A non-empty query with no matches gets a dedicated
-empty state, not the library-is-empty message, and it names the terms that
-failed rather than quoting the raw query at the reader.
+**Clearing.** The toolbar count is the number of matches. Clearing the box,
+either with its visible clear button or by deleting the text, restores the
+complete shelf and its normal order. A non-empty query with no matches gets a
+dedicated empty state, not the library-is-empty message, and it names the terms
+that failed rather than quoting the raw query at the reader.
 
 ## Acceptance criteria
 
@@ -122,12 +122,12 @@ failed rather than quoting the raw query at the reader.
 - **More fields.** `tag:`, `format:`, `publisher:`, `language:` and a
   `rating:>=4` style comparison are all the same shape and unbuilt. Negation
   (`-author:…`) likewise.
-- **Discoverability.** The syntax is currently only learnable by clicking an
-  author name and reading what appears in the box. A hint in the placeholder,
-  or completion of field names as you type, would help.
-- **Chips.** A term is shown as raw text in the box. Rendering each as a
-  removable pill is the natural next step, and the parse already produces the
-  right structure for it.
+- **Discoverability.** Today the only way to learn the syntax is to click an
+  author name and read what appears in the box. A hint in the placeholder, or
+  completion of field names as you type, would help.
+- **Chips.** The box shows a term as raw text. Rendering each as a removable
+  pill is the natural next step, and the parse already produces the right
+  structure for it.
 - Whether the command palette should hand an unmatched query into this filter.
 - Whether a future server-paged library needs the same ranking implemented in
   SQL rather than in the browser.

@@ -1,7 +1,7 @@
 ---
 type: feature
 title: Book actions
-description: A gear menu in the details panel holding the deliberate, per-book operations — starting with re-fetching a book's cover from every source it has.
+description: A gear menu in the details panel holding the deliberate, per-book operations. The first one re-fetches a book's cover from every source it has.
 tags: [frontend, ui, library, covers]
 status: draft
 generated: { by: okq/0.8.0, at: 2026-08-15 }
@@ -21,36 +21,36 @@ disk.
 
 Everything the panel offered until now was either a read-out or a per-reader
 opinion (a rating, a read date). The things a reader occasionally needs to *do*
-to one book — re-fetch its cover today, and later re-match it, forget it, or
-push a correction — have had nowhere to live, and each one cannot become its own
+to one book have had nowhere to live: re-fetch its cover today, and later
+re-match it, forget it, or push a correction. None of them can become its own
 button in the footer without the footer becoming a toolbar.
 
-A menu behind a gear is the cheap answer: one affordance, quiet enough to ignore,
+A menu behind a gear is the cheap answer. One control, quiet enough to ignore,
 and it holds the next five actions without a redesign.
 
 **An action may now touch more than the open book.**
 [Setting a series from Hardcover](setting-a-series-from-hardcover.md) writes to
 every book in that series already on the shelf, which is a deliberate change to
 the rule this menu started with. The justification is that a series *is* a
-selection — better defined than any the shelf could offer — and the guard is
-that such an action must say how many books it will change and confirm before
-writing. An action that reaches past the open book without stating the count
-does not belong here.
+selection, better defined than any the shelf could offer. The guard is that such
+an action must say how many books it will change and confirm before writing. An
+action that reaches past the open book without stating the count does not belong
+here.
 
 Re-fetching a cover is the first because the cover is the one piece of a book
 Grimoire caches as a *file*. [Sync](calibre-sync.md) only fetches it again when
-Calibre says the book was edited — so a cover replaced in Calibre with the same
+Calibre says the book was edited. So a cover replaced in Calibre with the same
 timestamp, an image that arrived truncated, or one downloaded while
 [Hardcover's](hardcover-sync.md) CDN was misbehaving stays wrong indefinitely.
-The remedy so far has been a full sync of the whole library, which is a large
-hammer for one book.
+The remedy so far has been a full sync of the whole library, a large hammer for
+one book.
 
 ## Behavior
 
 **The trigger.** A gear at the right end of the panel's footer row, opposite
 [Link a duplicate](resolving-duplicates.md), with an *Actions* tooltip and the
 same accessible name. It is there for every book, including one that has left the
-Calibre library — the actions each decide for themselves what they can do.
+Calibre library. Each action decides for itself what it can do.
 
 **Re-fetch cover** takes every member row of the work
 ([ADR 0013](../adrs/0013-group-duplicate-books-into-works.md)) and fetches
@@ -58,28 +58,28 @@ whatever that member's source can hand over: the Calibre content server for a
 member still in the library, the stored CDN URL for a Hardcover one. Each success
 overwrites all three cached sizes for that member; a member whose fetch fails
 keeps the file it already had rather than losing it. This is the one cover path
-that ignores every "we already have it" test — that is the whole point of asking
+that ignores every "we already have it" test. That is the whole point of asking
 for it by hand.
 
-It is offered for every book rather than hidden for one with nothing to ask:
-which members have a source is server-side knowledge, and a run that found
+Grimoire offers it for every book rather than hiding it for one with nothing to
+ask. Which members have a source is server-side knowledge, and a run that found
 nowhere to look says so in the same place a run that failed does.
 
-While it runs the item shows a spinner and the menu stays open; the panel is
-otherwise untouched, so the rest of the book stays readable. When it lands, the
-open panel and the shelf behind it redraw with the new image — including the
+While it runs the item shows a spinner and the menu stays open; nothing else in
+the panel changes, so the rest of the book stays readable. When it lands, the
+open panel and the shelf behind it redraw with the new image, including the
 [cover stack](book-details-panel.md) if the work has more than one. A run where
 nothing could be fetched says so in the menu rather than silently doing nothing.
 
 **Cache-busting is why the book carries a cover version.** Covers are served with
 a year-long `max-age`, so re-fetching a file behind an unchanged URL would show
 the reader the old image until the cache expired. The book record now carries
-`coverVersion` — the newest `cover_synced_at` among its cached members — and
-every cover URL stamps it, alongside the `member` that
+`coverVersion`, the newest `cover_synced_at` among its cached members. Every
+cover URL stamps it, alongside the `member` that
 [choosing a cover](book-details-panel.md) already stamped.
 
-**It is not a re-sync.** No metadata is touched, no other book is looked at, and
-the sync schedule is not disturbed.
+**It is not a re-sync.** It touches no metadata, looks at no other book, and
+leaves the sync schedule alone.
 
 ## Acceptance criteria
 
@@ -98,15 +98,15 @@ the sync schedule is not disturbed.
 ## API
 
 `POST /api/books/:id/cover/refetch` re-fetches the covers of every member of the
-work and answers with `{ book, attempted, fetched }` — the book as it now is
+work and answers with `{ book, attempted, fetched }`: the book as it now is
 (carrying the bumped `coverVersion`), how many members had a source to try, and
 how many produced a file. 404 for a work that does not exist. The payload is a
 shared Zod schema
 ([ADR 0009](../adrs/0009-zod-schemas-shared-between-api-and-client.md)).
 
 `GET /api/books` carries `coverVersion` on every book, and
-`GET /api/books/:id/cover/:size` accepts (and ignores) a `v` query parameter —
-it exists to make the URL change, and the file on disk is the answer either way.
+`GET /api/books/:id/cover/:size` accepts (and ignores) a `v` query parameter. It
+exists to make the URL change, and the file on disk is the answer either way.
 
 ## Open questions
 
@@ -122,4 +122,4 @@ it exists to make the URL change, and the file on disk is the answer either way.
   refused. A book with two members where one fails looks like a partial success
   with no way to see which half.
 - **Bulk.** No way to re-fetch the covers of a selection, or of everything a
-  filter matches — the shelf has no selection model yet.
+  filter matches. The shelf has no selection model yet.
