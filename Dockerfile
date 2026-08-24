@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM oven/bun:1.3.14 AS build
+FROM oven/bun:1.4.0 AS build
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN bun install --frozen-lockfile --filter @grimoire/web --filter @grimoire/serv
 COPY . .
 RUN bun run build:web && bun run build:server
 
-FROM oven/bun:1.3.14 AS runtime
+FROM oven/bun:1.4.0 AS runtime
 
 LABEL org.opencontainers.image.title="Grimoire Books"
 LABEL org.opencontainers.image.description="A self-hosted UI for browsing and organizing a Calibre ebook library"
