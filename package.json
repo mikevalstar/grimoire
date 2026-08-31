@@ -24,7 +24,7 @@
     "docs:check": "okq --bundle docs validate && okq --bundle docs deadlinks && okq --bundle docs lint"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.8",
+    "@biomejs/biome": "^2.5.11",
     "@grimoire/core": "workspace:*"
   }
 }
