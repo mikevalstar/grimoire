@@ -66,6 +66,14 @@ tick, and only a library where hundreds of books changed at once pays for pages.
 A manual sync ignores the watermark and does a full pass, so "it looks wrong,
 re-sync" is real.
 
+An id list that comes back **empty while the mirror holds books** is refused,
+not applied. A content server mid-restart, or one answering for a library that
+has nothing in it yet, would otherwise read as "every book was deleted" and
+unlink the whole library in one tick. The sync fails with that reason, the
+indicator shows it, and nothing is written. A library that genuinely went to
+zero books is the one case this gets wrong, and `bun run db:wipe` is the way
+out of it.
+
 ### Noticing that the library underneath us changed
 
 The mirror holds one Calibre library at a time. Book ids are per-library and
@@ -114,8 +122,12 @@ As far as anything outside Calibre can tell, that is a new book.
 
 Reconcile is all-or-nothing in one transaction. A half-applied pass would leave
 books pointing at ids from two different libraries, the state this design exists
-to prevent. Sync skips reconcile when the mirror phase changed nothing, so an
-idle library costs no writes at all.
+to prevent. Sync skips reconcile when the mirror phase changed nothing *and*
+`books` already holds one linked row per mirror row, so an idle library costs
+no writes at all while a reconcile that never ran, or died half way, still gets
+its turn on the next tick. That check counts rows, not works: two Calibre rows
+merged into one work ([book matching](book-matching.md)) are still two rows
+against two mirror entries.
 
 A book with no `calibre_id` has no download button. The file lives in Calibre
 and the proxy has nothing to point at. It keeps its metadata and its cached
@@ -166,6 +178,11 @@ server URL changes in [settings](settings.md), so a new library appears without
 waiting out a timer; and on demand from the indicator or settings. With no
 content server configured the scheduler stays idle and reports nothing. An
 unconfigured app is not a failing one.
+
+There is exactly one timer. Changing the interval, including while a sync is
+running, replaces it rather than adding a second one alongside, so a long first
+sync followed by a settings change never leaves two timers each starting their
+own chain of ticks.
 
 [Settings](settings.md) surfaces the last sync, the book count, the last error,
 the interval and a Sync now button.
@@ -323,6 +340,11 @@ completes.
       interval select and a Sync now button.
 - [x] Two syncs never run at once, and the app never syncs before a content
       server is configured.
+- [x] Changing the interval during a sync leaves one timer, not two.
+- [x] An empty id list against a populated mirror fails the sync and unlinks
+      nothing.
+- [x] An unchanged library still skips reconcile after two of its Calibre rows
+      were merged into one work.
 - [x] A sync interrupted mid-way leaves the database consistent and the next
       sync picks up.
 - [x] Deleting the cover cache and syncing restores every cover.

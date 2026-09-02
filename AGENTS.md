@@ -1,47 +1,78 @@
 # Grimoire Books
 
-UI for browsing/organizing a Calibre ebook library. Ships as an Electrobun
-desktop app, a self-hosted server, and a local web app from one codebase.
-Read-only against Calibre for now — Calibre remains the source of truth;
-replacing it as the backend is the long-term goal.
+UI for browsing/organizing a Calibre ebook library, with hardcover.app shelves
+as a second source. Ships as an Electrobun desktop app, a self-hosted server,
+and a local web app from one codebase. Read-only against Calibre — it stays the
+source of truth for the files; replacing it as the backend is the long-term
+goal. Several readers share one instance with no login
+([ADR 0008](docs/adrs/0008-multiple-users-without-authentication.md)).
 
 ## Architecture
 
 Bun workspaces monorepo. The rule that keeps it coherent: **every mode speaks
 the same HTTP API**.
 
-Library data comes from a **running Calibre content server**, over HTTP, via
-the `/api/cs` proxy. Grimoire does not open `metadata.db` — see
-[ADR 0005](docs/adrs/0005-calibre-content-server-as-the-data-source.md).
+**Grimoire syncs its sources into its own database and every screen reads from
+there.** A scheduler mirrors the running Calibre content server (reached only
+over HTTP — Grimoire never opens `metadata.db`,
+[ADR 0005](docs/adrs/0005-calibre-content-server-as-the-data-source.md)) into
+`grimoire.db` and caches covers on disk
+([ADR 0011](docs/adrs/0011-sync-calibre-into-grimoire-db-and-read-the-library-from-there.md),
+[spec](docs/features/calibre-sync.md)). A second scheduler pulls each linked
+reader's Hardcover shelves, with their own API token, kept server-side
+([ADR 0012](docs/adrs/0012-hardcover-as-a-second-source-with-per-reader-tokens.md),
+[spec](docs/features/hardcover-sync.md)). The `/api/cs` proxy to Calibre
+remains for file downloads and for the sync job itself.
+
+A book held by two sources is two `books` rows under one `works` row, grouped
+by the matcher ([ADR 0013](docs/adrs/0013-group-duplicate-books-into-works.md),
+[spec](docs/features/book-matching.md)). **Every book route speaks work ids.**
+Series are records of their own with a primary per work
+([ADR 0019](docs/adrs/0019-series-as-records-with-a-primary-per-work.md)).
+Ratings and read state are per reader and come from one source each, local or
+Hardcover with write-back
+([ADR 0014](docs/adrs/0014-per-reader-rating-source-with-hardcover-write-back.md)).
 
 - `packages/core` — Grimoire's *own* writable SQLite db (`grimoire.db` in the
-  data dir — see Gotchas): `src/db.ts` owns the schema and every migration,
-  `SettingsStore` the key/value preferences, `UsersStore` the readers. Stores
-  share one connection — pass the `Database` from `openDatabase()`, don't open
-  a second. Two browser-safe modules that must never import bun-only code:
-  `src/schemas.ts` (Zod schemas for every API payload,
+  data dir — see Gotchas). `src/db.ts` owns the schema and every migration.
+  One store per concern, all sharing one connection — pass the `Database` from
+  `openDatabase()`, don't open a second: `BooksStore` (the shelf, and the
+  reconciles from each source), `CalibreBooksStore` and `HardcoverBooksStore`
+  (the verbatim mirrors), `WorksStore` (matching, merge, separate),
+  `SeriesStore`, `RatingsStore`, `ReadStatesStore`, `UsersStore` (readers and
+  their Hardcover link), `SettingsStore` (key/value preferences), `CoverStore`
+  (files on disk). `src/matching.ts` is the pure title/author matcher
+  (`@grimoire/core/matching`). Two browser-safe modules that must never import
+  bun-only code: `src/schemas.ts` (Zod schemas for every API payload,
   `@grimoire/core/schemas`) and `src/types.ts` (constants incl. the 24
   `USER_COLORS`, `@grimoire/core/types`).
-- `packages/api` — `createApi()` returns the Hono app (`/api/...` routes).
-  Embedded by both server and desktop. Reverse-proxies the running
-  Calibre content server at `/api/cs/*` — e.g. `/api/cs/ajax/search`,
-  `/api/cs/ajax/books`. The proxy target is resolved *per request* from the
+- `packages/api` — `createApi()` returns the Hono app (`/api/...` routes) and
+  starts both schedulers (`CalibreSync` in `src/sync.ts`, `HardcoverSync` in
+  `src/hardcover-sync.ts`); pass `sync: false` to embed it without them.
+  Embedded by both server and desktop. Routes in `src/index.ts`: preferences,
+  users and their Hardcover link, the library and covers by work id,
+  duplicates, series, ratings, read states, sync status and control, and the
+  `/api/cs/*` proxy. The proxy target is resolved *per request* from the
   `calibre.serverUrl` preference (falling back to `CALIBRE_SERVER`, then
   `http://localhost:8080`), so saving it in the UI takes effect without a
-  restart. `GET|PUT /api/preferences` read/merge-write the key/value store;
-  `POST /api/calibre/test` probes a candidate content server URL server-side
-  (no CORS involved) and reports its book count; `GET|POST /api/users` list and
-  create readers (409 on a duplicate name).
+  restart. User-scoped routes take the reader from the `X-Grimoire-User`
+  header (`USER_HEADER`) and refuse without it. `src/hardcover.ts` is the
+  only thing that talks to Hardcover's GraphQL API, through a per-token rate
+  limiter.
 - `apps/web` — React 19 + Vite + Tailwind 4 + shadcn/ui, TanStack Router and
   Query, Storybook. Built with `base: "./"` so the same bundle works from
-  `views://` (desktop) and `/` (server). API base resolution is in
-  `src/lib/api.ts`: same-origin normally, `localhost:<apiPort>` when served
-  from a `views://` origin.
+  `views://` (desktop) and `/` (server). `src/lib/api.ts` holds every fetch
+  (same-origin normally, `localhost:<apiPort>` when served from a `views://`
+  origin) and `src/lib/queries.ts` every query and mutation. Library view
+  state (filter, sort, group, read status) lives in the URL
+  ([ADR 0020](docs/adrs/0020-library-view-state-lives-in-the-url.md)).
 - `apps/server` — hosted mode: API + static serving of `apps/web/dist` with SPA
   fallback. Port 4747 (matches the Vite dev proxy).
 - `apps/desktop` — Electrobun shell: starts the embedded API (4747, falls back
   to a random port passed via `?apiPort=`), loads Vite dev server when running
-  and reachable, else the bundled `views://mainview/index.html`.
+  and reachable, else the bundled `views://mainview/index.html`. Claims 4747
+  first and starts with `sync: false` if it loses, so one `grimoire.db` never
+  has two schedulers writing to it.
 
 ## Documentation-first (OKF)
 

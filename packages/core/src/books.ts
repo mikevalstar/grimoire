@@ -335,10 +335,22 @@ export class BooksStore {
     return row.n;
   }
 
-  /** How many are still in the connected Calibre library. */
+  /** How many are still in the connected Calibre library — works, like `count`. */
   inLibraryCount(): number {
     const row = this.db
       .query("SELECT COUNT(DISTINCT work_id) AS n FROM books WHERE calibre_id IS NOT NULL")
+      .get() as { n: number };
+    return row.n;
+  }
+
+  /**
+   * Rows linked to a Calibre book right now — one per mirror row once
+   * reconcile has run, which is what the sync compares against the mirror to
+   * decide whether it needs to run again.
+   */
+  linkedCount(): number {
+    const row = this.db
+      .query("SELECT COUNT(*) AS n FROM books WHERE calibre_id IS NOT NULL")
       .get() as { n: number };
     return row.n;
   }

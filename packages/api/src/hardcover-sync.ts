@@ -63,7 +63,10 @@ export class HardcoverSync {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
-  constructor(db: Database, dataDir: string) {
+  constructor(
+    private readonly db: Database,
+    dataDir: string,
+  ) {
     this.users = new UsersStore(db);
     this.mirror = new HardcoverBooksStore(db);
     this.books = new BooksStore(db);
@@ -85,15 +88,26 @@ export class HardcoverSync {
     this.timer = null;
   }
 
+  /**
+   * Arm the one timer, replacing whichever was armed before. A tick re-arms
+   * only if its own timer is still the current one — the same guard as the
+   * Calibre sync's, so a `stop`/`start` mid-sweep cannot leave two chains.
+   */
   private scheduleNext(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
     if (this.stopped) return;
-    this.timer = setTimeout(
+
+    const timer = setTimeout(
       () => {
-        void this.syncAll().finally(() => this.scheduleNext());
+        void this.syncAll().finally(() => {
+          if (this.timer === timer) this.scheduleNext();
+        });
       },
       INTERVAL_MINUTES * 60 * 1000,
     );
-    this.timer.unref?.();
+    timer.unref?.();
+    this.timer = timer;
   }
 
   /**
@@ -172,10 +186,13 @@ export class HardcoverSync {
       // book_series { series } } }` is depth 4 and their queries stop at 3 — so
       // one more request per page names them before the mirror stores them.
       await hydrateSeries(account.token, entries);
-      for (const entry of entries) {
-        this.mirror.upsert(userId, entry, now);
-        seen.push(entry.book.id);
-      }
+      // One commit per page rather than one per entry: each upsert is its own
+      // transaction, which nests as a savepoint here, and a sweep is thousands
+      // of them.
+      this.db.transaction(() => {
+        for (const entry of entries) this.mirror.upsert(userId, entry, now);
+      })();
+      for (const entry of entries) seen.push(entry.book.id);
 
       // A short page is the last page: their API has no total to compare with.
       if (entries.length < PAGE_SIZE) break;

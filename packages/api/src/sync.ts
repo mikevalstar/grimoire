@@ -129,26 +129,36 @@ export class CalibreSync {
 
   /** Re-read the interval and re-arm. Called after the preference changes. */
   reschedule(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
     this.scheduleNext();
   }
 
+  /**
+   * Arm the one timer, replacing whichever was armed before. A tick re-arms
+   * only if its own timer is still the current one: a reschedule that landed
+   * while the tick's sync was in flight has already armed a replacement, and
+   * re-arming here as well would leave two chains ticking forever.
+   */
   private scheduleNext(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
     if (this.stopped) return;
+
     const minutes = syncIntervalMinutes(this.settings.get(PREF_KEYS.syncIntervalMinutes));
     if (minutes <= 0) return; // "never"
 
-    this.timer = setTimeout(
+    const timer = setTimeout(
       () => {
         void this.syncNow()
           .catch(() => {})
-          .finally(() => this.scheduleNext());
+          .finally(() => {
+            if (this.timer === timer) this.scheduleNext();
+          });
       },
       minutes * 60 * 1000,
     );
     // Don't hold the process open for a timer nobody is waiting on.
-    this.timer.unref?.();
+    timer.unref?.();
+    this.timer = timer;
   }
 
   // --- running --------------------------------------------------------------
@@ -213,7 +223,9 @@ export class CalibreSync {
     // it when phase 1 touched nothing — but only if `books` already agrees with
     // the mirror, so a reconcile that never ran (or died half way) still gets
     // its chance on the next tick rather than waiting for Calibre to change.
-    const inSync = this.books.inLibraryCount() === this.mirror.count();
+    // Rows against rows: two Calibre books merged into one work are still two
+    // linked rows, so counting works here would never agree again after a merge.
+    const inSync = this.books.linkedCount() === this.mirror.count();
     let reconciled: ReconcileResult = { inserted: 0, updated: 0, unlinked: 0 };
     if (mirrored.changed || !inSync) {
       this.progress = { phase: "reconcile", done: 0, total: null };
@@ -261,6 +273,18 @@ export class CalibreSync {
     );
     const libraryId = search.library_id ?? "unknown";
     const ids = search.book_ids;
+
+    // No ids where the mirror holds books reads as "everything was deleted",
+    // and `deleteMissing` plus reconcile would unlink the whole library on the
+    // strength of one answer — a content server mid-restart, or pointed at an
+    // empty library. Refuse instead: nothing written, and the reason on the
+    // indicator (docs/features/calibre-sync.md).
+    if (ids.length === 0 && this.mirror.count() > 0) {
+      throw new SyncError(
+        `${base} answered with no books, but the mirror holds ${this.mirror.count()}.`,
+        "Check that the content server is serving the right library. If it really is empty now, `bun run db:wipe` starts over.",
+      );
+    }
 
     const watermark = full ? null : this.settings.get(PREF_KEYS.syncWatermark);
     let sweep = await this.sweep(base, now, ids, libraryId, watermark);
