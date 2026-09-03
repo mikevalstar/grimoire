@@ -203,3 +203,20 @@ export function userColor(id: string): UserColor {
 export function nextUserColor(taken: readonly string[]): UserColorId {
   return (USER_COLORS.find((color) => !taken.includes(color.id)) ?? USER_COLORS[0]).id;
 }
+
+/**
+ * The file formats Grimoire accepts as an upload, keyed the way `books.formats`
+ * spells them (docs/features/uploading-a-book.md). The browser reads this for
+ * the file picker's `accept`; the API's format registry keys its parsers on it,
+ * so a new format is one entry here and one parser there (ADR 0021).
+ */
+export const UPLOAD_FORMATS = {
+  EPUB: { extension: ".epub", mimeType: "application/epub+zip" },
+} as const;
+
+export type UploadFormat = keyof typeof UPLOAD_FORMATS;
+
+export const UPLOAD_FORMAT_NAMES = Object.keys(UPLOAD_FORMATS) as UploadFormat[];
+
+/** Room for a picture book, not a quota. Easy to raise; the request cap follows it. */
+export const UPLOAD_MAX_BYTES = 500 * 1024 * 1024;

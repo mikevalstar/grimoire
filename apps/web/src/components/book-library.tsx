@@ -76,6 +76,8 @@ export interface BookLibraryProps {
    * actions menu (docs/features/book-actions.md).
    */
   onRefetchCover?: (book: LibraryBook) => Promise<{ attempted: number; fetched: number }>;
+  /** Delete the open book's uploaded entries (docs/features/book-actions.md). */
+  onDeleteUpload?: (book: LibraryBook) => Promise<void>;
   /**
    * Open the set-series dialog for the book whose panel is open
    * (docs/features/setting-a-series-from-hardcover.md).
@@ -115,6 +117,7 @@ export function BookLibrary({
   readDatesError,
   onChooseCover,
   onRefetchCover,
+  onDeleteUpload,
   onSetSeries,
   onChoosePrimarySeries,
   openBookHardcover,
@@ -340,6 +343,7 @@ export function BookLibrary({
         // source to ask is server-side knowledge, and the run says so when the
         // answer is none (docs/features/book-actions.md).
         onRefetchCover={onRefetchCover && openBook ? () => onRefetchCover(openBook) : undefined}
+        onDeleteUpload={onDeleteUpload && openBook ? () => onDeleteUpload(openBook) : undefined}
         onSetSeries={onSetSeries && openBook ? () => onSetSeries(openBook) : undefined}
         onChoosePrimarySeries={
           onChoosePrimarySeries && openBook

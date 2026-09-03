@@ -1,5 +1,14 @@
-import { type BooksStore, COVER_SIZE_NAMES, CoverStore } from "@grimoire/core";
-import { cacheRemoteCover } from "./remote-covers.ts";
+import {
+  type BookFilesStore,
+  type BooksStore,
+  COVER_SIZE_NAMES,
+  CoverStore,
+  UPLOAD_FORMAT_NAMES,
+  type UploadFormat,
+} from "@grimoire/core";
+import { BOOK_FORMATS } from "./formats/index.ts";
+import { cacheRemoteCover, writeCoverSizes } from "./remote-covers.ts";
+import { toArrayBuffer } from "./uploads.ts";
 
 /** Long enough for Calibre to scale three images on a slow disk, short enough to give up. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -38,6 +47,31 @@ export interface CoverRefetchDeps {
   covers: CoverStore;
   /** The content server to ask, or null when none is configured — then only URLs are tried. */
   calibreServerUrl: string | null;
+  /** Grimoire's own files, for a member whose cover is inside one (ADR 0021). */
+  files?: BookFilesStore;
+}
+
+/**
+ * A cover read back out of a file Grimoire holds — an uploaded book's only
+ * source (docs/features/uploading-a-book.md). False when the file names no
+ * cover or the image cannot be decoded.
+ */
+async function extractFileCover(
+  covers: CoverStore,
+  files: BookFilesStore,
+  bookId: number,
+  format: string,
+): Promise<boolean> {
+  if (!UPLOAD_FORMAT_NAMES.includes(format as UploadFormat)) return false;
+  const parser = BOOK_FORMATS[format as UploadFormat];
+  let cover: Uint8Array | null;
+  try {
+    const bytes = new Uint8Array(await Bun.file(files.path(bookId, format)).arrayBuffer());
+    cover = parser.extract(bytes, "").cover;
+  } catch {
+    return false;
+  }
+  return cover !== null && (await writeCoverSizes(covers, bookId, toArrayBuffer(cover)));
 }
 
 /**
@@ -53,11 +87,21 @@ export interface CoverRefetchDeps {
  * because one refresh didn't land, which is the opposite of what was asked for.
  */
 export async function refetchWorkCovers(
-  { books, covers, calibreServerUrl }: CoverRefetchDeps,
+  { books, covers, calibreServerUrl, files }: CoverRefetchDeps,
   workId: number,
 ): Promise<{ attempted: number; fetched: number }> {
   let attempted = 0;
   let fetched = 0;
+
+  // Uploaded members first: their cover is in a file on this disk, which is
+  // the one source that cannot be down.
+  for (const file of files?.forWork(workId) ?? []) {
+    attempted++;
+    if (await extractFileCover(covers, files as BookFilesStore, file.bookId, file.format)) {
+      fetched++;
+      books.markCover(file.bookId, "cached", new Date().toISOString());
+    }
+  }
 
   for (const member of books.coverSourcesForWork(workId)) {
     const base = member.calibreId !== null ? calibreServerUrl : null;

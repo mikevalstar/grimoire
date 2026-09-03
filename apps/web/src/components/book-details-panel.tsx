@@ -24,7 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { tooltipProps } from "@/components/ui/tooltip";
-import { bookImageUrl, type Duplicates, isInLibrary, type LibraryBook } from "@/lib/api";
+import { bookImageUrl, type Duplicates, downloadableFormats, type LibraryBook } from "@/lib/api";
 import type { FilterField } from "@/lib/book-filter";
 import { publicationYear } from "@/lib/publication";
 
@@ -47,6 +47,12 @@ export interface BookDetailsPanelProps {
    * action is shown disabled — the menu holds more than this one thing.
    */
   onRefetchCover?: () => Promise<{ attempted: number; fetched: number }>;
+  /**
+   * Delete this work's uploaded entries and their files
+   * (docs/features/book-actions.md). Only offered for a work with a Grimoire
+   * entry; the gear's item is disabled otherwise.
+   */
+  onDeleteUpload?: () => Promise<void>;
   /**
    * Open the set-series dialog for this book
    * (docs/features/setting-a-series-from-hardcover.md). Without it the gear's
@@ -135,6 +141,7 @@ export function BookDetailsPanel({
   onRate,
   onChooseCover,
   onRefetchCover,
+  onDeleteUpload,
   onSetSeries,
   onChoosePrimarySeries,
   onFilter,
@@ -283,12 +290,12 @@ export function BookDetailsPanel({
                   )}
 
                   <div className="mt-4">
-                    {shown.formats.length === 0 ? (
+                    {downloadableFormats(shown).length > 0 ? (
+                      <BookDownloadButton book={shown} variant="panel" />
+                    ) : shown.formats.length === 0 ? (
                       <p className="text-muted-foreground text-[12px]">
                         No files — Grimoire has this book's details but nothing to hand over.
                       </p>
-                    ) : isInLibrary(shown) ? (
-                      <BookDownloadButton book={shown} variant="panel" />
                     ) : (
                       <p className="text-muted-foreground text-[12px]">
                         Calibre no longer lists this book, so there is no file to download. Its
@@ -421,6 +428,12 @@ export function BookDetailsPanel({
                     <BookActionsMenu
                       onRefetchCover={onRefetchCover}
                       onSetSeries={onSetSeries}
+                      onDeleteUpload={
+                        onDeleteUpload && shown.sources.includes("grimoire")
+                          ? onDeleteUpload
+                          : undefined
+                      }
+                      bookTitle={shown.title}
                       className="ml-auto"
                     />
                   </div>

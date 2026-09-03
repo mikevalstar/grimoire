@@ -27,7 +27,7 @@ import {
   type SetLibraryView,
   touchesOrder,
 } from "@/lib/library-view";
-import { useOpenBookId } from "@/lib/open-book";
+import { setOpenBookId, useOpenBookId } from "@/lib/open-book";
 import {
   booksQuery,
   hardcoverContentQuery,
@@ -39,6 +39,7 @@ import {
   readStatesQuery,
   useApplySeries,
   useChooseCover,
+  useDeleteUpload,
   useRateBook,
   useRefetchCover,
   useSetPrimarySeries,
@@ -267,6 +268,9 @@ function LibraryScreen() {
   // Same reasoning: re-fetching a cover changes what the library looks like,
   // not what a reader thinks of it (docs/features/book-actions.md).
   const refetchCover = useRefetchCover();
+  // Deleting an uploaded entry likewise changes what the library holds
+  // (docs/features/uploading-a-book.md).
+  const deleteUpload = useDeleteUpload();
 
   // The book whose series is being set, held while the dialog is open. Its own
   // state rather than the open panel's: the panel stays open behind the dialog,
@@ -315,6 +319,11 @@ function LibraryScreen() {
         openBookHardcover={openBookHardcover}
         onChooseCover={(book, bookId) => chooseCover.mutate({ workId: book.id, bookId })}
         onRefetchCover={(book) => refetchCover.mutateAsync(book.id)}
+        onDeleteUpload={async (book) => {
+          const { book: remaining } = await deleteUpload.mutateAsync(book.id);
+          // The last entry went with the work: there is no panel left to show.
+          if (!remaining) setOpenBookId(null);
+        }}
         // Needs the reader's token to ask Hardcover at all, so a session with
         // nobody chosen leaves the gear's item disabled rather than opening a
         // dialog that could only fail.

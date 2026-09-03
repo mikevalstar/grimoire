@@ -11,7 +11,10 @@ const settle =
 const meta = {
   title: "Library/BookActionsMenu",
   component: BookActionsMenu,
-  args: { onRefetchCover: settle({ attempted: 1, fetched: 1 }) },
+  args: {
+    onRefetchCover: settle({ attempted: 1, fetched: 1 }),
+    bookTitle: "The Left Hand of Darkness",
+  },
   parameters: { layout: "centered" },
 } satisfies Meta<typeof BookActionsMenu>;
 
@@ -34,6 +37,28 @@ export const Fails: Story = {
     onRefetchCover: async () => {
       await new Promise((resolve) => setTimeout(resolve, 900));
       throw new Error("Could not reach the Calibre content server.");
+    },
+  },
+};
+
+/**
+ * A book with an uploaded file: the delete item is live and confirms before
+ * anything happens (docs/features/uploading-a-book.md).
+ */
+export const Uploaded: Story = {
+  args: {
+    onDeleteUpload: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    },
+  },
+};
+
+/** The delete lands on a refusal, which the confirmation shows and stays open for. */
+export const DeleteFails: Story = {
+  args: {
+    onDeleteUpload: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      throw new Error("That book has no uploaded file to delete.");
     },
   },
 };

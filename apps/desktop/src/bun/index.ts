@@ -1,4 +1,4 @@
-import { createApi } from "@grimoire/api";
+import { createApi, MAX_REQUEST_BODY_BYTES } from "@grimoire/api";
 import Electrobun, { BrowserWindow, Updater, Utils } from "electrobun/bun";
 
 const VITE_DEV_URL = "http://localhost:4746";
@@ -28,13 +28,19 @@ try {
   server = Bun.serve({
     port: DEFAULT_API_PORT,
     idleTimeout: IDLE_TIMEOUT_SECONDS,
+    maxRequestBodySize: MAX_REQUEST_BODY_BYTES,
     fetch: unavailable,
   });
 } catch {
   // Port taken — pick any free port; the UI learns it via the ?apiPort query
   // param below.
   isPrimary = false;
-  server = Bun.serve({ port: 0, idleTimeout: IDLE_TIMEOUT_SECONDS, fetch: unavailable });
+  server = Bun.serve({
+    port: 0,
+    idleTimeout: IDLE_TIMEOUT_SECONDS,
+    maxRequestBodySize: MAX_REQUEST_BODY_BYTES,
+    fetch: unavailable,
+  });
 }
 
 // The desktop app embeds the same Hono API the hosted server runs. CORS is

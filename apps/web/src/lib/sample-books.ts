@@ -26,6 +26,7 @@ function book(fixture: Fixture): LibraryBook {
     // Same as the Grimoire id unless a fixture says otherwise. Null is the
     // interesting case: a book Grimoire kept after Calibre dropped it.
     calibreId: fixture.id,
+    uploadedFormats: [],
     series: null,
     seriesIndex: null,
     seriesList: [],
@@ -122,6 +123,21 @@ export const SAMPLE_BOOKS: LibraryBook[] = [
     added: "2023-05-19T14:20:00+00:00",
     published: "2015-06-04T00:00:00+00:00",
     calibreId: null,
+  }),
+  // Uploaded straight into Grimoire (docs/features/uploading-a-book.md): no
+  // Calibre id, but a file of its own to download, and the Grimoire mark.
+  book({
+    id: 21,
+    title: "Are Filter Bubbles Real?",
+    authors: ["Axel Bruns"],
+    tags: ["Media Studies"],
+    formats: ["EPUB"],
+    uploadedFormats: ["EPUB"],
+    sources: ["grimoire"],
+    calibreId: null,
+    publisher: "Polity",
+    added: "2026-09-02T20:21:00+00:00",
+    published: "2019-09-11",
   }),
   book({
     id: 8,

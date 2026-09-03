@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { AppHeader, type AppHeaderProps } from "@/components/app-header";
 import { CommandMenu } from "@/components/command-menu";
 import { HardcoverAddDialog } from "@/components/hardcover-add-dialog";
 import { SettingsDialog, type SettingsSection } from "@/components/settings-dialog";
 import { TooltipHost } from "@/components/ui/tooltip";
+import { UploadDropZone } from "@/components/upload-drop-zone";
+import { UploadStatus } from "@/components/upload-status";
 import { searchHardcover } from "@/lib/api";
 import { setOpenBookId } from "@/lib/open-book";
 import { booksQuery, useAddHardcoverBook } from "@/lib/queries";
+import { UPLOAD_ACCEPT, useUploadQueue } from "@/lib/upload-queue";
 
 /**
  * The frame every screen renders inside: ambient backdrop, sticky header, and
@@ -51,6 +54,16 @@ export function AppShell({
   const openAdd = useCallback(() => setAddOpen(true), []);
   const onAddBook = readerId === undefined ? undefined : openAdd;
 
+  // Uploading a file (docs/features/uploading-a-book.md): the add menu's other
+  // entry, the palette's, and the whole window as a drop target. One queue
+  // behind all three, and a lone upload opens its book the way a Hardcover add
+  // does — a batch leaves the shelf alone and reports in the strip instead.
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploads = useUploadQueue(header.user?.id, (bookId, batchSize) => {
+    if (batchSize === 1) setOpenBookId(bookId);
+  });
+  const openUpload = useCallback(() => fileInput.current?.click(), []);
+
   return (
     <div className="bg-background text-foreground flex h-screen flex-col overflow-hidden font-sans">
       {/* you lighting the room from the top-left, the crowd from the bottom-right */}
@@ -67,6 +80,7 @@ export function AppShell({
         <AppHeader
           {...header}
           onOpenSearch={() => setPaletteOpen(true)}
+          onUploadBook={openUpload}
           onAddBook={onAddBook}
           onOpenSettings={onOpenSettings ?? (() => setSettings({ open: true, section: "calibre" }))}
           onAddReader={() => setSettings({ open: true, section: "readers" })}
@@ -86,7 +100,23 @@ export function AppShell({
         onOpenSettings={(section) => setSettings({ open: true, section })}
         onOpenBook={setOpenBookId}
         onAddBook={onAddBook}
+        onUploadBook={openUpload}
       />
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept={UPLOAD_ACCEPT}
+        multiple
+        hidden
+        onChange={(event) => {
+          uploads.enqueue(Array.from(event.target.files ?? []));
+          // So picking the same file again after a refusal fires a change.
+          event.target.value = "";
+        }}
+      />
+      <UploadDropZone onFiles={uploads.enqueue} />
+      <UploadStatus items={uploads.items} onDismiss={uploads.dismiss} onOpenBook={setOpenBookId} />
 
       <HardcoverAddDialog
         open={addOpen}

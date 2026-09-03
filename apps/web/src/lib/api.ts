@@ -52,6 +52,10 @@ import {
   SeriesRosterSchema,
   type SyncStatus,
   SyncStatusSchema,
+  type UploadDeleteResult,
+  UploadDeleteResultSchema,
+  type UploadResult,
+  UploadResultSchema,
   type User,
   type UserCreate,
   UserSchema,
@@ -68,6 +72,8 @@ import {
   PREF_KEYS,
   PREFERENCES_VERSION,
   SYNC_INTERVAL_CHOICES,
+  UPLOAD_FORMATS,
+  UPLOAD_MAX_BYTES,
   USER_HEADER,
 } from "@grimoire/core/types";
 import type { z } from "zod";
@@ -116,6 +122,8 @@ export {
   PREF_KEYS,
   PREFERENCES_VERSION,
   SYNC_INTERVAL_CHOICES,
+  UPLOAD_FORMATS,
+  UPLOAD_MAX_BYTES,
 };
 
 /**
@@ -531,6 +539,38 @@ export function bookDownloadUrl(calibreId: number, format: string): string {
   return `${API_BASE}/api/cs/get/${format.toLowerCase()}/${calibreId}`;
 }
 
+/** A file Grimoire holds itself, by work id (docs/features/uploading-a-book.md). */
+export function bookFileUrl(workId: number, format: string): string {
+  return `${API_BASE}/api/books/${workId}/file/${format.toLowerCase()}`;
+}
+
+/**
+ * Every format there is a file to hand over for, most portable first: Calibre's
+ * while the book is still in its library, and Grimoire's own uploads always.
+ * Empty is the exact test for "no download button".
+ */
+export function downloadableFormats(
+  book: Pick<LibraryBook, "calibreId" | "formats" | "uploadedFormats">,
+): string[] {
+  const held = book.calibreId === null ? [] : book.formats;
+  return orderedFormats([...new Set([...held, ...book.uploadedFormats])]);
+}
+
+/**
+ * Where a format downloads from. Calibre when it holds the format and the book
+ * is still there — the source that ranks first everywhere else — and
+ * Grimoire's own file otherwise (docs/features/uploading-a-book.md).
+ */
+export function downloadUrlFor(
+  book: Pick<LibraryBook, "id" | "calibreId" | "formats" | "uploadedFormats">,
+  format: string,
+): string {
+  if (book.calibreId !== null && book.formats.includes(format)) {
+    return bookDownloadUrl(book.calibreId, format);
+  }
+  return bookFileUrl(book.id, format);
+}
+
 /**
  * Whether the book is still in the connected Calibre library — the test for
  * whether there is a file to download.
@@ -600,6 +640,45 @@ export function chooseBookCover(workId: number, bookId: number): Promise<Library
  * `coverVersion` has moved, which is what makes the new image visible — and
  * with how the run went, so a fetch that found nothing can say so.
  */
+/**
+ * Hand a file to Grimoire (docs/features/uploading-a-book.md). The body is the
+ * file itself, streamed, with the name in the query — no multipart, so a large
+ * book never has to be buffered to find the one part. The reader, when there
+ * is one, is attribution rather than scope.
+ */
+export async function uploadBook(file: File, userId?: number): Promise<UploadResult> {
+  const headers: Record<string, string> = { "Content-Type": "application/octet-stream" };
+  if (userId !== undefined) headers[USER_HEADER] = String(userId);
+
+  const res = await fetch(`${API_BASE}/api/books/upload?name=${encodeURIComponent(file.name)}`, {
+    method: "POST",
+    headers,
+    body: file,
+  });
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new ApiError(res.status, res.statusText || "The server sent a non-JSON response");
+  }
+  if (!res.ok) {
+    const err = ApiErrorSchema.safeParse(body);
+    throw new ApiError(res.status, err.success ? err.data.error : res.statusText, err.data?.hint);
+  }
+  const parsed = UploadResultSchema.safeParse(body);
+  if (!parsed.success) throw new ApiShapeError("/api/books/upload", parsed.error);
+  return parsed.data;
+}
+
+/**
+ * Delete a work's uploaded entries and their files (docs/features/book-actions.md).
+ * The book comes back as it now is, or null when nothing of it is left.
+ */
+export function deleteUpload(workId: number): Promise<UploadDeleteResult> {
+  return request(`/api/books/${workId}/upload`, UploadDeleteResultSchema, { method: "DELETE" });
+}
+
 export function refetchBookCover(workId: number): Promise<CoverRefetch> {
   return request(`/api/books/${workId}/cover/refetch`, CoverRefetchSchema, { method: "POST" });
 }

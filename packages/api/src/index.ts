@@ -9,6 +9,7 @@ import type {
   User,
 } from "@grimoire/core";
 import {
+  BookFilesStore,
   BooksStore,
   CalibreTestRequestSchema,
   CoverChoiceSchema,
@@ -43,6 +44,7 @@ import {
   SeriesStore,
   SettingsStore,
   SyncSettingsUpdateSchema,
+  UPLOAD_MAX_BYTES,
   USER_HEADER,
   UserCreateSchema,
   UserSettingsSchema,
@@ -71,8 +73,15 @@ import {
 } from "./hardcover.ts";
 import { HardcoverSync } from "./hardcover-sync.ts";
 import { CalibreSync } from "./sync.ts";
+import { deleteUploads, ingestUpload, UploadError } from "./uploads.ts";
 
 export { HardcoverSync } from "./hardcover-sync.ts";
+
+/**
+ * What a host should let a request body grow to: an upload at its cap, plus
+ * headroom (docs/features/uploading-a-book.md). Bun's own default is 128 MB.
+ */
+export const MAX_REQUEST_BODY_BYTES = UPLOAD_MAX_BYTES + 1024 * 1024;
 export { CalibreSync } from "./sync.ts";
 
 export interface ApiOptions {
@@ -162,6 +171,20 @@ async function probeCalibreServer(baseUrl: string): Promise<CalibreServerTest> {
   }
 }
 
+/**
+ * Stream a request body to disk chunk by chunk. Not `Bun.write(path, body)`:
+ * handed a body with no content-length — which is what a browser upload
+ * arrives as through the Vite dev proxy — that call never resolves, while a
+ * plain loop over the stream copes with either shape.
+ */
+async function writeBody(body: ReadableStream<Uint8Array> | null, path: string): Promise<void> {
+  const sink = Bun.file(path).writer();
+  if (body) {
+    for await (const chunk of body) sink.write(chunk);
+  }
+  await sink.end();
+}
+
 // Hop-by-hop / encoding headers that must not be forwarded verbatim (fetch
 // already decompresses the body, so passing content-encoding through would
 // corrupt the response).
@@ -208,6 +231,8 @@ export function createApi(options: ApiOptions = {}) {
 
   const dataDir = options.dataDir ?? defaultDataDir();
   const covers = new CoverStore(dataDir);
+  let files: BookFilesStore | null = null;
+  const getFiles = (): BookFilesStore => (files ??= new BookFilesStore(getDb(), dataDir));
 
   const getSync = (): CalibreSync =>
     (sync ??= new CalibreSync({
@@ -359,6 +384,99 @@ export function createApi(options: ApiOptions = {}) {
     });
   });
 
+  // Uploading a book (docs/features/uploading-a-book.md, ADR 0021). The body
+  // is the file itself rather than a multipart form: a 500 MB picture book
+  // should stream to disk, not be parsed into memory to find the one part.
+  // `?name=` carries the filename, which is where the format comes from.
+  app.post("/api/books/upload", async (c) => {
+    const name = c.req.query("name")?.trim();
+    if (!name) return c.json({ error: "Say which file this is: ?name=<filename>." }, 400);
+
+    // Refuse by the declared length before reading a byte; the ingest checks
+    // the real size again after.
+    const declared = Number(c.req.header("content-length") ?? 0);
+    if (declared > UPLOAD_MAX_BYTES) {
+      return c.json(
+        { error: `"${name}" is over the ${UPLOAD_MAX_BYTES / 1024 / 1024} MB limit.` },
+        413,
+      );
+    }
+
+    // Attribution only, so a missing or stale header is not a refusal here the
+    // way it is on a user-scoped route.
+    const header = Number(c.req.header(USER_HEADER));
+    const addedBy =
+      Number.isInteger(header) && header > 0 && getUsers().get(header) ? header : null;
+
+    const store = getFiles();
+    const tempFile = await store.tempPath();
+    const started = performance.now();
+    await writeBody(c.req.raw.body, tempFile);
+    const written = performance.now() - started;
+
+    try {
+      const result = await ingestUpload(
+        { books: getBooks(), files: store, covers, works: getWorks() },
+        { tempFile, originalName: name, addedBy, now: new Date().toISOString() },
+        (timings) => {
+          console.log(`upload "${name}": receive ${written.toFixed(0)}ms, ${timings}`);
+        },
+      );
+      return c.json(result, result.existing ? 200 : 201);
+    } catch (err) {
+      if (err instanceof UploadError) return c.json({ error: err.message }, err.status);
+      throw err;
+    }
+  });
+
+  /**
+   * A file Grimoire holds itself, by work id and format — the download for an
+   * uploaded book, which needs no Calibre (docs/features/uploading-a-book.md).
+   * Named for the reader as the book's title, not the id the disk knows it by.
+   */
+  app.get("/api/books/:id/file/:format", async (c) => {
+    const workId = workIdFromPath(c);
+    const format = c.req.param("format").toUpperCase();
+    const store = getFiles();
+    const file = store.forWork(workId).find((held) => held.format === format);
+    if (!file) return c.json({ error: "Grimoire holds no such file for that book." }, 404);
+
+    const book = getBooks().get(workId);
+    const disk = Bun.file(store.path(file.bookId, file.format));
+    if (!book || !(await disk.exists())) {
+      return c.json({ error: "Grimoire holds no such file for that book." }, 404);
+    }
+
+    const filename = `${book.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "book"}.${format.toLowerCase()}`;
+    return new Response(disk, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(disk.size),
+        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      },
+    });
+  });
+
+  /**
+   * Delete a work's uploaded entries and their files
+   * (docs/features/book-actions.md). Answers the work as it now is, or a null
+   * book when the last entry went with it. 404 when there was nothing of
+   * Grimoire's to delete — a Calibre or Hardcover book is not deletable here.
+   */
+  app.delete("/api/books/:id/upload", async (c) => {
+    const workId = workIdFromPath(c);
+    const books = getBooks();
+    if (books.uploadedMembers(workId).length === 0) {
+      return c.json({ error: "That book has no uploaded file to delete." }, 404);
+    }
+
+    const deleted = await deleteUploads(
+      { books, files: getFiles(), covers, works: getWorks() },
+      workId,
+    );
+    return c.json({ book: books.get(workId), deleted });
+  });
+
   /**
    * Choose which of a work's covers to show, for everyone
    * (docs/features/book-details-panel.md). A work only has more than one when
@@ -393,7 +511,7 @@ export function createApi(options: ApiOptions = {}) {
     if (!books.get(workId)) return c.json({ error: "No book with that id." }, 404);
 
     const result = await refetchWorkCovers(
-      { books, covers, calibreServerUrl: resolveCalibreServerUrl() || null },
+      { books, covers, calibreServerUrl: resolveCalibreServerUrl() || null, files: getFiles() },
       workId,
     );
 

@@ -71,6 +71,27 @@ export interface ReconcileResult {
   unlinked: number;
 }
 
+/**
+ * What a file said about the book inside it, as the format parsers hand it
+ * over (docs/features/uploading-a-book.md). Everything but the title is
+ * optional: a file that names nothing still lands, titled after itself.
+ */
+export interface UploadedBook {
+  title: string;
+  titleSort?: string | null;
+  authors: string[];
+  authorSort?: string | null;
+  series?: string | null;
+  seriesIndex?: number | null;
+  tags: string[];
+  publisher?: string | null;
+  languages: string[];
+  identifiers: Record<string, string>;
+  description?: string | null;
+  /** ISO 8601 date, or whatever precision the file gave. */
+  published?: string | null;
+}
+
 /** A book needing its covers fetched, and the id to fetch them from Calibre with. */
 export interface CoverTarget {
   id: number;
@@ -193,6 +214,16 @@ function toBook(members: BookRow[], series: readonly SeriesRef[], preferHardcove
     seriesList,
     tags: pickList((row) => row.tags),
     formats: pickList((row) => row.formats),
+    // Only the Grimoire-sourced members' files, whichever member outranked
+    // them for `formats`: this is what the download button can serve itself
+    // (docs/features/uploading-a-book.md).
+    uploadedFormats: [
+      ...new Set(
+        rows
+          .filter((row) => row.source === BOOK_SOURCE.grimoire)
+          .flatMap((row) => parseArray(row.formats)),
+      ),
+    ],
     publisher: pick((row) => row.publisher),
     languages: pickList((row) => row.languages),
     identifiers:
@@ -758,6 +789,84 @@ export class BooksStore {
           WHERE b.cover_state = 'cached' AND b.calibre_id IS NOT NULL`,
       )
       .all() as CoverTarget[];
+  }
+
+  /**
+   * A book Grimoire holds the file of (ADR 0021), from what the file said about
+   * itself. A work of its own, like every insert; the matcher decides after
+   * this whether it belongs with a Calibre or Hardcover copy
+   * (docs/features/uploading-a-book.md). `formats` is left to `BookFilesStore`,
+   * which writes it once the file is in place.
+   */
+  insertUpload(book: UploadedBook, now: string): { bookId: number; workId: number } {
+    const workId = this.createWork(now);
+    const row = this.db
+      .query(
+        `INSERT INTO books (
+           source, title, title_sort, authors, author_sort, series, series_index, tags,
+           publisher, languages, identifiers, description, published, added,
+           match_key, work_id, created_at, updated_at
+         ) VALUES (
+           $source, $title, $titleSort, $authors, $authorSort, $series, $seriesIndex, $tags,
+           $publisher, $languages, $identifiers, $description, $published, $now,
+           $matchKey, $workId, $now, $now
+         ) RETURNING id`,
+      )
+      .get({
+        $source: BOOK_SOURCE.grimoire,
+        $title: book.title,
+        $titleSort: book.titleSort ?? book.title,
+        $authors: JSON.stringify(cleanAuthors(book.authors)),
+        $authorSort: book.authorSort ?? null,
+        $series: book.series ?? null,
+        $seriesIndex: book.seriesIndex ?? null,
+        $tags: JSON.stringify(book.tags),
+        $publisher: book.publisher ?? null,
+        $languages: JSON.stringify(book.languages),
+        $identifiers: JSON.stringify(book.identifiers),
+        $description: book.description ?? null,
+        $published: book.published ?? null,
+        $matchKey: matchKey(book.title),
+        $workId: workId,
+        $now: now,
+      }) as { id: number };
+    return { bookId: row.id, workId };
+  }
+
+  /** The work a member row is in now — after the matcher has had its say. */
+  workIdOf(bookId: number): number | null {
+    const row = this.db.query("SELECT work_id FROM books WHERE id = $id").get({ $id: bookId }) as {
+      work_id: number;
+    } | null;
+    return row?.work_id ?? null;
+  }
+
+  /** The Grimoire-sourced members of a work — the only ones that can be deleted. */
+  uploadedMembers(workId: number): { id: number; title: string }[] {
+    return this.db
+      .query("SELECT id, title FROM books WHERE work_id = $workId AND source = $source ORDER BY id")
+      .all({ $workId: workId, $source: BOOK_SOURCE.grimoire }) as { id: number; title: string }[];
+  }
+
+  /**
+   * Delete member rows outright — the one path that ever deletes a book, and
+   * only for rows Grimoire is the source of, since a synced row would be back
+   * on the next sweep (ADR 0021). A work left with no members goes too, taking
+   * its ratings and read states with it. Files on disk are the caller's to
+   * remove; SQLite cannot.
+   */
+  deleteMembers(ids: readonly number[]): void {
+    if (ids.length === 0) return;
+    const list = ids.join(",");
+    this.db.transaction(() => {
+      // A work's chosen cover can't be a row that no longer exists, and the
+      // reference has no ON DELETE clause of its own.
+      this.db.run(`UPDATE works SET cover_book_id = NULL WHERE cover_book_id IN (${list})`);
+      this.db.run(`DELETE FROM books WHERE id IN (${list}) AND source = '${BOOK_SOURCE.grimoire}'`);
+      this.db.run(
+        "DELETE FROM works WHERE id NOT IN (SELECT work_id FROM books WHERE work_id IS NOT NULL)",
+      );
+    })();
   }
 
   /**

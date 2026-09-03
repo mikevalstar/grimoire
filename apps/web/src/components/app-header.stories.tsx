@@ -40,7 +40,8 @@ const meta = {
     user: READERS[0],
     users: READERS,
     onPickUser: () => {},
-    // A linked reader, so the + beside the search is offered.
+    onUploadBook: () => {},
+    // A linked reader, so the add menu offers Hardcover too.
     onAddBook: () => {},
   },
 } satisfies Meta<typeof AppHeader>;
@@ -83,8 +84,8 @@ export const Narrow: Story = {
 };
 
 /**
- * A reader with no Hardcover account: nowhere to add a book to, so the + is
- * absent (docs/features/adding-a-book-from-hardcover.md).
+ * A reader with no Hardcover account: the add menu keeps its upload entry and
+ * loses the Hardcover one (docs/features/adding-a-book-from-hardcover.md).
  */
 export const NoHardcover: Story = {
   args: { user: READERS[1], onAddBook: undefined },

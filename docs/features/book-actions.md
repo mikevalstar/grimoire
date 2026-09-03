@@ -81,6 +81,13 @@ cover URL stamps it, alongside the `member` that
 **It is not a re-sync.** It touches no metadata, looks at no other book, and
 leaves the sync schedule alone.
 
+**Delete uploaded book** is the second action, enabled only for a work with a
+Grimoire entry ([uploading a book](uploading-a-book.md)). It confirms first,
+naming the file, then removes that entry and its files from disk. The other
+entries of the work stay. A work with nothing left leaves the shelf with its
+ratings and read states. Calibre and Hardcover entries are never deletable
+here, since their sources would restore them on the next sync.
+
 ## Acceptance criteria
 
 - [x] Every open book's panel shows the gear, with an *Actions* tooltip and
@@ -94,6 +101,8 @@ leaves the sync schedule alone.
 - [x] A book with no member that has a source to ask reports that it found
       nothing, rather than appearing to succeed.
 - [x] The gear and its menu appear in the panel's Storybook stories.
+- [x] Delete uploaded book is offered only for a work with a Grimoire entry,
+      confirms before writing, and removes the entry and its files.
 
 ## API
 

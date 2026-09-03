@@ -1,6 +1,7 @@
 import { fold } from "@grimoire/core/matching";
 import {
   ArrowUpDown,
+  FileUp,
   Layers,
   LayoutGrid,
   List,
@@ -68,11 +69,13 @@ export interface CommandMenuProps {
   onOpenSettings?: (section: SettingsSection) => void;
   onOpenBook?: (id: number) => void;
   /**
-   * Opens the add-a-book dialog, mirroring the header's **+** — absent, like
-   * that button, for a reader with no linked Hardcover account
+   * Opens the add-from-Hardcover dialog, mirroring the header's add menu —
+   * absent, like that entry, for a reader with no linked Hardcover account
    * (docs/features/adding-a-book-from-hardcover.md).
    */
   onAddBook?: () => void;
+  /** Opens the file picker, the add menu's other entry (docs/features/uploading-a-book.md). */
+  onUploadBook?: () => void;
 }
 
 /**
@@ -99,6 +102,7 @@ export function CommandMenu({
   onOpenSettings,
   onOpenBook,
   onAddBook,
+  onUploadBook,
 }: CommandMenuProps) {
   const [query, setQuery] = useState("");
   const [view, setView] = useViewMode();
@@ -211,6 +215,17 @@ export function CommandMenu({
       });
     }
 
+    if (onUploadBook) {
+      list.push({
+        id: "book-upload",
+        section: "Library",
+        label: "Upload a book",
+        icon: <FileUp size={14} />,
+        keywords: "upload add book file epub import",
+        run: onUploadBook,
+      });
+    }
+
     if (onAddBook) {
       list.push({
         id: "book-add",
@@ -269,6 +284,7 @@ export function CommandMenu({
     onSync,
     onOpenSettings,
     onAddBook,
+    onUploadBook,
   ]);
 
   // Command matching folds accents exactly like book search does, so "Sòrt"

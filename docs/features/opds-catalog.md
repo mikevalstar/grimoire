@@ -54,9 +54,10 @@ Sketch, to settle when someone designs this for real:
   ([ADR 0002](../adrs/0002-one-http-api-three-delivery-targets.md)).
 
 Downloads proxy the running Calibre content server the way `/api/cs/*` already
-does ([ADR 0005](../adrs/0005-calibre-content-server-as-the-data-source.md)).
-Grimoire holds no book files of its own and should not start holding them for
-this.
+does ([ADR 0005](../adrs/0005-calibre-content-server-as-the-data-source.md)),
+and serve Grimoire's own files for
+[uploaded books](uploading-a-book.md)
+([ADR 0021](../adrs/0021-grimoire-holds-book-files-of-its-own.md)).
 
 ## Acceptance criteria
 

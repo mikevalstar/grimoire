@@ -1,3 +1,4 @@
+export * from "./book-files.ts";
 export * from "./books.ts";
 export * from "./calibre-books.ts";
 export * from "./covers.ts";

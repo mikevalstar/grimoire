@@ -7,11 +7,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { tooltipProps } from "@/components/ui/tooltip";
-import { bookDownloadUrl, type LibraryBook, orderedFormats } from "@/lib/api";
+import { downloadableFormats, downloadUrlFor, type LibraryBook } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface BookDownloadButtonProps {
-  book: Pick<LibraryBook, "calibreId" | "title" | "formats">;
+  book: Pick<LibraryBook, "id" | "calibreId" | "title" | "formats" | "uploadedFormats">;
   /**
    * Where it sits. `quiet` is on the canvas and flips with the theme; `overlay`
    * lies on top of a cover, which is an image in both themes, so it stays dark
@@ -44,8 +44,9 @@ const VARIANTS = {
 } as const;
 
 /**
- * Hands over the book's file, straight from Calibre through the proxy — the one
- * thing still fetched live (ADR 0011).
+ * Hands over the book's file: straight from Calibre through the proxy — the one
+ * thing still fetched live (ADR 0011) — or from Grimoire's own disk for a
+ * format that was uploaded here (docs/features/uploading-a-book.md).
  *
  * With one format it *is* the download. With several it opens a menu of them,
  * most portable first, because handing a reader an EPUB when they came for the
@@ -53,8 +54,9 @@ const VARIANTS = {
  * for the books that actually have a choice.
  *
  * Absent for a book with no formats, and for one that has left the Calibre
- * library: Grimoire keeps that book's record and cover, but the *file* was
- * always Calibre's, and there is nothing left to point at.
+ * library with nothing uploaded in its place: Grimoire keeps that book's record
+ * and cover, but the *file* was always Calibre's, and there is nothing left to
+ * point at.
  *
  * On a card or a row it is hidden until that book is hovered, so callers must
  * mark the card or row `group/book`. Focus reveals it too — a pointer-only
@@ -68,9 +70,8 @@ export function BookDownloadButton({
   variant = "quiet",
   className,
 }: BookDownloadButtonProps) {
-  const formats = orderedFormats(book.formats);
-  const { calibreId } = book;
-  if (formats.length === 0 || calibreId === null) return null;
+  const formats = downloadableFormats(book);
+  if (formats.length === 0) return null;
 
   const chrome = cn(
     "flex items-center justify-center border motion-safe:transition-[opacity,color,background-color,border-color]",
@@ -100,7 +101,7 @@ export function BookDownloadButton({
     const format = formats[0];
     return (
       <a
-        href={bookDownloadUrl(calibreId, format)}
+        href={downloadUrlFor(book, format)}
         download
         {...tip(`Download ${format}`)}
         aria-label={`Download ${book.title} as ${format}`}
@@ -141,7 +142,7 @@ export function BookDownloadButton({
           // asChild so each choice is a real link: it keeps the browser's own
           // "save as", and middle-click and right-click still behave.
           <DropdownMenuItem key={format} asChild>
-            <a href={bookDownloadUrl(calibreId, format)} download>
+            <a href={downloadUrlFor(book, format)} download>
               {format}
             </a>
           </DropdownMenuItem>

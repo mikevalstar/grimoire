@@ -425,6 +425,25 @@ function migrate(db: Database): void {
       PRIMARY KEY (user_id, work_id)
     )
   `);
+
+  // A file Grimoire holds itself (ADR 0021) — one row per format of a
+  // `grimoire`-sourced book. The path is not stored: it is derived from the
+  // book id and format the way a cover's is (docs/features/uploading-a-book.md).
+  // `sha256` is what makes the same file uploaded twice one book. `added_by`
+  // is attribution only, and outlives the reader (ADR 0008).
+  db.run(`
+    CREATE TABLE IF NOT EXISTS book_files (
+      book_id       INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+      format        TEXT NOT NULL,
+      size          INTEGER NOT NULL,
+      sha256        TEXT NOT NULL,
+      original_name TEXT,
+      added_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      added_at      TEXT NOT NULL,
+      PRIMARY KEY (book_id, format)
+    )
+  `);
+  db.run("CREATE INDEX IF NOT EXISTS book_files_sha256 ON book_files(sha256)");
 }
 
 /**

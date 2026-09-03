@@ -44,9 +44,10 @@ of the wrong canvas.
 
 **Header.** Sticky, translucent over scrolled content, holding left to right:
 the wordmark linking to the library root; a search trigger, which opens the
-[command palette](command-palette.md), with a **+** beside it for
-[adding a book from Hardcover](adding-a-book-from-hardcover.md) when the
-current reader is linked; a theme toggle; the
+[command palette](command-palette.md), with a **+** beside it opening the add
+menu, [uploading a file](uploading-a-book.md) for anyone and
+[adding from Hardcover](adding-a-book-from-hardcover.md) when the current
+reader is linked; a theme toggle; the
 [sync indicator](calibre-sync.md); [settings](settings.md); and the current
 reader as an avatar chip. It sheds the least essential of those on narrow
 screens. The sync indicator stays, because it also reports errors.

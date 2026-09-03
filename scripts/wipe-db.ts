@@ -8,9 +8,14 @@
  * setup without going near your real database.
  */
 import { existsSync, unlinkSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { defaultDatabasePath } from "@grimoire/core";
 
 const dbPath = defaultDatabasePath();
+// Uploaded originals (ADR 0021). Deliberately left alone: nothing can rebuild
+// them, so removing them is a decision for a person with `rm`, not a script
+// whose job is a fresh first run.
+const booksDir = join(dirname(dbPath), "books");
 // WAL mode leaves two sidecars next to the database; a stale -wal would restore
 // rows we just deleted.
 const paths = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
@@ -26,4 +31,9 @@ if (removed.length === 0) {
 } else {
   for (const path of removed) console.log(`Removed ${path}`);
   console.log("Next launch will run first-time setup.");
+  if (existsSync(booksDir)) {
+    console.log(
+      `Uploaded book files were left in ${booksDir}. The new database won't know about them; delete the directory yourself if you want a clean slate.`,
+    );
+  }
 }

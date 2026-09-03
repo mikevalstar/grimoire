@@ -1,6 +1,6 @@
 import { join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createApi } from "@grimoire/api";
+import { createApi, MAX_REQUEST_BODY_BYTES } from "@grimoire/api";
 
 const PORT = Number(process.env.PORT ?? 4747);
 const WEB_DIST = process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
@@ -31,5 +31,12 @@ app.get("*", async (c) => {
 // common case finish and report a real error instead of a dropped socket. A
 // very large Hardcover sweep can still exceed it — the durable fix is to make
 // that endpoint return 202 and poll.
-const server = Bun.serve({ port: PORT, idleTimeout: 30, fetch: app.fetch });
+// Bun caps request bodies at 128 MB by default; an uploaded picture book is
+// bigger (docs/features/uploading-a-book.md).
+const server = Bun.serve({
+  port: PORT,
+  idleTimeout: 30,
+  maxRequestBodySize: MAX_REQUEST_BODY_BYTES,
+  fetch: app.fetch,
+});
 console.log(`Grimoire server running at http://localhost:${server.port}`);

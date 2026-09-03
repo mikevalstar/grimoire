@@ -1,7 +1,9 @@
 # Grimoire Books
 
 UI for browsing/organizing a Calibre ebook library, with hardcover.app shelves
-as a second source. Ships as an Electrobun desktop app, a self-hosted server,
+as a second source and files uploaded straight into Grimoire as a third
+([ADR 0021](docs/adrs/0021-grimoire-holds-book-files-of-its-own.md),
+[spec](docs/features/uploading-a-book.md)). Ships as an Electrobun desktop app, a self-hosted server,
 and a local web app from one codebase. Read-only against Calibre — it stays the
 source of truth for the files; replacing it as the backend is the long-term
 goal. Several readers share one instance with no login
@@ -41,7 +43,8 @@ Hardcover with write-back
   (the verbatim mirrors), `WorksStore` (matching, merge, separate),
   `SeriesStore`, `RatingsStore`, `ReadStatesStore`, `UsersStore` (readers and
   their Hardcover link), `SettingsStore` (key/value preferences), `CoverStore`
-  (files on disk). `src/matching.ts` is the pure title/author matcher
+  (cached covers on disk), `BookFilesStore` (the `book_files` table and the
+  uploaded originals on disk under `books/`). `src/matching.ts` is the pure title/author matcher
   (`@grimoire/core/matching`). Two browser-safe modules that must never import
   bun-only code: `src/schemas.ts` (Zod schemas for every API payload,
   `@grimoire/core/schemas`) and `src/types.ts` (constants incl. the 24
@@ -50,9 +53,11 @@ Hardcover with write-back
   starts both schedulers (`CalibreSync` in `src/sync.ts`, `HardcoverSync` in
   `src/hardcover-sync.ts`); pass `sync: false` to embed it without them.
   Embedded by both server and desktop. Routes in `src/index.ts`: preferences,
-  users and their Hardcover link, the library and covers by work id,
-  duplicates, series, ratings, read states, sync status and control, and the
-  `/api/cs/*` proxy. The proxy target is resolved *per request* from the
+  users and their Hardcover link, the library and covers by work id, uploads
+  (`POST /api/books/upload` takes the raw file as the body, `src/uploads.ts`
+  ingests it through the format registry in `src/formats/`), duplicates,
+  series, ratings, read states, sync status and control, and the `/api/cs/*`
+  proxy. The proxy target is resolved *per request* from the
   `calibre.serverUrl` preference (falling back to `CALIBRE_SERVER`, then
   `http://localhost:8080`), so saving it in the UI takes effect without a
   restart. User-scoped routes take the reader from the `X-Grimoire-User`
@@ -141,8 +146,10 @@ Rules:
   (default `~/.config/grimoire` on Linux and macOS, `~/Documents/Grimoire` on
   Windows — [ADR 0007](docs/adrs/0007-user-data-and-asset-storage-location.md)).
   Point it at a temp dir to exercise first-run setup without clobbering real
-  preferences. `CALIBRE_SERVER` is the fallback content server URL before one
-  is saved in preferences.
+  preferences. Since [ADR 0021](docs/adrs/0021-grimoire-holds-book-files-of-its-own.md)
+  the `books/` tree under it holds uploaded originals, which nothing can
+  rebuild — covers are the only disposable part now. `CALIBRE_SERVER` is the
+  fallback content server URL before one is saved in preferences.
 - Every API payload has a Zod schema in `packages/core/src/schemas.ts` — the
   API validates requests with `zValidator`, the client parses responses with
   the same schema, and types are `z.infer`, never hand-written

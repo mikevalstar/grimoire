@@ -128,6 +128,20 @@ export async function cacheRemoteCover(
   const bytes = await res.arrayBuffer();
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES) return false;
 
+  return writeCoverSizes(covers, bookId, bytes);
+}
+
+/**
+ * Every cached size of one book's cover, from one image's bytes — the half of
+ * caching a remote cover that has nothing to do with the network, which is
+ * also all an uploaded book's cover needs (docs/features/uploading-a-book.md).
+ * False for anything the decoder cannot read.
+ */
+export async function writeCoverSizes(
+  covers: CoverStore,
+  bookId: number,
+  bytes: ArrayBuffer,
+): Promise<boolean> {
   try {
     // Decoded once and cloned per size: decoding is most of the cost, and
     // there are three sizes to make from it.

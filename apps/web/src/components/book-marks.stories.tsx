@@ -26,6 +26,11 @@ export const BothSources: Story = {
   args: { book: { sources: ["calibre", "hardcover"], calibreId: 41 } },
 };
 
+/** Uploaded straight into Grimoire, which holds the file itself (docs/features/uploading-a-book.md). */
+export const Grimoire: Story = {
+  args: { book: { sources: ["grimoire"], calibreId: null } },
+};
+
 /** Calibre dropped it; Grimoire kept it. The Calibre mark carries the news. */
 export const LeftCalibre: Story = {
   args: { book: { sources: ["calibre"], calibreId: null } },

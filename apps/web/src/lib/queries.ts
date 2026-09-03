@@ -6,6 +6,7 @@ import {
   chooseBookCover,
   type DuplicateCandidate,
   type Duplicates,
+  deleteUpload,
   dismissDuplicate,
   fetchBooks,
   fetchDuplicates,
@@ -35,6 +36,7 @@ import {
   separateMember,
   setPrimarySeries,
   startSync,
+  uploadBook,
 } from "@/lib/api";
 
 /**
@@ -690,4 +692,46 @@ interface RateVariables {
   markRead?: boolean;
   /** When they finished it — "2023", "2023-06" or "2023-06-15"; absent = unknown. */
   finishedAt?: string;
+}
+
+/**
+ * Upload one file (docs/features/uploading-a-book.md). Settles once the shelf
+ * has been refetched, so the caller can open the new book's panel the moment
+ * it resolves — the same contract as adding from Hardcover.
+ */
+export function useUploadBook(userId: number | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => uploadBook(file, userId ?? undefined),
+    async onSuccess() {
+      // Matching may have folded the upload into an existing work, so the
+      // duplicates queue can have changed too.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: booksQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: ["duplicates"] }),
+      ]);
+    },
+  });
+}
+
+/**
+ * Delete a work's uploaded entries (docs/features/book-actions.md). A work
+ * that lost its last member is gone from the shelf; one that kept others is
+ * redrawn without the Grimoire mark.
+ */
+export function useDeleteUpload() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (workId: number) => deleteUpload(workId),
+    async onSuccess() {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: booksQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: ["duplicates"] }),
+        queryClient.invalidateQueries({ queryKey: ["ratings"] }),
+        queryClient.invalidateQueries({ queryKey: ["read-states"] }),
+      ]);
+    },
+  });
 }

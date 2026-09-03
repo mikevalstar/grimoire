@@ -1,4 +1,4 @@
-import { Unlink } from "lucide-react";
+import { Sparkles, Unlink } from "lucide-react";
 import type { ComponentType } from "react";
 import { BookBadge, type BookBadgeProps } from "@/components/book-badge";
 import { CalibreIcon, HardcoverIcon } from "@/components/brand-icons";
@@ -25,6 +25,13 @@ export interface BookMark {
    * marks are (`@/components/brand-icons`), so a source can wear its own logo.
    */
   icon: MarkIcon;
+  /**
+   * Badge classes, by placement, for a mark that wears a colour of its own.
+   * Calibre and Hardcover bring a logo and leave the badge neutral; Grimoire's
+   * own mark is a glyph, so the colour is what makes it recognisable
+   * (docs/features/uploading-a-book.md).
+   */
+  tone?: { inline: string; overlay: string };
 }
 
 /** The shape both lucide icons and the brand marks satisfy. */
@@ -57,6 +64,24 @@ const HARDCOVER: BookMark = {
 };
 
 /**
+ * Grimoire's own: the file was uploaded here and lives on this disk
+ * (docs/features/uploading-a-book.md). A lucide glyph rather than a logo,
+ * since the application being named is this one — drawn in the app's own
+ * indigo, the "you" accent, which is the colour everything Grimoire owns
+ * already wears.
+ */
+const GRIMOIRE: BookMark = {
+  id: "grimoire",
+  label: "Grimoire",
+  title: "Grimoire holds this book's file itself — it was uploaded here.",
+  icon: Sparkles,
+  tone: {
+    inline: "border-you/40 bg-you-dim text-you-soft",
+    overlay: "border-you-soft/40 bg-you/80 text-white",
+  },
+};
+
+/**
  * The mark for a source on its own, saying nothing about what has happened to
  * the book since — what one *entry* of a work is labelled with when the entries
  * are being listed rather than the book (docs/features/resolving-duplicates.md).
@@ -67,20 +92,32 @@ const HARDCOVER: BookMark = {
 export function sourceMark(source: string): BookMark | null {
   if (source === BOOK_SOURCE.calibre) return CALIBRE;
   if (source === BOOK_SOURCE.hardcover) return HARDCOVER;
+  if (source === BOOK_SOURCE.grimoire) return GRIMOIRE;
   return null;
 }
+
+/** Grimoire's own mark leads; the sources it mirrors follow in the order the API gave them. */
+const MARK_ORDER: readonly string[] = [BOOK_SOURCE.grimoire];
 
 /**
  * What to say about this book. One mark per source it came from — and for
  * Calibre, the mark itself carries whether the book is still there, rather than
- * a second mark contradicting the first.
+ * a second mark contradicting the first. Grimoire's mark comes first whenever
+ * it is present: the file this app holds itself outranks the copies it only
+ * knows about (docs/features/uploading-a-book.md).
  */
 export function bookMarks(book: Pick<LibraryBook, "sources" | "calibreId">): BookMark[] {
-  return book.sources.flatMap((source) => {
-    if (source === BOOK_SOURCE.calibre && book.calibreId === null) return [CALIBRE_GONE];
-    const mark = sourceMark(source);
-    return mark ? [mark] : [];
-  });
+  const rank = (source: string) => {
+    const index = MARK_ORDER.indexOf(source);
+    return index === -1 ? MARK_ORDER.length : index;
+  };
+  return [...book.sources]
+    .sort((a, b) => rank(a) - rank(b))
+    .flatMap((source) => {
+      if (source === BOOK_SOURCE.calibre && book.calibreId === null) return [CALIBRE_GONE];
+      const mark = sourceMark(source);
+      return mark ? [mark] : [];
+    });
 }
 
 export interface BookMarksProps {
@@ -109,7 +146,12 @@ export function BookMarks({ book, variant = "inline", className }: BookMarksProp
     // where a <ul> would not be valid.
     <span className={cn("inline-flex flex-wrap items-center gap-1", className)}>
       {marks.map((mark) => (
-        <BookBadge key={mark.id} variant={variant} title={mark.title}>
+        <BookBadge
+          key={mark.id}
+          variant={variant}
+          title={mark.title}
+          className={mark.tone?.[variant]}
+        >
           <mark.icon size={12} aria-hidden="true" />
           <span className="sr-only">{mark.label}</span>
         </BookBadge>

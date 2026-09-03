@@ -31,4 +31,5 @@ Add one with `okq new feature "<title>"`.
 | Resolving duplicates | [resolving-duplicates.md](resolving-duplicates.md) |
 | Setting a series from Hardcover | [setting-a-series-from-hardcover.md](setting-a-series-from-hardcover.md) |
 | Settings | [settings.md](settings.md) |
+| Uploading a book | [uploading-a-book.md](uploading-a-book.md) |
 <!-- okq:index:end -->

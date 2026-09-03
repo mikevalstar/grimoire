@@ -701,6 +701,12 @@ export const BookSchema = z.object({
   tags: z.array(z.string()),
   /** Uppercased, e.g. ["EPUB", "PDF"]. */
   formats: z.array(z.string()),
+  /**
+   * The formats Grimoire holds a file for itself, uploaded rather than
+   * Calibre's (ADR 0021). Downloadable with Calibre stopped, and with no
+   * Calibre at all (docs/features/uploading-a-book.md).
+   */
+  uploadedFormats: z.array(z.string()).default([]),
   publisher: z.string().nullable(),
   languages: z.array(z.string()),
   /** e.g. { isbn: "…", google: "…" }. */
@@ -754,6 +760,32 @@ export const BookSchema = z.object({
 export type Book = z.infer<typeof BookSchema>;
 
 export const BooksSchema = z.array(BookSchema);
+
+// --- Uploading a book -------------------------------------------------------
+// docs/features/uploading-a-book.md
+
+/**
+ * What an upload landed as: the work to open, and whether the file was already
+ * here — the same bytes uploaded before are answered with the book that holds
+ * them rather than stored twice (ADR 0021).
+ */
+export const UploadResultSchema = z.object({
+  bookId: z.number(),
+  /** True when nothing was stored because this exact file already was. */
+  existing: z.boolean().default(false),
+});
+export type UploadResult = z.infer<typeof UploadResultSchema>;
+
+/**
+ * What deleting a work's uploaded entries did: the work as it now is, or null
+ * when nothing was left of it (docs/features/book-actions.md).
+ */
+export const UploadDeleteResultSchema = z.object({
+  book: BookSchema.nullable(),
+  /** How many member rows went. */
+  deleted: z.number(),
+});
+export type UploadDeleteResult = z.infer<typeof UploadDeleteResultSchema>;
 
 // --- Setting a series from Hardcover ---------------------------------------
 // docs/features/setting-a-series-from-hardcover.md

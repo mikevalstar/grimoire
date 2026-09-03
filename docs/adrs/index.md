@@ -31,4 +31,5 @@ Add one with `okq new adr "<title>"`.
 | GitHub Actions and GHCR for build and release automation | [0018-github-actions-and-ghcr-for-build-and-release-automation.md](0018-github-actions-and-ghcr-for-build-and-release-automation.md) |
 | Series as records with a primary per work | [0019-series-as-records-with-a-primary-per-work.md](0019-series-as-records-with-a-primary-per-work.md) |
 | Library view state lives in the URL | [0020-library-view-state-lives-in-the-url.md](0020-library-view-state-lives-in-the-url.md) |
+| Grimoire holds book files of its own | [0021-grimoire-holds-book-files-of-its-own.md](0021-grimoire-holds-book-files-of-its-own.md) |
 <!-- okq:index:end -->

@@ -1,6 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Moon, Plus, Search, Settings, Sun } from "lucide-react";
+import { FileUp, Moon, Plus, Search, Settings, Sun } from "lucide-react";
+import { HardcoverIcon } from "@/components/brand-icons";
 import { SyncIndicator } from "@/components/sync-indicator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
 import { tooltipProps } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/user-avatar";
@@ -17,10 +24,16 @@ export interface AppHeaderProps {
   /** Opens the command palette. Inert until that exists. */
   onOpenSearch?: () => void;
   /**
-   * Opens the add-a-book dialog
+   * Opens the file picker (docs/features/uploading-a-book.md). The add menu's
+   * first entry, for everyone.
+   */
+  onUploadBook?: () => void;
+  /**
+   * Opens the add-from-Hardcover dialog
    * (docs/features/adding-a-book-from-hardcover.md). Absent for a reader with
    * no linked Hardcover account — there is nowhere to add anything to — and
-   * the **+** goes with it.
+   * the menu entry goes with it. The **+** itself stays as long as either
+   * handler is here.
    */
   onAddBook?: () => void;
   onOpenSettings?: () => void;
@@ -41,6 +54,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({
   onOpenSearch,
+  onUploadBook,
   onAddBook,
   onOpenSettings,
   onAddReader,
@@ -62,7 +76,31 @@ export function AppHeader({
       : `Search ${bookCount.toLocaleString()} books or run a command`;
   const searchLabel = `${searchAction}…`;
 
-  const addAction = "Add a book from Hardcover";
+  const addAction = "Add a book";
+  const addMenu = (className: string) =>
+    (onUploadBook || onAddBook) && (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={addAction}
+          {...tooltipProps(addAction, "bottom")}
+          className={cn(iconButton, className)}
+        >
+          <Plus size={15} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem disabled={!onUploadBook} onSelect={() => onUploadBook?.()}>
+            <FileUp size={14} aria-hidden="true" />
+            Upload a file…
+          </DropdownMenuItem>
+          {onAddBook && (
+            <DropdownMenuItem onSelect={onAddBook}>
+              <HardcoverIcon size={14} />
+              From Hardcover…
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
 
   // A two-way flip with no "follow the system" state, so the label can always
   // name the theme the click moves to rather than the one you are in.
@@ -95,17 +133,7 @@ export function AppHeader({
               <Kbd>K</Kbd>
             </span>
           </button>
-          {onAddBook && (
-            <button
-              type="button"
-              onClick={onAddBook}
-              aria-label={addAction}
-              {...tooltipProps(addAction, "bottom")}
-              className={cn(iconButton, "shrink-0")}
-            >
-              <Plus size={15} />
-            </button>
-          )}
+          {addMenu("shrink-0")}
         </div>
 
         {/* below sm both collapse to icons and push the rest right */}
@@ -118,17 +146,7 @@ export function AppHeader({
         >
           <Search size={14} />
         </button>
-        {onAddBook && (
-          <button
-            type="button"
-            onClick={onAddBook}
-            aria-label={addAction}
-            {...tooltipProps(addAction, "bottom")}
-            className={cn(iconButton, "sm:hidden")}
-          >
-            <Plus size={15} />
-          </button>
-        )}
+        {addMenu("sm:hidden")}
 
         <div className="flex shrink-0 items-center gap-2">
           {/* Stays visible on a phone, unlike the gear below it: this is also

@@ -38,11 +38,11 @@ have.
 
 ## Behavior
 
-**The trigger.** A **+** sits immediately after the header's search trigger, in
-both its wide and narrow forms, and reads "Add a book from Hardcover". It is
-absent for a reader with no linked account, and absent before a reader is
-chosen. The palette carries the same action under Library, so it is reachable
-from the keyboard alone.
+**The trigger.** The header's **+** is an add menu
+([uploading a book](uploading-a-book.md)), and **From Hardcover** is its
+second entry, absent for a reader with no linked account and absent before a
+reader is chosen. The palette carries the same action under Library, so it is
+reachable from the keyboard alone.
 
 **Finding it.** The dialog opens on an empty search over Hardcover's whole
 catalogue. It is the one search in the app not seeded from a book, because
@@ -118,6 +118,6 @@ to.
 - Whether an add should offer a rating in the same breath, the way the
   [read-state modal](marking-a-book-read.md) does. Left out for now, since the
   stars are one click away on the card that lands.
-- What this should do when Grimoire eventually owns its own books rather than
-  mirroring two sources: the same dialog probably grows a "not on Hardcover
-  either" escape hatch.
+- Grimoire now owns books of its own ([uploading a book](uploading-a-book.md)),
+  so a "not on Hardcover either" escape hatch from this dialog is possible.
+  Nothing links the two yet.
