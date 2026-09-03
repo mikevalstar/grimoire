@@ -65,6 +65,8 @@ filter by. These are the same rules the
 **List view.** A table that scrolls horizontally rather than crushing columns:
 thumbnail, title, author, series, your rating, formats, date added, and a
 trailing actions column. Columns are fixed for now; a picker is a later feature.
+A row opens the panel the way a card does, so it is reachable the same way:
+Tab lands on it, Enter or Space opens it, and the focus ring says which row.
 
 **Marks.** Small icons in the bottom-left corner of a cover, and beside the
 title in list view, which has no corner to use. They say where the book came

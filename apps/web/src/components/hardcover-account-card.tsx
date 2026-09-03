@@ -339,7 +339,7 @@ function TestResult({ test }: { test: HardcoverTest }) {
   return (
     <p
       className={`flex items-start gap-1.5 text-[12px] ${
-        test.ok ? "text-green-600 dark:text-green-500" : "text-destructive"
+        test.ok ? "text-success" : "text-destructive"
       }`}
     >
       {test.ok ? (

@@ -106,6 +106,10 @@ another's the first time someone connected a second library.
 - **In the mirror, not in `books`** → insert, with `source = 'calibre'`.
 - **In both** → update the mirrored fields and refresh `calibre_id`, which may
   have changed. Sync never touches the fields Grimoire owns.
+- Either way, author names lose a trailing separator on the way in. A library
+  edited by hand carries "Peter F. Hamilton;" in the name field, and the mirror
+  keeps that verbatim; `books` is where the shelf reads from, so that is where
+  it is cleaned ([`cleanAuthors`](../../packages/core/src/books.ts)).
 - **In `books`, gone from the mirror** → the row stays and keeps its
   `calibre_uuid`; sync clears only `calibre_id`. **Sync never deletes a book.**
   Someone's rating, shelf placement or reading progress is not Calibre's to
@@ -127,7 +131,9 @@ to prevent. Sync skips reconcile when the mirror phase changed nothing *and*
 no writes at all while a reconcile that never ran, or died half way, still gets
 its turn on the next tick. That check counts rows, not works: two Calibre rows
 merged into one work ([book matching](book-matching.md)) are still two rows
-against two mirror entries.
+against two mirror entries. A manual sync reconciles regardless, so a change to
+how `books` is derived from the mirror reaches every row without waiting for
+Calibre to touch it.
 
 A book with no `calibre_id` has no download button. The file lives in Calibre
 and the proxy has nothing to point at. It keeps its metadata and its cached

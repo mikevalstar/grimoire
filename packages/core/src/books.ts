@@ -78,6 +78,16 @@ export interface CoverTarget {
   lastModified: string;
 }
 
+/**
+ * Author names as Calibre should have stored them. A library edited by hand
+ * picks up "Peter F. Hamilton;" and "Ann Leckie," — a separator typed into the
+ * name field — and the shelf would otherwise show the punctuation on every
+ * card (docs/features/calibre-sync.md).
+ */
+export function cleanAuthors(authors: string[]): string[] {
+  return authors.map((name) => name.replace(/[\s;,&]+$/, "").trim()).filter(Boolean);
+}
+
 function parseArray(json: string): string[] {
   try {
     const value = JSON.parse(json);
@@ -420,7 +430,7 @@ export class BooksStore {
           $calibreId: row.calibre_id,
           $title: row.title,
           $titleSort: row.title_sort,
-          $authors: row.authors,
+          $authors: JSON.stringify(cleanAuthors(parseArray(row.authors))),
           $authorSort: row.author_sort,
           $series: row.series,
           $seriesIndex: row.series_index,

@@ -434,11 +434,21 @@ export function BookDetailsPanel({
   );
 }
 
+/**
+ * Chips past this many hide behind a "more" toggle: a Hardcover book can carry
+ * thirty tags, and a wall of them buries the About below.
+ */
+const CHIP_LIMIT = 12;
+
 /** A row of metadata chips — tags, moods, anything else that is a word list. */
 function Chips({ values }: { values: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = values.length - CHIP_LIMIT;
+  const shown = expanded || hidden < 2 ? values : values.slice(0, CHIP_LIMIT);
+
   return (
     <div className="flex flex-wrap gap-1.5">
-      {values.map((value) => (
+      {shown.map((value) => (
         <span
           key={value}
           className="border-line bg-fill text-muted-foreground rounded-md border px-2 py-0.5 text-[11px]"
@@ -446,6 +456,15 @@ function Chips({ values }: { values: string[] }) {
           {value}
         </span>
       ))}
+      {shown.length < values.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="text-muted-foreground hover:text-foreground rounded-md px-1.5 py-0.5 text-[11px] underline-offset-2 hover:underline"
+        >
+          +{hidden} more
+        </button>
+      )}
     </div>
   );
 }

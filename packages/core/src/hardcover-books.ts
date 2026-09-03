@@ -2,6 +2,25 @@ import type { Database } from "bun:sqlite";
 import { resolveDatabase } from "./db.ts";
 import type { HardcoverRatings, HcBookSeries, HcUserBook } from "./schemas.ts";
 
+/**
+ * One chip row out of several of Hardcover's tag categories. Their Genre and
+ * Tag lists overlap ("Action & Adventure" sits in both), and some tags carry
+ * their category as a prefix ("Genre: LitRPG"). Case-insensitive, first
+ * spelling wins, order kept (docs/features/book-details-panel.md).
+ */
+export function dedupeTags(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const value = raw.replace(/^(genre|tag|mood)\s*:\s*/i, "").trim();
+    const key = value.toLowerCase();
+    if (!value || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
 /** One work's line in {@link HardcoverBooksStore.ratingsByWork}. */
 type HardcoverShelfEntry = HardcoverRatings[string];
 

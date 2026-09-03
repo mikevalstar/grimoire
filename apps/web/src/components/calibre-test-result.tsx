@@ -8,9 +8,7 @@ import type { CalibreServerTest } from "@/lib/api";
 export function CalibreTestResult({ test }: { test: CalibreServerTest }) {
   return (
     <p
-      className={`flex items-start gap-2 text-sm ${
-        test.ok ? "text-green-600 dark:text-green-500" : "text-destructive"
-      }`}
+      className={`flex items-start gap-2 text-sm ${test.ok ? "text-success" : "text-destructive"}`}
     >
       {test.ok ? (
         <CheckCircle2 className="mt-0.5 size-4 shrink-0" />

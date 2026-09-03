@@ -97,8 +97,10 @@ Its contents, in order:
 - **Details.** Publisher, published, added, languages, pages, formats, and any
   identifiers (ISBN and friends). Grimoire leaves out a field it has no value
   for rather than showing a dash; the panel is not a form.
-- **Tags.** Plain chips. They are not filters yet.
+- **Tags.** Plain chips. They are not filters yet. Past a dozen, the rest sit
+  behind a "+N more" toggle, so a heavily tagged book does not bury its About.
 - **Moods.** Hardcover's mood tags, when there are any and the switch is on.
+  Capped the same way.
 - **About.** The description.
 - **View on Hardcover.** A link to the book's page on hardcover.app, for a book
   Hardcover has a side of.
@@ -127,7 +129,11 @@ Tags and moods are separate on purpose. Hardcover files its tags under four
 categories: Genre, Tag, Mood and Content Warning. Folding moods ("emotional",
 "slow-paced") into the same chip row as genres reads as noise. Grimoire shows
 Genre and Tag as Tags, Mood as Moods, and leaves content warnings alone until
-there is a decision about how to present them.
+there is a decision about how to present them. The two lists overlap on
+Hardcover's side ("Action & Adventure" is filed as both), and some tags carry
+their category as a prefix ("Genre: LitRPG"), so the API dedupes them
+case-insensitively and drops the prefix before the panel sees them
+([`dedupeTags`](../../packages/core/src/hardcover-books.ts)).
 
 **Linking back to them.** A book Hardcover has a side of also gets a View on
 Hardcover link, under the About section and above the duplicate footer, marked

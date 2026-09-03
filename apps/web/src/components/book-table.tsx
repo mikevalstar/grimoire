@@ -175,9 +175,23 @@ function BookRow({ book, index, measure, onOpen, ratings, onRate, ratable }: Boo
       ref={measure}
       data-index={index}
       onClick={onOpen ? () => onOpen(book) : undefined}
+      // A row opens like a card does, so it has to be reachable like one: Tab
+      // lands on it, Enter or Space opens it (docs/features/book-list.md).
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={
+        onOpen
+          ? (event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onOpen(book);
+            }
+          : undefined
+      }
       className={cn(
         "group/book border-line/60 hover:bg-fill border-b transition-colors",
-        onOpen && "cursor-pointer",
+        onOpen &&
+          "focus-visible:bg-fill focus-visible:ring-ring cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset",
       )}
     >
       <td className="py-1.5 pr-3 pl-3">

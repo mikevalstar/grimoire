@@ -17,6 +17,7 @@ import {
   DuplicateDismissSchema,
   DuplicateLinkSchema,
   DuplicateUserError,
+  dedupeTags,
   defaultDataDir,
   HardcoverAddSchema,
   HardcoverBooksStore,
@@ -796,8 +797,8 @@ export function createApi(options: ApiOptions = {}) {
         // Genres first: they say what the book *is*, where a tag says what it
         // was like. Content warnings are deliberately left out until there is a
         // decision about how to present them.
-        tags: [...(byCategory.Genre ?? []), ...(byCategory.Tag ?? [])],
-        moods: byCategory.Mood ?? [],
+        tags: dedupeTags([...(byCategory.Genre ?? []), ...(byCategory.Tag ?? [])]),
+        moods: dedupeTags(byCategory.Mood ?? []),
         // Their freshest slug where they answered with one; the mirror's
         // otherwise, since a slug they renamed still redirects.
         url: hardcoverBookUrl(book.slug) ?? url,

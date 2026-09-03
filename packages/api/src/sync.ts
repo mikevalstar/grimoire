@@ -225,9 +225,12 @@ export class CalibreSync {
     // its chance on the next tick rather than waiting for Calibre to change.
     // Rows against rows: two Calibre books merged into one work are still two
     // linked rows, so counting works here would never agree again after a merge.
+    // A full sync always reconciles: it is the "it looks wrong, re-sync"
+    // remedy, and how a change to what reconcile derives from the mirror
+    // reaches rows the mirror never rewrote.
     const inSync = this.books.linkedCount() === this.mirror.count();
     let reconciled: ReconcileResult = { inserted: 0, updated: 0, unlinked: 0 };
-    if (mirrored.changed || !inSync) {
+    if (full || mirrored.changed || !inSync) {
       this.progress = { phase: "reconcile", done: 0, total: null };
       reconciled = this.books.reconcileFromCalibre(this.mirror.all(), now);
     }

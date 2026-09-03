@@ -218,14 +218,14 @@ function SetSeriesBody({
 
         {replacing.length > 0 && (
           <p className="text-[13px] leading-relaxed">
-            <AlertTriangle size={13} className="mr-1 inline align-[-2px] text-amber-500" />
+            <AlertTriangle size={13} className="mr-1 inline align-[-2px] text-warning" />
             {replacing.length} book{replacing.length === 1 ? "" : "s"} already{" "}
             {replacing.length === 1 ? "has" : "have"} a different series;{" "}
             {replacing.length === 1 ? "its" : "their"} series will be replaced.
           </p>
         )}
 
-        {error && <p className="text-[13px] text-red-500">{error}</p>}
+        {error && <p className="text-[13px] text-destructive">{error}</p>}
 
         <DialogFooter>
           <Button variant="ghost" disabled={busy} onClick={() => setStep("roster")}>
@@ -287,7 +287,7 @@ function SetSeriesBody({
           )}
         </div>
 
-        {error && <p className="text-[13px] text-red-500">{error}</p>}
+        {error && <p className="text-[13px] text-destructive">{error}</p>}
 
         <DialogFooter>
           <Button variant="ghost" disabled={busy} onClick={() => setStep("choose")}>
@@ -410,7 +410,7 @@ function SetSeriesBody({
         )}
       </div>
 
-      {error && <p className="text-[13px] text-red-500">{error}</p>}
+      {error && <p className="text-[13px] text-destructive">{error}</p>}
 
       <DialogFooter>
         <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
@@ -503,7 +503,7 @@ function RosterGroup({
                 {entry.match === "title-only" && (
                   <AlertTriangle
                     size={13}
-                    className="shrink-0 text-amber-500"
+                    className="shrink-0 text-warning"
                     aria-label="Matched on title alone"
                   />
                 )}
