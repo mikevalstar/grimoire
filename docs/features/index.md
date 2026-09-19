@@ -22,6 +22,7 @@ Add one with `okq new feature "<title>"`.
 | First-run setup wizard | [first-run-setup-wizard.md](first-run-setup-wizard.md) |
 | Hardcover connection | [hardcover-connection.md](hardcover-connection.md) |
 | Hardcover sync | [hardcover-sync.md](hardcover-sync.md) |
+| Library format filter | [library-format-filter.md](library-format-filter.md) |
 | Library quick filter | [library-quick-filter.md](library-quick-filter.md) |
 | Library sort and group | [library-sort-and-group.md](library-sort-and-group.md) |
 | Library source filter | [library-source-filter.md](library-source-filter.md) |

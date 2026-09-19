@@ -33,11 +33,12 @@ format?") wants columns. Building both off one book model keeps a third view
 ## Behavior
 
 **The toolbar.** One sticky row above the library: text search, the
-[source filter](library-source-filter.md), sort, and group controls on the left;
+[source filter](library-source-filter.md), the
+[format filter](library-format-filter.md), sort, and group controls on the left;
 a three-way All / To read / Read segmented filter and the view switcher on the
 right. The read filter replaces the former result count and shows the count for
-each state. Its counts reflect the text- and source-filtered set before read
-status is applied, so switching status does not make the other choices
+each state. Its counts reflect the text-, source- and format-filtered set before
+read status is applied, so switching status does not make the other choices
 disappear. Read state is the current reader's state; until a reader is
 selected, the control stays on All and is unavailable.
 
@@ -162,12 +163,13 @@ than at Grimoire. Error shows the API's own message and hint, with a retry.
 - [x] The library renders in either a cover grid or a table, and the toolbar
       switches between them without refetching.
 - [x] The chosen view survives a reload and is per-device.
-- [x] The filter query, source filter, read filter and sort/group choice are
-      URL search parameters; a copied link reproduces the same shelf.
+- [x] The filter query, source filter, format filter, read filter and
+      sort/group choice are URL search parameters; a copied link reproduces the same shelf.
 - [x] Author names and the series name on a cover card filter the library to
       that author or series.
 - [x] The toolbar carries the [quick filter](library-quick-filter.md), the
-      [source filter](library-source-filter.md), sort, and group controls
+      [source filter](library-source-filter.md), the
+      [format filter](library-format-filter.md), sort, and group controls
       without crowding the view switcher.
 - [x] The toolbar filters the current text-search result to All, To read, or
       Read books, shows each option's count, and does not require a refetch.

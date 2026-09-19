@@ -75,6 +75,7 @@ never had. Grimoire ignores those names rather than emptying the shelf.
 
 - Whether the selection should persist per device, as the
   [view mode](book-list.md) does, or stay a per-visit choice as it is now.
-- Whether the other structured filters still to come (author, tag, format,
-  rating) should share this control's shape, and at what point a row of pills
-  beats a row of dropdowns.
+- Whether the other structured filters still to come (author, tag, rating)
+  should share this control's shape, as the
+  [format filter](library-format-filter.md) now does, and at what point a row
+  of pills beats a row of dropdowns.

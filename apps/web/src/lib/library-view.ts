@@ -23,6 +23,8 @@ export interface LibraryView extends LibraryOrder {
   q: string;
   /** Selected sources; empty is *all* (docs/features/library-source-filter.md). */
   sources: string[];
+  /** Selected file formats; empty is *all* (docs/features/library-format-filter.md). */
+  formats: string[];
   read: ReadStatusFilterValue;
 }
 
@@ -30,6 +32,7 @@ export interface LibraryView extends LibraryOrder {
 export const LIBRARY_VIEW_DEFAULTS: LibraryView = {
   q: "",
   sources: [],
+  formats: [],
   read: "all",
   sort: "title",
   dir: "asc",
@@ -44,12 +47,13 @@ const groupKeys = GROUP_OPTIONS.map((option) => option.key) as [GroupKey, ...Gro
  * catches: a hand-edited or outdated link degrades to the default rather than
  * erroring the route, and unknown parameters are dropped.
  *
- * Sources are comma-joined rather than JSON-encoded, so the URL stays readable
- * and stays a thing somebody can edit by hand.
+ * Sources and formats are comma-joined rather than JSON-encoded, so the URL
+ * stays readable and stays a thing somebody can edit by hand.
  */
 export const librarySearchSchema = z.object({
   q: z.string().catch("").optional(),
   sources: z.string().catch("").optional(),
+  formats: z.string().catch("").optional(),
   read: z.enum(["all", "to-read", "read"]).catch("all").optional(),
   sort: z.enum(sortKeys).catch("title").optional(),
   dir: z
@@ -61,6 +65,11 @@ export const librarySearchSchema = z.object({
 
 export type LibrarySearch = z.infer<typeof librarySearchSchema>;
 
+/** A comma-joined parameter back into its values; absent or blank is none. */
+function splitList(param: string | undefined): string[] {
+  return param ? param.split(",").filter(Boolean) : [];
+}
+
 /**
  * The view a URL describes, with this device's stored order under any of
  * sort/dir/group the URL doesn't name — an explicit parameter always wins, so
@@ -69,7 +78,8 @@ export type LibrarySearch = z.infer<typeof librarySearchSchema>;
 export function libraryViewFromSearch(search: LibrarySearch, stored: LibraryOrder): LibraryView {
   return {
     q: search.q ?? LIBRARY_VIEW_DEFAULTS.q,
-    sources: search.sources ? search.sources.split(",").filter(Boolean) : [],
+    sources: splitList(search.sources),
+    formats: splitList(search.formats),
     read: search.read ?? LIBRARY_VIEW_DEFAULTS.read,
     sort: search.sort ?? stored.sort,
     dir: search.dir ?? stored.dir,
@@ -90,6 +100,7 @@ export function libraryViewToSearch(view: LibraryView, orderTouched: boolean): L
   return {
     q: view.q || undefined,
     sources: view.sources.length > 0 ? view.sources.join(",") : undefined,
+    formats: view.formats.length > 0 ? view.formats.join(",") : undefined,
     read: view.read === "all" ? undefined : view.read,
     sort: orderTouched ? view.sort : undefined,
     dir: orderTouched ? view.dir : undefined,

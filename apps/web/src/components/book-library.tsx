@@ -3,6 +3,11 @@ import { useMemo, useState } from "react";
 import { BookDetailsPanel, type HardcoverContentProps } from "@/components/book-details-panel";
 import { BookGrid, BookGridSkeleton } from "@/components/book-grid";
 import { BookTable, BookTableSkeleton } from "@/components/book-table";
+import {
+  LibraryFormatFilter,
+  libraryFormats,
+  matchesFormatFilter,
+} from "@/components/library-format-filter";
 import { GroupMenu, SortMenu } from "@/components/library-order-menus";
 import { LibraryQuickFilter } from "@/components/library-quick-filter";
 import {
@@ -167,9 +172,9 @@ export function BookLibrary({
     changeShelf({ patch: { q: filterTerm(field, value) }, push: true });
   };
 
-  // The toolbar filters in a fixed order — text, then source, then read status —
-  // so each control's counts describe what the ones before it left
-  // (docs/features/library-source-filter.md).
+  // The toolbar filters in a fixed order — text, then source, then format,
+  // then read status — so each control's counts describe what the ones before
+  // it left (docs/features/library-source-filter.md).
   const sources = useMemo(() => librarySources(books), [books]);
   // A URL can name sources this library doesn't hold — a link shared out of a
   // mixed library, opened against a Calibre-only one — and the filter is hidden
@@ -188,20 +193,33 @@ export function BookLibrary({
         : searchedBooks.filter((book) => matchesSourceFilter(book, selectedSources)),
     [searchedBooks, selectedSources],
   );
+  // Same shape, same reasoning, for formats (docs/features/library-format-filter.md).
+  const formats = useMemo(() => libraryFormats(books), [books]);
+  const selectedFormats = useMemo(
+    () => (formats.length < 2 ? [] : shelf.formats.filter((format) => formats.includes(format))),
+    [shelf.formats, formats],
+  );
+  const formattedBooks = useMemo(
+    () =>
+      selectedFormats.length === 0
+        ? sourcedBooks
+        : sourcedBooks.filter((book) => matchesFormatFilter(book, selectedFormats)),
+    [sourcedBooks, selectedFormats],
+  );
 
   const effectiveReadFilter = isRead ? shelf.read : "all";
   const readStatusCounts = useMemo(
     () => ({
-      all: sourcedBooks.length,
-      "to-read": isRead ? sourcedBooks.filter((book) => !isRead(book)).length : 0,
-      read: isRead ? sourcedBooks.filter(isRead).length : 0,
+      all: formattedBooks.length,
+      "to-read": isRead ? formattedBooks.filter((book) => !isRead(book)).length : 0,
+      read: isRead ? formattedBooks.filter(isRead).length : 0,
     }),
-    [sourcedBooks, isRead],
+    [formattedBooks, isRead],
   );
   const shownBooks = useMemo(() => {
-    if (!isRead || effectiveReadFilter === "all") return sourcedBooks;
-    return sourcedBooks.filter((book) => isRead(book) === (effectiveReadFilter === "read"));
-  }, [sourcedBooks, isRead, effectiveReadFilter]);
+    if (!isRead || effectiveReadFilter === "all") return formattedBooks;
+    return formattedBooks.filter((book) => isRead(book) === (effectiveReadFilter === "read"));
+  }, [formattedBooks, isRead, effectiveReadFilter]);
   const relevance = useMemo(
     () => (ranked ? new Map(ranked.map((entry) => [entry.book.id, entry.score])) : null),
     [ranked],
@@ -267,6 +285,12 @@ export function BookLibrary({
             value={selectedSources}
             onValueChange={(next) => changeShelf({ patch: { sources: next }, push: true })}
           />
+          {/* Likewise absent in a single-format library. */}
+          <LibraryFormatFilter
+            formats={formats}
+            value={selectedFormats}
+            onValueChange={(next) => changeShelf({ patch: { formats: next }, push: true })}
+          />
           <SortMenu order={order} onOrder={(next) => changeShelf({ patch: next, push: true })} />
           {/* The read-state groupings mean nothing until someone's marks exist. */}
           <GroupMenu
@@ -302,6 +326,7 @@ export function BookLibrary({
             filter={parsed}
             readFilter={effectiveReadFilter}
             sourceFiltered={selectedSources.length > 0}
+            formatFiltered={selectedFormats.length > 0}
           />
         ) : view === "covers" ? (
           <BookGrid
@@ -379,14 +404,20 @@ function LibraryNoMatches({
   filter,
   readFilter,
   sourceFiltered,
+  formatFiltered,
 }: {
   filter: ParsedFilter;
   readFilter: ReadStatusFilterValue;
   sourceFiltered: boolean;
+  formatFiltered: boolean;
 }) {
   const status = readFilter === "read" ? "read" : readFilter === "to-read" ? "to read" : null;
   const marked = status ? `marked ${status} ` : "";
-  const where = sourceFiltered ? " in the selected sources" : "";
+  const narrowed = [
+    sourceFiltered ? "the selected sources" : null,
+    formatFiltered ? "the selected formats" : null,
+  ].filter((part) => part !== null);
+  const where = narrowed.length > 0 ? ` in ${narrowed.join(" and ")}` : "";
   // The terms as they were understood, rather than the raw query — a filter
   // that parsed differently from how it was typed should say so.
   const described = describeFilter(filter);
@@ -396,7 +427,7 @@ function LibraryNoMatches({
   } else if (status) {
     reason = `There are no books marked ${status}${where}.`;
   } else {
-    reason = "There are no books from the selected sources.";
+    reason = `There are no books${where}.`;
   }
   return (
     <div className="py-24 text-center">
